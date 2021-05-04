@@ -1,0 +1,74 @@
+---
+title: "showtext"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 벡터 이미지와 PDF에서 한글 폰트 사용하기
+
+데이터 분석 보고서를 작성할 때는 R이나 R-Studio에서 작성한 플롯을 사용해야 하는 경우가 많다. R-Studio에서는 Plot 패널(일반적으로 오른쪽 하단)에 플롯이 표현된다.
+
+플롯 패널에서는 Export 메뉴에 다음과 같이 Save as Image, Save as PDF, Copy to Clipboard의 세 가지 메뉴를 제공한다.
+
+![](C:/Users/estnd/AppData/Local/RStudio/tmp/paste-0BEC2E04.png)
+
+이 세가지 메뉴에서는 다양한 파일 포맷으로 플롯을 저장하여 활용할 수 있다. R-Studio에서 제공하는 파일 포맷은 크게 벡터(Vector) 타입 이미지 파일과 래스터(Raster) 타입 이미지 파일로 나눌 수 있다.
+
+-   벡터 타입 이미지 파일 : 이미지의 내부 저장시에 수학 방정식을 기반으로 하는 점, 직선, 곡선, 다각형과 같은 물체를 사용하는 것을 말한다. 벡터 타입 이미지는 확대를 해도 이미지가 깨지지 않고 보인다는 장점이 있지만 손으로 직접 그린 것과 같이 수학 방정식으로 표현이 어려운 도형은 표현이 어렵다는 단점이 있다. 벡터 타입 이미지 파일 포맷은 2차원 벡터 포맷으로 svg, AI, GEM 메타파일, PPT, WMF, EMF, XPS 등이 있고 3차원 벡터 포맷으로 dwg, 3ds, xgl 등이 있으며 복합 파일 포맷으로 eps, pdf, ps 등이 있다.
+
+-   래스터 타입 이미지 파일 : 이미지의 내부 저장시에 각각의 픽셀에 대한 색상 정보를 저장함으로써 이미지를 표현하는 방식을 말한다. 래스터 타입 이미지는 사용자가 직접 그린 그림을 그린 그대로 표현한다는 장점이 있지만 그림을 확대하면 픽셀이 확대되어 이미지가 깨지는 것처럼 보인다는 단점이 있다. 래스터 타입 파일 포맷은 jpg, tiff, gif, bmp, png 등이 있다.
+
+위에서 언급한 바와 같이 래스터 타입 이미지 파일은 화면에 표현되는 이미지를 픽셀 단위로 이미지화 했기 때문에 어떤 폰트가 표현되더라도 이미지로 저장된 파일에서 정상적으로 폰트가 표현된다. 그러나 벡터 타입 이미지 파일에서는 텍스트와 폰트명이 전달되기 때문에 폰트 설정이 잘못되는 경우 폰트가 깨져서 나오는 경우가 있다.
+
+일반적인 A4 크기의 보고서를 작성하는 경우는 래스터 타입 이미지 파일을 사용한다고 해도 크게 어색하지 않지만 출판용 문서를 작성하거나 R-Studio에서 작성된 플롯을 타 이미지 편집 프로그램을 사용하여 편집하기 위해서는 벡터 타입 이미지로 저장하거나 PDF 문서로 저장하여 사용하여야 한다. 이 경우 자주 겪게 되는 문제가 한글 폰트가 깨진다는 점이다.
+
+아래의 플롯 생성하고 R-Studio에서 PDF로 저장한 결과를 보자.
+
+```{r pressure}
+library(ggplot2)
+ggplot(pressure, aes(x = temperature, y = pressure)) + 
+  geom_point() + 
+  labs(title = 'PDF 사용 예제 플롯', x = '온도', y = '압력')
+```
+
+![](C:/Users/estnd/AppData/Local/RStudio/tmp/paste-E894A99A.png)
+
+위에서 보듯이 한글 폰트가 깨져서 나오게 된다. 이렇게 한글이 깨지는 것은 PDF 포맷만이 아니고 벡터타입 이미지는 다 깨지지만 래스터 타입의 이미지에서는 정상적으로 나온다.
+
+그럼 래스터 이미지 포맷을 쓰면 되지 않을까? 하지만 위의 제목에서도 보이듯이 영문과 한글의 사이즈가 달라 매우 어색해 보인다. 이런 경우 외부 그래픽 편집 프로그램에서 편집해야하는데 이럴때 벡터 이미지 포맷이 사용되는데 문제는 한글이 다 깨진다는 점이다.
+
+이런 경우는 한글 폰트 뿐만 아니라 R에서 제공하는 표준 폰트가 아닌 폰트를 사용하는 경우 발생한다. 얼마전까지는 이런 문제를 해결하기 위해 PDF의 ttf(True Type Font)의 처리를 위주로 개발된 `extrafont` 패키지를 사용해서 해결했다. 하지만 최근에는 대부분의 벡터 타입 이미지를 지원하는 `showtext` 패키지의 `showtext_auto()`를 사용하면 PDF 포맷은 물론 벡터 타입 이미지의 한글 깨짐 현상을 방지할 수 있다.
+
+```{r showtext, message=FALSE, warning=FALSE}
+if(!require(showtext)) {
+  install.packages('showtext')
+  library(showtext)
+}
+
+showtext_auto()
+
+```
+
+R-Studio의 플롯 패널에 보이는 한글도 이전보다 훨씬 보기 좋게 나온다.
+
+![](C:/Users/estnd/AppData/Local/RStudio/tmp/paste-7D8C9E0A.png)
+
+PDF로 저장 후에도 정상적으로 한글이 나온다.
+
+![](C:/Users/estnd/AppData/Local/RStudio/tmp/paste-6FB84A7D.png)
+
+다음은 위의 플롯의 한글 폰트를 나눔손글씨 펜 폰트로 바꾸어 그리는 코드이다.
+
+```{r nanum, eval=FALSE}
+font_add(family = "나눔손글씨 펜", regular = '폰트설치 폴더/NANUMPEN.TTF')
+
+ggplot(pressure, aes(x = temperature, y = pressure)) + 
+  geom_point() + 
+  labs(title = 'PDF 사용 예제 플롯', x = '온도', y = '압력') + 
+  theme(text=element_text(size=16, family="나눔손글씨 펜"))
+```
+
+![](C:/Users/estnd/AppData/Local/RStudio/tmp/paste-FC391240.png)
