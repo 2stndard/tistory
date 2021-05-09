@@ -1,0 +1,77 @@
+---
+title: "ggplot의 X, Y축 숫자 포맷 설정"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+```
+
+`ggplot`으로 플롯을 작성할 때 가끔 만나는 문제가 X축이나 Y축의 숫자인 label이 원하는 포맷으로 나오지 않을 때가 있다는 점이다.
+
+`ggplot`의 X, Y축 label 표현은 십만(10\^6)부터 정수형 표기가 아닌 지수형 표기로 바뀐다. 하지만 이런 지수형 표기는 읽기가 쉽지 않아 정수형 표기로 바꾸어야 할 필요가 있다.
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+if(!require(gapminder)) {
+  install.packages('gapminder')
+  library(gapminder)
+}
+
+gapminder %>%
+  ggplot(aes(x = lifeExp, y = pop, color = continent)) + 
+  geom_point()
+```
+
+위의 플롯은 gapminder 데이터 세트를 대륙별로 그룹핑한 후 인구수에 대한 평균을 나타낸 플롯이다. 플롯에서도 보이지만 가로축인 Y축의 라벨 값이 지수형태로 표기되어 있다. 지수형태로 표현된 Y축의 라벨을 고치기 위해서는 `scales` 패키지를 사용하여 다음과 같이 두가지 방법을 사용할 수 있다.
+
+**1. scales\_\* 함수에 미리 정의된 숫자 포맷 지정**
+
+ggplot에서 X축과 Y축의 형태를 변경할 수 있는 함수로 scale\_\* 함수가 사용된다. 이 함수에서 사용하는 매개변수인 `labels`는 X, Y축에서 표현되는 라벨의 표현 형태를 설정하는데 사용한다. 따라서 `labels` 매개변수를 `scales` 패키지에서 제공하는 포맷 지정 함수 중 적절한 함수를 지정해주면 표현되는 숫자의 형태가 변경된다.
+
+`scales` 패키지에 `labels`에 설정할 수 있는 유용한 함수는 다음과 같다.
+
+-   number : 숫자 포맷으로 표현되나 천단위 구분에 빈칸을 사용하는 포맷
+
+-   comma : 숫자 포맷으로 천단위 구분 기호로 콤마(,)를 사용하는 포맷
+
+-   percent : 백분률 포맷으로 원값에 100을 곱한 값이 표시되며 접미어에 '%'가 붙음
+
+-   dollar : 달러 통화 포맷으로 접두사에 '\$'가 붙음
+
+-   scientific : 과학적 포맷으로 지수형태의 표기
+
+```{r 01}
+gapminder %>%
+  ggplot(aes(x = lifeExp, y = pop, color = continent)) + 
+  geom_point() + 
+  scale_y_continuous(labels = scales::comma)
+```
+
+여기서 하나 중요한 것은 포맷을 지정하는 `scales` 패키지의 함수를 설정할 때 일반적인 함수를 호출할 때 처럼 ()를 붙이면 안된다는 것이다. 이유는? 잘 모르겠지만 ()붙이면 에러가 난다.
+
+**2. scales\_\* 함수에 숫자 포맷을 직접 설정**
+
+다음으로 사용할 수 있는 방법은 앞선 사전 정의 포맷을 사용하는 대신 사용자가 직접 축 라벨에 사용될 포맷을 설정하는 방법이다. 포맷 설정에 사용하는 `sacles` 패키지의 함수는 `number_format()`이다. `number_format()`의 매개변수들을 적절히 설정함으로써 사용자가 원하는 형태의 숫자 형태로 출력이 가능하다.
+
+```{r}
+gapminder %>%
+  ggplot(aes(x = lifeExp, y = pop, color = continent)) + 
+  geom_point() + 
+  scale_y_continuous(labels = scales::number_format(big.mark = ','))
+```
+
+다음은 `number_format()`에서 사용하는 매개변수와 그 설명이다.
+
+-   accuracy : 반올림 되어 표기될 숫자의 유효숫자 범위를 지정. 예를 들어 0.01로 설정하면 소수점 세째자리에서 반올림하여 소수점 두쨰자리까지 표시됨.
+
+-   scale : 스케일 팩터를 지정. 표기될 숫자는 포맷팅 되기 전에 스케일 팩터가 곱해짐. 수치값이 매우 작거나 매우 클때 유용함.
+
+-   prefix : 숫자의 앞 에 표시될 문자 지정
+
+-   sufix : 숫자의 뒤에 표시될 문자 지정
+
+-   big.mark : 매 3자리(천단위)마다 표시될 문자 지정
+
+-   decimal.mark : 소수점으로 표시될 문자 지정

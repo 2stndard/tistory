@@ -1,0 +1,63 @@
+<h2 data-ke-size="size26"><code>ggplot</code>의 X, Y축 숫자 포맷 설정</h2>
+<p data-ke-size="size18"><code>ggplot</code>으로 플롯을 작성할 때 가끔 만나는 문제가 X축이나 Y축의 숫자인 label이 원하는 포맷으로 나오지 않을 때가 있다는 점이다.</p>
+<p data-ke-size="size18"><code>ggplot</code>은 X, Y축 label 표현은 십만(10^6)부터 정수형 표기가 아닌 지수형 표기로 바뀐다. 하지만 이런 지수형 표기는 읽기가 쉽지 않아 정수형 표기로 바꾸어야 할 필요가 있다.</p>
+<pre class="language-r"><code>library(tidyverse)
+library(ggplot2)
+if(!require(gapminder)) {
+  install.packages(&#39;gapminder&#39;)
+  library(gapminder)
+}
+
+gapminder %&gt;%
+  group_by(continent) %&gt;%
+  summarise(total = mean(pop)) %&gt;%
+  ggplot(aes(x = continent, y = total)) + 
+  geom_point()</code></pre>
+<p data-ke-size="size18"><img src="ggplot_label_format_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<p data-ke-size="size18">위의 플롯은 gapminder 데이터 세트를 대륙별로 그룹핑한 후 인구수에 대한 평균을 나타낸 플롯이다. 플롯에서도 보이지만 가로축인 Y축의 라벨 값이 지수형태로 표기되어 있다. 지수형태로 표현된 Y축의 라벨을 고치기 위해서는 <code>scales</code> 패키지를 사용하여 다음과 같이 두가지 방법을 사용할 수 있다.</p>
+<ol style="list-style-type: decimal">
+<li>scales_* 함수에 포맷을 지정</li>
+</ol>
+<p data-ke-size="size18">ggplot에서 X축과 Y축의 형태를 변경할 수 있는 함수로 scale_* 함수가 사용된다. 이 함수에서 사용하는 매개변수인 <code>labels</code>는 X, Y축에서 표현되는 라벨의 표현 형태를 설정하는데 사용한다. 따라서 <code>labels</code> 매개변수를 <code>scales</code> 패키지에서 제공하는 포맷 지정 함수중 적절한 함수를 지정해주면 표현되는 숫자의 형태가 변경된다.</p>
+<pre class="language-r"><code>library(scales)
+gapminder %&gt;%
+  ggplot(aes(x = lifeExp, y = pop, color = continent)) + 
+  geom_point() + 
+  scale_y_continuous(labels = comma)</code></pre>
+<p data-ke-size="size18"><img src="ggplot_label_format_files/figure-html/01-1.png" width="672" /></p>
+<p data-ke-size="size18">여기서 하나 중요한 것은 포맷을 지정하는 <code>scales</code> 패키지의 함수를 설정할 때 일반적인 함수를 호출할 때 처럼 ()를 붙이면 안된다는 것이다. 이유는? 잘 모르겠지만 ()붙이면 에러가 난다. 다만 두번째 방법에서는 사용할 수 있다.</p>
+<p data-ke-size="size18"><code>scales</code> 패키지에 <code>labels</code>에 설정할 수 있는 유용한 함수는 다음과 같다.</p>
+<table>
+<thead>
+<tr class="header">
+<th>함수명</th>
+<th>설명</th>
+<th>함수명</th>
+<th>설명</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>comma</td>
+<td>천단위 구분자가 있는 숫자</td>
+<td>number</td>
+<td>숫자이나 천단위 구분자에 빈칸이 있음</td>
+</tr>
+<tr class="even">
+<td>percent</td>
+<td>숫자 뒤에 백분률(%) 기호</td>
+<td>dollar</td>
+<td>숫자 앞에 달러 기호</td>
+</tr>
+<tr class="odd">
+<td>scientific</td>
+<td>지수형태의 숫자</td>
+<td>ks</td>
+<td>k,</td>
+</tr>
+</tbody>
+</table>
+
+
+
+

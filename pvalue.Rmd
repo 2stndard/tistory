@@ -1,0 +1,107 @@
+---
+title: "p값 추출과 p값 표현법"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## p값이란?
+
+p값(p value)은 가설 검정에서 사용하는 값으로 유의 확률이라고 불리는 값이다. p 값은 귀무가설이 참이라는 가정하에 귀무가설이 발생할 확률이기 때문에 0에서 1사이의 값을 가진다.  보통 0.05를 임계치로 많이 활용하는데 사실 0.05라는 임계치의 과학적 근거는 없다고 알려져 있는데 가끔 0.1을 사용하는 경우도 있다.
+0.05라는 수치는 p 값을 처음 제안한, 통계학의 아버지라고 일컬어지는 '로날드 피셔'(Ronald A. Fisher)가 0.05를 처음 사용했기 때문에 지금까지 관행적으로 사용되고 있는 임계치이다. 만약 피셔가 0.1을 사용했다면 지금까지 우리는 0.1을 임계치로 사용하고 있을지도 모른다. 
+최근 임계치인 0.05가 너무 크다고하여 0.005를 사용하자는 움직임이 있기는하다. 하지만 아직까는 0.05가 많이 사용되고 있다. 
+
+p값이 0.05보다 작게 나오는 경우에는 귀무가설이 발생될 확률이 0.05보다 작기 때문에 귀무가설을 기각하고 대립가설을 채택한다. 
+
+## p값의 표현
+
+p값을 리포팅 할때는 각 논문지마다 가이드라인이 조금씩 다르다. 
+
+미국 심리학회(American Psychological Association)에서 제안하고 있는 p값의 표기방법은 다음과 같다. (APA Style Checklist
+(Updated for APA Style 7th Edition), https://cdn.ymaws.com/www.psichi.org/resource/resmgr/pdfs/APAStyleManuscriptChecklist.pdf)
+
+1. APA에서는 p값이 0.001보다 작은 경우외에는 = 기호를 써서 p값을 정확하게 제시해야함.
+2. 모든 F값과 p값은 effect size를 기술해야함
+3. 소수점 앞의 0은 생략해야함
+4. 0.001보다 작은 경우가 아니라면 반올림된 소수점 두째자리까지 표현되어야 함.
+
+또 p값을 테이블이나 그래프에 표현할 때에는 각주(footnote)의 형태로 별표(*)의 개수로 표현하기도 한다. 
+
+## p값의 산출
+
+그럼 R에서 p값은 어떻게 산출할 수 있는가? p값을 산출하기 위해 간단한 선형회귀 모델을 먼저 만들어보자. 
+
+```{r lm}
+library(ggplot2)
+model.lm <- lm(price ~ carat, diamonds)
+```
+
+### 1. summary() 사용
+보통 `summary()`를 사용하여 모델의 세부 정보를 확인하면 모델에서 산출된 p값을 R에서 확인할 수있다. 
+
+```{r lm0}
+summary(model.lm)
+```
+
+`summary()`의 결과를 보면 회귀 방정식 전체의 유의성에 해당하는 F 검정값은 3.041e+05로 계산되었고 이에 대한 p-value는 2.2e-16보다 작게 계산되었다. 따라서 F 검정값의 p값이 0.05보다 작으니 전체적인 회귀 방정식은 통계적으로 유의미하다고 볼 수 있다. 
+또한 회귀 방정식을 구성하는 상수와 계수에 대한 t 검정값은 각각 -172.8과 551.4로 계산되었고 각각의 p값(Pr(>|t|))이 모두 0.05보다 작으니 상수와 계수도 통계적으로 유의미하다고 볼 수 있다. 
+
+### 2. broom::tidy() 사용
+
+broom 패키지에서는 모델의 전체적인 계수와 정보를 제공해주는 `glance()`와 `tidy()`를 제공한다. 
+
+```{r lm1}
+broom::glance(model.lm)
+(tidy.coef.model.lm <- broom::tidy(model.lm))
+```
+
+`summary()`의 결과로 반환되는 객체는 summary class이기 때문에 바로 정보를 사용하는데 불편이 있는데 반해 `tidy()`나 `glance()`의 결과로 반환되는 객체가 데이터프레임처럼 사용이 가능한 tibble객체이기 때문에 바로 활용할 수 있다는 장점이 있다. 
+
+## p값의 추출
+
+앞서 계산된 회귀모델의 y절편(intercept 계수)값과 기울기(carat의 선형 계수)에 대한 p값은 2e-16보다 작은 값이기 때문에 APA 가이드라인에 따라 p<0.001로 표기하면 되는데 R에서 표기해주는 방법과 p값의 리포팅 포맷이 다르기 때문에 표기법을 바꾸어줄 필요가 있다. 바꾸려면 먼저 값을 추출해야 한다. 
+
+그럼 y절편과 기울기에 대한 p값을 어떻게 추출할 것인가?
+
+몇가지 방법이 있다. 
+
+### 1. coefficients() 사용
+R의 기본패키지인 ststs 패키지에서는 모델의 계수를 데이터프레임으로 추출해주는 함수인 `coefficients()`를 제공한다.
+앞서 언급한 바와 같이 `summary()`를 통해 반환된 summary class는 `coefficients()`를 통해 계수들이 저장된 데이터 프레임을 생성한 후 사용하는 것이 편리하다. 하지만 broom::tidy()를 통해 산출된 결과는 계수값이 바로 tibble 객체로 저장되기 때문에 `coefficients()`를 적용할 필요가 없다. 
+```{r coefficients}
+coefficients(model.lm)
+coefficients(summary(model.lm))
+```
+이렇게 얻어진 데이터프레임의 4번째 열에는 상수와 계수들의 p값이 저장되는데 이 열을 사용하면 각각의 p값에 접근할 수 있다. 
+```{r coefficients1}
+coef.model.lm <- coefficients(summary(model.lm))
+coef.model.lm[,4]
+```
+
+### 2. scales::pvalue() 사용
+
+앞선 `coefficients()`는 매우 작은 p값은 그냥 0으로 출력해 준다. 하지만 APA 가이드라인에서 설명했듯이 p값이 0.001보다 작을 때는 'p<0.001'로 표기해줘야한다. 이렇게 표기된 결과를 얻기 위해서는 scales 패키지에서 제공하는 `pvalue()`를 사용할 수 있다. 
+
+```{r scales::pvalue}
+scales::pvalue(coef.model.lm[,4])
+scales::pvalue(tidy.coef.model.lm$p.value)
+```
+
+### 3. stars.pval() 사용
+
+p값을 표나 그래프에 표기하기 위해서는 별표를 사용한 각주형태로 사용하여야 한다. p값을 보고 일일이 별표로 변환하기 보다는 gtools 패키지에서 제공하는 stars.pval()를 사용할 수 있다. 
+
+```{r stars}
+if(!require(gtools)) {
+  install.packages('gtools')
+  library(gtools)  
+}
+stars.pval(coef.model.lm[,4])
+stars.pval(tidy.coef.model.lm$p.value)
+```
+
+
+
+

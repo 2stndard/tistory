@@ -1,0 +1,36 @@
+---
+title: "tidyverse의 파이프(%>%)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## magrittr
+
+`tidyverse` 생태계(echosystem)의 일부인 `magrittr` 패키지는 코드를 다음과 같은 방법을 통해 보다 읽기 쉽게 만들어주는 연산자(operator)를 제공하는 패키지이다.
+
+-   왼쪽에서 오른쪽으로 데이터 작업이 이루어지는 구조화 시퀀스
+
+-   중첩 함수 호출의 방지
+
+-   로컬 변수와 함수 호출의 최소화
+
+-   코드안의 어디서든 작업 시퀀스를 추가할 수 있는 쉬운 방법의 제공
+
+## 파이프란?
+
+파이프(%\>%)는 파이프의 왼쪽에 기술 객체(Object) 또는 함수의 실행 결과 객체를 오른쪽에 기술된 함수의 첫번째 매개변수로 전달하는 연산자이다.
+
+```{r pressure, message=FALSE, warning=FALSE}
+library(tidyverse)
+## 파이프를 이용한 코드
+diamonds %>%
+  arrange(carat)
+
+## 파이프를 사용하지 않고 위의 코드와 동일한 코드
+arrange(diamonds, carat)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
