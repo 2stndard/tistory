@@ -1,19 +1,31 @@
----
----
+## ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## relocate
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+R의 데이터 프레임에서 작업 시에 데이터 프레임의 칼럼의 순서가 구조 때문에 데이터의 전체적인 구조나 처리가 어려움을 겪는때가 있다. 이런 경우 칼럼의 순서를 바꾸어 새로운 데이터 프레임을 만들거나 기존의 데이터 프레임에 엎어 쓰고 작업한다. 칼럼이 몇개 되지 않는 경우에는 `dplyr`의 `select`를 이용하여 간단히 칼럼의 순서를 바꿀 수 있지만 칼럼 수가 많은 데이터 프레임의 경우에는 작업이 수월하지 않다.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+이런 경우 사용할 수 있는 함수가 `relocate`이다.
 
-```{r cars}
-summary(cars)
+```{r packages, message=FALSE}
+install.packages('gapminder')
+library(gapminder)
+library(dplyr)
+
 ```
+
+`relocate`를 실행하기 위해 `dplyr` 패키지와 샘플 데이터 셋 패키지인 `datasets` 패키지를 로딩한다. 
+`datasets` 패키지의 샘플 데이터 셋 중에 `mcars` 데이터 셋을 사용한다. 
+
+```{r mcars}
+read.csv('./2019_kbo_for_kaggle_v2.csv', header = TRUE, stringsAsFactors = TRUE, fileEncoding = "UTF-8")
+gapminder
+```
+
+
 
 ## Including Plots
 
