@@ -1,0 +1,58 @@
+## ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 데이터 생성과 처리 with DataEditR
+
+R에서 데이터를 생성할 때는 주로 엑셀이나 DB에 저장된 데이터를 읽어들여서 사용하는 방법을 일반적으로 사용한다. 하지만 R에서 데이터를 직접 생성하거나 일부 데이터를 삽입, 변경, 삭제하는 경우에는 코드를 생성하여 실행하고 결과를 확인해야 하기 때문에 GUI(Graphic User Interface)에 익숙한 사용자에게는 불편하게 느껴지는 것이 사실이다. 데이터를 다루는 사람들은 엑셀과 같은 스프레드 쉬트를 사용할 수 있는 사람들이 대부분이고 스프레드 쉬트에 익숙해져 있기 때문에 이런 환경을 R에서도 사용할 수 있었으면 하는 사용자가 많이 있을 것이다. 이런 사용자의 요구를 지원해 주는 R 패키지가 몇 개 존재하는데 이 중 DataEditR을 소개한다.
+
+DataEditR은 R에서 데이터의 삽입, 삭제, 필터링, 편집 등의 작업을 대화식 GUI 방식으로 구현한 Shiny 기반의 패키지이다. DataEditR 패키지는 `data_edit()`를 사용하여 데이터를 처리 할 수 있다.
+
+### 패키지 설치
+
+DataEditR 패키지를 사용하기 위해서는 먼저 DataEditR 패키지를 설치해야 한다.
+
+DataEditR 패키지를 CRAN에서 설치하기 위해서는 다음과 같이 실행한다.
+
+```{r cran, eval=FALSE}
+install.packages("DataEditR")
+library(DataEditR)
+```
+
+만약 CRAN이 아닌 Github에서 설치하기 위해서는 다음과 같이 설치할 수 있다.
+
+```{r github, eval=FALSE}
+devtools::install_github("DillonHammill/DataEditR")
+```
+
+```{r library}
+library(DataEditR)
+```
+
+
+### 데이터 보기
+
+DataEditR 패키지를 사용하여 GUI 방식으로 데이터를 보기 위해서는 `data_edit()`를 사용한다.
+
+```{r visualization1, eval=FALSE}
+data_edit(mtcars)
+```
+
+`data_edit()`를 사용하면 다음과 같은 Data Editor 화면이 나타나고 `mtcars`의 데이터가 보인다.
+
+
+Data Editor는 기본적으로 R-Studio의 Dialog Box로 실행된다. 하지만 R-Studio의 View Panel이나 웹 브라우져에서 실행할 수도 있다.
+
+```{r visualization2, eval=FALSE}
+data_edit(mtcars, viewer = "browser")  ##  웹 브라우저에서 Data Editor 실행
+
+data_edit(mtcars, viewer = "viewer")  ##  View panel에서 Data Editor 실행
+
+```
+
+Data Editor는 데이터를 테이블 형태로 표현하는데 맨 왼쪽 열에는 행 인덱스가 표시되고 오른쪽으로 각각의 열 이름과 함께 데이터가 표시됩니다.
+
+Data Editor의 맨 위에는 Data Editor를 닫을 수 있는 버튼이 양쪽에 배치되는데 'Done' 버튼은 Data Editor를 마치고 나갈때 사용하는 버튼이고 'Cancel' 버튼은 마찬가지로 나갈때 사용하는 버튼이지만 수정된 내용이 저장되지 않고 빠져나가게 된다.
+
