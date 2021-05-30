@@ -1,5 +1,4 @@
 ---
-title: "tidyverse의 파이프(%>%)"
 output: html_document
 ---
 
@@ -19,18 +18,126 @@ knitr::opts_chunk$set(echo = TRUE)
 
 -   코드안의 어디서든 작업 시퀀스를 추가할 수 있는 쉬운 방법의 제공
 
-## 파이프란?
+## 파이프(%>%)란?
 
-파이프(%\>%)는 파이프의 왼쪽에 기술 객체(Object) 또는 함수의 실행 결과 객체를 오른쪽에 기술된 함수의 첫번째 매개변수로 전달하는 연산자이다.
+`magrittr` 패키지에서 추구하는 짧은 코드, 읽기 쉬운 코드를 구현하기 위해 가장 핵심적으로 사용하는 기능이 바로 `%>%`로 표현되는 파이프 연산자이다. 이 파이프 연산자는 다음과 같은 기능을 통해 `magrittr`의 목표를 달성하게 한다. 파이프 연산자를 사용하기 위해서는 먼저 `magrittr` 패키지를 로딩해야 한다.
 
-```{r pressure, message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE}
 library(tidyverse)
+```
+
+파이프 연산자는 다음과 같이 사용할 수 있다.
+
+### 1. 첫번째 매개변수로 전달
+
+파이프(`%\>%`)는 파이프의 왼쪽(Left-Hand Side, LHS)에 기술된 객체(Object) 또는 함수의 실행 결과 객체를 오른(Right-Hand Side, RHS)쪽에 기술된 함수의 첫번째 매개변수로 전달하는 역할을 한다. 아래의 코드는 diamonds 데이터프레임을 파이프를 통해 `arrange`의 첫번째 매개변수로 전달하게 되며 결국 carat 열을 기준으로 정렬한 결과를 출력하게 된다.
+
+```{r message=FALSE, warning=FALSE}
 ## 파이프를 이용한 코드
 diamonds %>%
   arrange(carat)
+```
 
+위의 코드는 아래의 코드와 동일하다. 하지만 코드를 보다 쉽게 이해할 수 있게 코딩할 수 있다.
+
+```{r message=FALSE, warning=FALSE}
 ## 파이프를 사용하지 않고 위의 코드와 동일한 코드
 arrange(diamonds, carat)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### 2. 중첩된 함수 사용을 방지
+
+위의 코드와 같이 하나의 파이프 연산자를 사용한 코드는 함수의 중첩이라기 보다는 오히려 함수 호출을 위한 매개변수처럼 보이지만 두개이상의 함수를 연달아 사용하는 경우는 코드를 이해하기가 어려워진다.
+
+```{r message=FALSE, warning=FALSE}
+## 파이프를 이용한 코드
+diamonds %>%
+  filter(cut == 'Good') %>%
+  select(carat, cut, color, clarity) %>%
+  arrange(carat)
+```
+
+위의 코드와 같이 세개 이상의 코드가 파이프로 연결되는 경우는 파이프 연산자를 사용하면 순서대로 이해하기가 편하지만 아래와 같이 중첩 함수의 형태로 사용된다면 이해하기도 어렵고 코딩하기도 어려워진다.
+
+```{r message=FALSE, warning=FALSE}
+## 함수 중첩을 이용한 코드
+
+arrange(select(filter(diamonds, cut == 'Good'), carat, cut, color, clarity), carat)
+```
+
+### 3. `.` 의 사용
+
+파이프 연산자를 사용할 때 간혹 RHS의 첫번째 매개변수 위치가 아닌 다른 위치에 LHS를 사용해야 할 때가 있다. 이때는 LHS가 들어가야할 위치에 `.`을 표기함으로써 LHS를 사용할 수 있다.
+
+```{r message=FALSE, warning=FALSE}
+## .을 사용한 파이프의 예
+
+diamonds %>%
+  filter(cut == 'Good') %>%
+  aggregate(. ~ color, data = ., FUN = . %>% mean %>% round(2))
+```
+
+위의 코드는 diamonds 데이터 프레임을 먼저 cut이 'Good'인 데이터만 필터링 한 후, color 열을 기준으로 모든 열의 평균값을 구해서 소수점 2자리에서 반올림한 결과를 산출하는 코드이다.
+
+세번째 라인의 코드에서 .은 세번 등장하는데 파이프를 통해 산출된 LHS를 사용하는 `.`은 두번째와 세번째이다. 두번째 `.`은 `data` 매개변수로 앞서 파이프로 산출된 cut이 'Good'인 데이터를 `data` 매개변수로 사용한다는 의미이고 세번째 `.`은 함수정의(`FUN`)의 매개변수로 앞서 파이프로 산출된 cut이 'Good'인 데이터의 평균을 구하고 이를 소수점 두번째 자리에서 반올림하는 함수를 정의하는 코드이다.
+
+여기서 주의해야 할 것은 첫번째 `.`인데 이 `.`은 파이프 연산자의 결과를 가져오는 .를 의미하는 것이 아니고 함수식에서 사용하는 `.`으로 전체 열을 의미한다. 결국 이 코드를 파이프 연산자 없이 코딩하면 다음과 같다.
+
+```{r message=FALSE, warning=FALSE}
+##파이프 없는 코딩
+
+aggregate(. ~ color, data = filter(diamonds, cut == 'Good'), FUN = function(x) round(mean(x), 2))
+```
+
+### 4. 빈괄호나 함수명만 사용
+
+앞선 예에서 파이프 연산자를 통해 전달하는 RHS는 모두 두개 이상의 매개변수가 필요한 함수였고 파이프 연산자로 생성되는 LHS는 RHS의 첫번째 매개변수로 전달되었다. 하지만 RHS에 단 하나의 매개변수만이 필요한 경우는 빈 ()를 사용하거나, 함수명만 사용하거나, `.`을 사용해서 코딩할 수 있다. 
+
+```{r message=FALSE, warning=FALSE}
+diamonds %>%
+  filter(cut == 'Good') %>%
+  aggregate(. ~ color, data = ., FUN = . %>% mean %>% round(2)) %>%
+  head
+```
+
+이 코드는 아래의 코드와 동일하다. 
+
+```{r message=FALSE, warning=FALSE, eval = FALSE}
+diamonds %>%
+  filter(cut == 'Good') %>%
+  aggregate(. ~ color, data = ., FUN = . %>% mean %>% round(2)) %>%
+  head()
+```
+
+```{r message=FALSE, warning=FALSE, eval = FALSE}
+diamonds %>%
+  filter(cut == 'Good') %>%
+  aggregate(. ~ color, data = ., FUN = . %>% mean %>% round(2)) %>%
+  head(.)
+```
+
+### 5. 익명함수(anonymous function) 사용
+
+R에서 함수를 생성하기 위해서는  함수 코드를 생성한 후 함수 코드 블럭을 `function` 키워드를 사용하여 함수 객체를 생성하여 필요한 위치에서 호출하여 사용한다. 그러나 한번만 사용하는 간단한 함수를 작성하거나 간단한 코드 블럭을 생성하는 경우 파이프 연산자를 사용할 수 있다. 
+
+```{r message=FALSE, warning=FALSE}
+diamonds %>%
+  (function(x) {
+    x %>% filter(cut == 'Good') %>%
+      head
+  })
+```
+
+위의 코드는 cut이 'Good'인 데이터만 필터링 한 결과를 처음 6행만 보여주는 익명 함수를 생성하는 코드이다. 이 함수는 재사용되는 함수가 아니기 때문에 함수명을 지정할 필요가 없고 함수의 매개변수로 전달되는 x에 LHS인 diamonds가 바로 전달되어 수행된 결과가 출력된다.
+
+이렇게 RHS를 함수 정의로 표현할 수 있지만 이와 동등한 코드로 함수의 형태가 아닌 다음과 같이  짧은 코드 블럭의 형태로도 작성될 수 있다. 
+
+```{r message=FALSE, warning=FALSE}
+diamonds %>%
+  { 
+    filter(., cut == 'Good') %>% 
+      head
+  }
+```
+
+
