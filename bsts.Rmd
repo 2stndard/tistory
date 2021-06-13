@@ -1,0 +1,190 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 구조적 베이지안 시계열 방법(Bayesian Structural Time Series)[^1]
+
+[^1]: 영문을 그대로 번역하면 베이지안 구조적 시계열로 표기해야하나 아무리봐도 우리말에는 구조적 베이지안 시계열로 표현하는게 적절하다고 생각한다.
+
+우리는 빅데이터, AI, 머신러닝을 사용하여 모델링을 하고 미래 예측값을 만들어 내는 과정은 대규모의 데이터를 활용해 다양한 알고리즘을 통한 관계를 도출하는 일련의 과정을 생각한다. 하지만 양이 작은 데이터를 활용하여 데이터를 분석하여 예측하는 것은 아직까지 크게 활성화되지 못한 분야임에 틀림 없다.
+
+이 중 가장 대표적인 분야가 시계열 데이터 분석 분야일 것이다. 그렇지만 시계열 데이터 분석은 난이도가 높다고 알려진 까닭에 많이 활용되지는 못하지만 비지니스 상에서의 시계열 데이터의 폭넓은 활용은 이들 분석에 대한 필요성을 더욱 높이고 있다.
+
+그동안 빈도주의 접근법을 사용하는 ARIMA등과 같은 모델이 시계열 모델링에 많이 사용됐지만 최근 베이지안 접근법이 많이 활용되면서 시계열 모델링에도 베이지안 접근법을 활용해서 모델을 구축하고 분석하는 방법들이 소개되고 있다.
+
+이중 최근에 개발된 bsts(Bayesian Structural Time Series) 패키지를 사용해 베이지안 접근법을 활용해 시계열 데이터를 모델링하는 방법을 소개한다.
+
+먼저 실습에 활용할 데이터로 년별 전체 학생수와 월별 전체 취업자 수 데이터를 로딩하겠다.
+
+```{r eval=FALSE}
+students.all <- read_excel("./students.xlsx", skip = 16, na = '-', sheet = 1, col_types
+                           = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric','numeric', 'numeric', 'numeric'))
+
+students <- students.all %>%
+  filter(지역규모 == '계') %>% select(-지역규모)
+
+students$연도 <- as.Date(paste0(students$연도, '-01-01'))
+
+students.xts <- as.xts(students[,-1], order.by = students$연도)
+
+employees <- read.csv('./산업별_취업자_20210206234505.csv', header = TRUE, na = '-', strip.white = TRUE, stringsAsFactors = TRUE)
+
+colnames(employees) <- c('time', 'total', 'employees.edu')
+
+employees$time <- as.Date(paste0(employees$time, '. 01'), format = '%Y. %m. %d')
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(readxl)
+library(dplyr)
+library(xts)
+students.all <- read_excel("D:/R/Github/concept-of-time-series/students.xlsx", skip = 16, na = '-', sheet = 1, col_types
+                           = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric','numeric', 'numeric', 'numeric'))
+
+students <- students.all %>%
+  filter(지역규모 == '계') %>% select(-지역규모)
+
+students$연도 <- as.Date(paste0(students$연도, '-01-01'))
+
+students.xts <- as.xts(students[,-1], order.by = students$연도)
+
+employees <- read.csv('D:/R/Github/concept-of-time-series/산업별_취업자_20210206234505.csv', header = TRUE, na = '-', strip.white = TRUE, stringsAsFactors = TRUE)
+
+colnames(employees) <- c('time', 'total', 'employees.edu')
+
+employees$time <- as.Date(paste0(employees$time, '. 01'), format = '%Y. %m. %d')
+```
+
+### bsts 패키지 소개와 설치
+
+bsts 패키지는 Predicting the Present with Bayesian Structural Time Series(Scott and Varian (2014)) 논문을 기반으로 구조적 베이지안 시계열 모델에 피팅(fitting)하기 위해 구글에서 제작해서 무료로 배포하는 오픈 소스 패키지이다. bsts는 시계열 모델 컴포넌트로 많이 사용되는 추세(trend), 계절성(seasonality) 뿐만아니라 서로 다른 시계열 데이터 간의 상관관계를 알아내서 반영하는 회귀 컴포넌트(regression)사용자에게 익숙한 구성 요소인 주기적 및 계절적 추세와 서로 다른 시계열 간의 상관 관계를 잡아내는 회귀 구성 요소로 조합 할 수 있다. 이 모델은 "구조적 시계열", "상태 공간 모델", "칼만 필터 모델"및 "동적 선형 모델"로 불리기도 한다.
+
+bsts 패키지는 R CRAN에서 다운로드 가능하기 때문에 다음과 같이 설치할 수 있다.
+
+```{r warning=FALSE, message=FALSE}
+if (!require(bsts)) {
+  install.packages('bsts')
+  library(bsts)
+}
+```
+
+### 구조적 시계열 모델(Structural Time Series Model)
+
+구조적 시계열 모델은 관측 방정식과 전이 방정식으로 표현된다.
+
+관측 방정식(observation equation)은 관측 데이터(observed data) $y_t$를 '상태(state)'로 표현되는 잠재된 변수 $\alpha_t$로 표현한다. 방정식은 다음과 같이 표현된다.
+
+$$
+y_t = Z_t^T\alpha_t + \epsilon_t
+$$
+
+전이 방정식(transition equation)은 잠재 변수 $\alpha_t$가 시간에 따라 어떻게 변하는 지를 설명한다.
+
+$$
+\alpha_{t+1} = T_t\alpha_t + R_t\eta_t
+$$
+
+여기서 ARIAM나 다른 시계열 모델링에 표현되지 않았던 잠재된 변수라는 개념이 등장한다. 이 잠재 변수는 관찰되지 않은 추세(unobserved trend)이다. 예를 들어 잠재된 브랜드 가치의 성장이나 정밀하기 측정이 어려운 외부 요인들을 표현할 수 있다.
+
+위의 두 방정식에서 오류를 나타내는 $\epsilon_t$과 $\eta_t$은 독립적 변수로 다른 변수의 영향을 받지 않고 정규분포하는 백색잡음이다. $Z_t$, $T_t$, $R_t$는 구조적 매개변수 배열을 의미한다. 따라서 관측방정식의 결과값 $Y_t$는 잠재변수 $\alpha_t$에 의해 결정되고 전이 방정식의 결과값 $\alpha_{t+1}$은 $\alpha_t$에 의해 결정된다.
+
+이 방정식에서 $Z_t$, $T_t$, $R_t$를 모두 1로 설정하고 $\alpha_t$를 $\mu_t$로 치환해서 표현하면 다음과 같이 표현이 가능하다. 이 모델이 'local level model'인데 노이즈에서 관찰되는 랜덤워크 모델로 가장 간단하지만 유용한 모델이다.
+
+$$
+y_t = \mu_t + \epsilon_t
+$$ $$
+\mu_{t+1} = \mu_t + \eta_t
+$$
+
+구조적 시계열 모델은 유연하고 모듈화되어 유용하다. 분석자는 단기 예측을 할 지, 장기 예츨을 할 지, 계절성이 포함되어 있는지 아닌지, 회귀 연산자를 포함하는지, 어떻게 포함하는지 등에 따라 $\alpha_t$를 결정할 수 있다.
+
+만약 계절성과 회귀연산자를 모두 포함한다면 위의 방정식은 아래와 같이 변경될 수 있다.
+
+$$
+Y_t = \mu_t + x_t\beta + S + \epsilon_t
+$$
+
+여기서 $x_t$는 회귀자(regressor), $\beta$는 회귀계수, $S$는 계절성을 의미한다. $\mu_t$를 사용했기 때문에 결국 local level model을 기반으로 한다는 것을 나타낸다.
+
+### 학생수 예측
+
+학생수 데이터는 연도별 데이터이기 때문에 계졀성이 없는 데이터이다. 따라서 구조적 베이지안 시계열 모델에서 계절성이 없고 회귀자가 없는 모델인 가장 쉬운 모델인 'local level model'로 구축할 수 있다.
+
+```{r}
+students.ss <- AddLocalLinearTrend(list(), students.xts[, 1])
+```
+
+먼저 시계열 데이터의 상태공간을 추가하기 위해 적절한 상태공간 함수를 호출한다. 앞서 기술한 바와 같이 전체 학생수 데이터는 연도 데이터이기 때문에 계절성이 없고 데이터에 특별한 회귀자가 없기 때문에 선형 트렌드을 상태공간 모델을 생성하는 `AddLocalLinearTrend()`를 사용한다. 여기서는 학생수의 xts 객체를 사용하였다.
+
+```{r}
+students.bayesian.model <- bsts(students.xts[, 1],
+                                state.specification = students.ss,
+                                niter = 1000)
+```
+
+다음은 상태공간 모델을 사용하여 구조적 베이지안 시계열 모델을 생성한다. `bsts()`를 사용하여 구조적 베이지안 시계열 모델을 생성하는데 사용하는 시계열 데이터 원본은 `students.xts[,1]`이고 모델의 상태공간(`state.specification`)은 앞서 `AddLocalLinearTrend()`로 생성한 `students.ss`를 사용하고 MCMC(Marcov Chain Monte Carlo) 샘플 수를 1000회로 설정하였다.
+
+```{r}
+students.burn <- SuggestBurn(0.1, students.bayesian.model)
+```
+
+다음으로 MCMC에서 Burn-in으로 사용할 회수를 지정하는데 `SuggestBurn()`을 사용하고 비율을 0.1로 설정하였다.
+
+```{r}
+students.horizon.pred <- 5
+```
+
+예측을 시행할 기간을 지정하였는데 향후 5년간 데이터를 예측해보겠다.
+
+```{r}
+students.bayesian.pred <- predict.bsts(students.bayesian.model, 
+                                       horizon = students.horizon.pred, 
+                                       burn = students.burn, 
+                                       quantiles = c(.025, .975))
+```
+
+이제 앞서 생성한 구조적 베이지안 시계열 모델을 사용하여 예측치를 생성한다. 사용하는 함수는 `predict.bsts()`(그냥 `predict()`를 사용해도 가능하다.)를 사용한다.
+
+```{r message=FALSE, warning=FALSE}
+library(lubridate)
+library(ggplot2)
+students.bayesian.df <- data.frame(
+  # fitted values and predictions
+  c(time(students.xts[, 1]), seq(max(time(students.xts[, 1])) + years(1), by = 'years', length.out = students.horizon.pred)),
+  c(as.numeric(students.xts[, 1]), rep(NA, students.horizon.pred)),
+  c(as.numeric(-colMeans(students.bayesian.model$one.step.prediction.errors[-(1:students.burn),])+students.xts[, 1]),  
+    as.numeric(students.bayesian.pred$mean))
+)
+
+
+names(students.bayesian.df) <- c('Date', 'Actual', "Fitted")
+
+MAPE <- students.bayesian.df %>% 
+  filter(is.na(Actual) == F) %>% 
+  summarise(MAPE=mean(abs(Actual-Fitted)/Actual))
+
+
+students.bayesian.posterior.interval <- data.frame(
+  filter(students.bayesian.df, is.na(Actual) == T)[, 1],
+  students.bayesian.pred$interval[1,],
+  students.bayesian.pred$interval[2,]
+)
+
+names(students.bayesian.posterior.interval) <- c("Date", "LL", "UL")
+
+students.bayesian.df.pred <- left_join(students.bayesian.df, students.bayesian.posterior.interval, by="Date")
+
+students.bayesian.df.pred %>% 
+  ggplot(aes(x=Date)) +
+  geom_line(aes(y=Actual, colour = "Actual"), size=1.2) +
+  geom_line(aes(y=Fitted, colour = "Fitted"), size=1.2, linetype=2) +
+  theme_bw() + theme(legend.title = element_blank()) + ylab("") + xlab("") +
+  geom_vline(xintercept=as.numeric(as.Date("2020-01-01")), linetype=2) + 
+  geom_ribbon(aes(ymin=LL, ymax=UL), fill="grey", alpha=0.5) +
+  ggtitle(paste0("BSTS -- Holdout MAPE = ", round(100*MAPE,2), "%")) +
+  theme(axis.text.x=element_text(angle = -90, hjust = 0))
+```
