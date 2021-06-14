@@ -49,6 +49,7 @@ students.ss <- AddLocalLinearTrend(list(), students.xts[, 1])
 students.bayesian.model <- bsts(students.xts[, 1],
                                 state.specification = students.ss,
                                 niter = 1000)
+class(students.bayesian.model)
 
 students.burn <- SuggestBurn(0.1, students.bayesian.model)
 
@@ -247,6 +248,8 @@ d2 <- data.frame(
   as.numeric(AirPassengers),
   as.Date(time(AirPassengers)))
 names(d2) <- c("Fitted", "Actual", "Date")
+
+
 
 MAPE <- filter(d2, year(Date)>1959) %>% summarise(MAPE=mean(abs(Actual-Fitted)/Actual))
 
