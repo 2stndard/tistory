@@ -1,5 +1,4 @@
 ---
-title: "Untitled"
 output: html_document
 ---
 
@@ -7,17 +6,28 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+### ggplot 이어 붙이기
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+`ggplot2` 패키지를 사용해 그려진 플롯은 여러개를 동시에 그릴 수 없다. 여러개의 ggplot을 붙여 그리려면 이를 지원하는 특수 패키지인 `patchwork`를 사용해야 한다.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+`patchwork`를 사용하려면 먼저 패키지를 설치하고 로딩해야한다. 
 
-```{r cars}
-summary(cars)
+```{r install_dummy, eval=FALSE}
+install.packages('patchwork')
+library(patchwork)
 ```
 
-## Including Plots
+```{r install_dummy, include=FALSE, message=FALSE, warning=FALSE}
+library(patchwork)
+```
+
+우선 `ggplot`으로 플롯을 몇개 그린다. 샘플 데이터는 [tidyverse를 사용한 열 선택 방법](https://2stndard.tistory.com/22)에서 사용한 [시도별 행정구별 주요 교육 통계 현황(2010~2020)](https://kess.kedi.re.kr/post/6694057?itemCode=04&menuId=m_02_04_03_01)을 사용한다. 데이터 로딩 방법은 해당 포스트를 참조하라.
+
+
+
+
+
+#### Including Plots
 
 You can also embed plots, for example:
 
