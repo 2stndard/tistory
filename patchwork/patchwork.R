@@ -111,5 +111,6 @@ data %>%
   theme(axis.title.y=element_blank()) -> p_시도_고등학교
 
 ((p_초등학교 + p_중학교 + p_고등학교) / (p_시도_초등학교 + p_시도_중학교 + p_시도_고등학교)) + 
-  plot_annotation(title = '학교급별 학급당 학생수', tag_levels = 'A', caption = '(데이터 출처 : 교육통계 서비스 홈페이지)', theme = theme(plot.title = element_text(size = 16, hjust = 0.5)))
+  plot_annotation(title = '학교급별 학급당 학생수', tag_levels = 'a', tag_prefix = '학생수', tag_sep = '|', caption = '(데이터 출처 : 교육통계 서비스 홈페이지)', theme = theme(plot.title = element_text(size = 16, hjust = 0.5)))
 
+?plot_annotation
