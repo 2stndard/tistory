@@ -30,7 +30,7 @@ install.packages('ggbreak')
 library(readxl)
 library(dplyr)
 library(xts)
-students.all <- read_excel("D:/R/Github/concept-of-time-series/students.xlsx", skip = 16, na = '-', sheet = 1, col_types
+students.all <- read_excel("D:/R/Git/concept-of-time-series/students.xlsx", skip = 16, na = '-', sheet = 1, col_types
                            = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric','numeric', 'numeric', 'numeric'))
 
 students <- students.all %>%
