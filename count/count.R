@@ -79,8 +79,9 @@ data |>
   mutate(전체_충원률_그룹 = cut_interval(전체_충원률, 3)) |>
   count(전체_충원률_그룹)
 
-
+?cut_interval
 ### cut()을 이용한 range 설정 - cut_width
 data |>
   mutate(전체_충원률_그룹 = cut_width(전체_충원률, width = 3, center = 90)) |>
-  count(전체_충원률_그룹)
+  ggplot(aes(x = 전체_충원률_그룹)) +
+  geom_bar()

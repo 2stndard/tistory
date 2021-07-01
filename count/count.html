@@ -344,7 +344,7 @@ data |&gt;
 ## 3 (90,100]           170
 ## 4 (100, Inf]           4</code></pre>
 <p>위 코드의 결과값을 보면 ‘(’와’]‘가 나오는데’(‘는 경계값을 포함하지 않는다는 의미(초과, 미만)이고’]’는 경계값을 포함(이상, 이하)한다는 의미이다.</p>
-<p>만약 값의 범위를 기준으로 구간을 구분하는 것이 아니고 값의 개수를 기준으로 도수가 비슷하게 구분되는 구간을 설정하기 위해서는 <code>quantile()</code>을 사용할 수 있다.</p>
+<p>만약 값의 범위를 기준으로 구간을 구분하는 것이 아니고 값을 기준으로 분위로 구분되는 구간을 설정하기 위해서는 <code>quantile()</code>을 사용할 수 있다.</p>
 <pre class="r"><code>data |&gt;
   mutate(전체_충원률_그룹 = cut(전체_충원률, breaks = quantile(전체_충원률, probs = seq(0, 1, 0.25)))) |&gt;
   count(전체_충원률_그룹)</code></pre>
@@ -367,6 +367,70 @@ data |&gt;
 ## 2 (93,94.9]           51
 ## 3 (94.9,97]           46
 ## 4 (97,105]            49</code></pre>
+</div>
+<div id="cut-파생함수" class="section level4">
+<h4><code>cut()</code> 파생함수</h4>
+<p><code>cut()</code>과 유사한 기능을 제공하는 함수로 <code>cut_interval()</code>, <code>cut_width()</code>, <code>cut_number()</code>가 <code>ggplot2</code>패키지에서 제공된다.</p>
+<ul>
+<li><code>cut_interval()</code></li>
+</ul>
+<p>이 함수는 값의 범위를 같은 간격으로 나누는 함수이다. 이 함수는 <code>cut(x, breaks = n)</code>과 동일한 결과를 산출한다.</p>
+<pre class="r"><code>data |&gt;
+  mutate(전체_충원률_그룹 = cut_interval(전체_충원률, 5, labels = paste0(1:5, &#39;그룹&#39;))) |&gt;
+  count(전체_충원률_그룹)</code></pre>
+<pre><code>## # A tibble: 5 x 2
+##   전체_충원률_그룹     n
+##   &lt;fct&gt;            &lt;int&gt;
+## 1 1그룹                8
+## 2 2그룹                5
+## 3 3그룹               43
+## 4 4그룹              130
+## 5 5그룹                9</code></pre>
+<ul>
+<li><code>cut_width()</code></li>
+</ul>
+<p>이 함수는 값의 범위를 지정된 길이만큼의 구간으로 나누는 함수이다. 이 함수는 <code>cut(x, breaks = n)</code>과 동일한 결과를 산출한다. 이 함수에는 <code>center</code>매개변수를 지정할 수있는데 데이터를 나눌때 <code>center</code>값을 중심으로 구간을 나누게 된다.</p>
+<pre class="r"><code>data |&gt;
+  mutate(전체_충원률_그룹 = cut_width(전체_충원률, 5, center = 85)) |&gt;
+  count(전체_충원률_그룹)</code></pre>
+<pre><code>## # A tibble: 7 x 2
+##   전체_충원률_그룹     n
+##   &lt;fct&gt;            &lt;int&gt;
+## 1 [72.5,77.5]          5
+## 2 (77.5,82.5]          3
+## 3 (82.5,87.5]          5
+## 4 (87.5,92.5]         31
+## 5 (92.5,97.5]        115
+## 6 (97.5,102]          35
+## 7 (102,108]            1</code></pre>
+<ul>
+<li><code>cut_number()</code></li>
+</ul>
+<p>이 함수는 <code>quantile()</code>을 사용한 것과 같은 결과를 도출한다. <code>cut()</code>과 <code>quantile()</code>을 섞어 쓰는 것보다 간결하게 사용할 수 있다는 점에서 장점이 있다.</p>
+<pre class="r"><code>data |&gt;
+  mutate(전체_충원률_그룹 = cut_number(전체_충원률, 4)) |&gt;
+  count(전체_충원률_그룹)</code></pre>
+<pre><code>## # A tibble: 4 x 2
+##   전체_충원률_그룹     n
+##   &lt;fct&gt;            &lt;int&gt;
+## 1 [75.5,93]           49
+## 2 (93,94.9]           51
+## 3 (94.9,97]           46
+## 4 (97,105]            49</code></pre>
+</div>
+<div id="ntile" class="section level4">
+<h4><code>ntile()</code></h4>
+<p><code>ntile()</code>은 매개변수로 전달된 구간의 수만큼 구간을 나누는데 각 구간의 데이터 개수(도수)가 유사한 값을 가지도록 구간을 설정하는 함수이다.</p>
+<pre class="r"><code>data |&gt;
+  mutate(전체_충원률_그룹 = ntile(전체_충원률, 4)) |&gt;
+  count(전체_충원률_그룹)</code></pre>
+<pre><code>## # A tibble: 4 x 2
+##   전체_충원률_그룹     n
+##              &lt;int&gt; &lt;int&gt;
+## 1                1    49
+## 2                2    49
+## 3                3    49
+## 4                4    48</code></pre>
 </div>
 </div>
 </div>

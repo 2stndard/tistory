@@ -160,15 +160,46 @@ data |>
   count(전체_충원률_그룹)
 ```
 
-전체 `quantile()`과 동일한 역할을 하는 함수로 `ntile()`이 있다. 
+#### `cut()` 파생함수
+
+`cut()`과 유사한 기능을 제공하는 함수로 `cut_interval()`, `cut_width()`, `cut_number()`가 `ggplot2`패키지에서 제공된다. 
+
+-   `cut_interval()`
+
+이 함수는 값의 범위를 같은 간격으로 나누는 함수이다. 이 함수는 `cut(x, breaks = n)`과 동일한 결과를 산출한다. 
+
+```{r cut_interval}
+data |>
+  mutate(전체_충원률_그룹 = cut_interval(전체_충원률, 5, labels = paste0(1:5, '그룹'))) |>
+  count(전체_충원률_그룹)
+```
+
+-   `cut_width()`
+
+이 함수는 값의 범위를 지정된 길이만큼의 구간으로 나누는 함수이다. 이 함수는 `cut(x, breaks = n)`과 동일한 결과를 산출한다. 이 함수에는 `center`매개변수를 지정할 수있는데 데이터를 나눌때 `center`값을 중심으로 구간을 나누게 된다. 
+
+```{r cut_width}
+data |>
+  mutate(전체_충원률_그룹 = cut_width(전체_충원률, 5, center = 85)) |>
+  count(전체_충원률_그룹)
+```
+
+-   `cut_number()`
+
+이 함수는 `quantile()`을 사용한 것과 같은 결과를 도출한다. `cut()`과 `quantile()`을 섞어 쓰는 것보다 간결하게 사용할 수 있다는 점에서 장점이 있다.  
+
+```{r cut_number}
+data |>
+  mutate(전체_충원률_그룹 = cut_number(전체_충원률, 4)) |>
+  count(전체_충원률_그룹)
+```
+
+#### `ntile()`
+
+`ntile()`은 매개변수로 전달된 구간의 수만큼 구간을 나누는데 각 구간의 데이터 개수(도수)가 유사한 값을 가지도록 구간을 설정하는 함수이다. 
 
 ```{r cut5}
 data |>
   mutate(전체_충원률_그룹 = ntile(전체_충원률, 4)) |>
   count(전체_충원률_그룹)
 ```
-
-
-
-
-
