@@ -1,0 +1,178 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## X축 이미지 라벨 붙이기
+
+X축에 붙이는 라벨은 보통 데이터의 범주를 표현하는 문자로 표현되는 것이 일반적이다. 예를 들어 시계열 선 플롯에서는 보통 x축 라벨은 연, 월, 일과 같은 시간을 문자로 붙이고 막대 플롯에서는 각각의 막대의 성질을 구분하는 팩터형 변수를 문자로 붙인다. 이 X축 라벨을 좀 더 예쁘게 꾸미기 위해 이미지를 붙여보자
+
+### 데이터 준비
+
+본 포스트에서 사용하는 샘플 데이터는 교육통계 서비스 홈페이지(<https://kess.kedi.re.kr>)에서 제공하는 [연도별 유학국가별 유학생현황](<https://kess.kedi.re.kr/kessTheme/zipyo?itemCode=03&menuId=m_02_03_01#>)을 사용하였다. 이 데이터를 로딩하는 코드는 다음과 같다. 
+
+```{r data_import_dummy, eval=FALSE}
+library(readxl)
+aboard.by.nation <- read_xlsx('./연도별 유학국가별 유학생 현황.xlsx', sheet = 'Sheet0', skip = 2, col_types = c('numeric', 'text', rep('numeric', 25)), col_names = TRUE)
+```
+
+```{r data_import, include=FALSE, message=FALSE, warning=FALSE}
+library(readxl)
+aboard.by.nation <- read_xlsx('D:/R/Github/tistory/x_label_icon/연도별 유학국가별 유학생 현황.xlsx', sheet = 'Sheet0', skip = 2, col_types = c('numeric', 'text', rep('numeric', 25)), col_names = TRUE)
+```
+
+읽어들인 데이터프레임의 아래쪽 데이터를 보면 NA로 가득한 행이 몇개 보인다. 이는 엑셀 파일을 열어보면 이유를 알 수 있는데 엑셀파일의 데이터 아래쪽에 데이터를 설명하는 몇줄이 더 존재한다. 이때문에 데이터를 읽어들일때 몇줄 더 읽어들인 결과이다. 이 데이터를 삭제한다. 
+
+```{r remove_NA, message=FALSE, warning=FALSE}
+library(tidyverse)
+aboard.by.nation |> tail()
+
+aboard.by.nation <- aboard.by.nation |>
+  filter(!is.na(학년도))
+
+aboard.by.nation |> tail()
+```
+
+이 데이터에는 여러 학교급의 유학생현황이 포함되어 있다. 이번에는 초등학교에 초점을 맞춰본다. 또 열로 구분된 국가명에 '계', '기타', '미확인', '기타동남아'는 구지 필요없을 듯 해서 제외하고 `ggplot`을 만들기 쉽게 긴(long) 형태로 데이터프레임을 바꾼다. 
+
+```{r subsetting, message=FALSE, warning=FALSE}
+aboard.by.nation.element <- aboard.by.nation |>
+  select(!contains(c('계', '기타', '미확인', '그외동남아'))) |>
+  filter(학제 == '초등학교') |>
+  select(-2) |> ## 초등학교만 필터링했으니 학교급은 더 필요없다.
+  gather('국가명', '유학생수', -'학년도')
+
+aboard.by.nation.element |> head()
+```
+
+### 일단 데이터 훑어보기
+
+데이터를 읽어들였으니 데이터를 전반적으로 훑어본다. 연도가 표기된 시계열 데이터이므로 선 플롯이 적절하겠다. 
+
+```{r line_plot, message=FALSE, warning=FALSE}
+aboard.by.nation.element|>
+  ggplot(aes(x = as.factor(학년도), y = 유학생수)) +
+    geom_line(aes(group = as.factor(국가명), color = as.factor(국가명))) + 
+    labs(color = '국가', x = '학년도')
+```
+
+데이터를 보니 국가가 좀 많은 듯 하다. 국가를 유학생수가 많은 10개 국가로 줄인다. 그리고 이번에는 전체 유학생수를 국가별로 보기 위해 막대 플롯을 생성한다. 
+
+
+```{r top10, message=FALSE, warning=FALSE}
+## 유학생수가 많은 10개국 필터링
+aboard.by.nation.element.top10 <-
+aboard.by.nation.element |>
+  group_by(국가명) |>
+  summarise(sum = sum(유학생수)) |>
+  arrange(desc(sum)) |>
+  top_n(10)
+
+aboard.by.nation.element.top10 |>
+  ggplot(aes(x = 국가명, y = sum)) +
+  geom_col(fill = 'dark blue') +
+  geom_text(aes(x = 국가명, y = sum, label = sum), vjust = -0.5) + 
+  theme_minimal() + 
+  labs(title = '국가별 유학생수 Top 10', y = '유학생수')
+
+```
+
+합계순으로 국가가 정렬될 수 있도록 국가명을 유학생 순서의 순서 팩터(odered factor)로 바꾸어 준다. 
+```{r top10_1, message=FALSE, warning=FALSE}
+aboard.by.nation.element.top10$국가명 <- fct_reorder(aboard.by.nation.element.top10$국가명, desc(aboard.by.nation.element.top10$sum))
+
+plot.aboard.by.nation <- 
+aboard.by.nation.element.top10 |>
+  ggplot(aes(x = 국가명, y = sum)) +
+  geom_col(fill = 'dark blue') +
+  geom_text(aes(x = 국가명, y = sum, label = sum), vjust = -0.5) + 
+  theme_minimal() + 
+  labs(title = '초등학교 국가별 유학생수(유출) Top 10', y = '유학생수')
+
+plot.aboard.by.nation
+```
+
+### X축 국기 라벨 만들기
+
+위의 막대 플롯의 X축에는 국가명이 표기되어 있다. 이 국가명을 국기 이미지로 바꾸어 보겠다. 
+
+먼저 국기 이미지를 다운로드 받아 PC에 저장해 놓는 일은 이 포스트에서 따로 작성하지는 않겠다. 이 포스트에서 사용하는 국기 이미지는 나무위키의 국가별 GDP 순위 사이트(<https://namu.wiki/w/%EA%B5%AD%EA%B0%80%EB%B3%84%20%EB%AA%85%EB%AA%A9%20GDP%20%EC%88%9C%EC%9C%84>)에서 저장했다. 
+
+먼저 국가명과 국기 이미지가 저장된 경로명으로 이루어진 데이터 프레임을 만든다.
+
+```{r nation_dataframe, include=FALSE}
+flag_usa <- 'D:/R/Github/tistory/x_label_icon/usa.png'
+flag_canada <- 'D:/R/Github/tistory/x_label_icon/canada.png'
+flag_china <- 'D:/R/Github/tistory/x_label_icon/china.png'
+flag_nz <- 'D:/R/Github/tistory/x_label_icon/nz.png'
+flag_phi <- 'D:/R/Github/tistory/x_label_icon/phi.png'
+flag_aus <- 'D:/R/Github/tistory/x_label_icon/aus.png'
+flag_eng <- 'D:/R/Github/tistory/x_label_icon/eng.png'
+flag_jap <- 'D:/R/Github/tistory/x_label_icon/jap.png'
+flag_mal <- 'D:/R/Github/tistory/x_label_icon/mal.png'
+flag_sing <- 'D:/R/Github/tistory/x_label_icon/sing.png'
+
+flags <- data.frame(nations = c('미국', '캐나다', '중국', '뉴질랜드', '필리핀', '호주', '영국', '일본', '말레이시아', '싱가폴'), flag_path = c(flag_usa, flag_canada, flag_china, flag_nz, flag_phi, flag_aus, flag_eng, flag_jap, flag_mal, flag_sing))
+
+```
+
+```{r nation_dataframe_dummy, eval=FALSE}
+flag_usa <- '아이콘 이미지 저장 폴더 경로/usa.png'
+flag_canada <- '아이콘 이미지 저장 폴더 경로/canada.png'
+flag_china <- '아이콘 이미지 저장 폴더 경로/china.png'
+flag_nz <- '아이콘 이미지 저장 폴더 경로nz.png'
+flag_phi <- '아이콘 이미지 저장 폴더 경로/phi.png'
+flag_aus <- '아이콘 이미지 저장 폴더 경로/aus.png'
+flag_eng <- '아이콘 이미지 저장 폴더 경로/eng.png'
+flag_jap <- '아이콘 이미지 저장 폴더 경로/jap.png'
+flag_mal <- '아이콘 이미지 저장 폴더 경로/mal.png'
+flag_sing <- '아이콘 이미지 저장 폴더 경로/sing.png'
+
+flags <- data.frame(nations = c('미국', '캐나다', '중국', '뉴질랜드', '필리핀', '호주', '영국', '일본', '말레이시아', '싱가폴'), flag_path = c(flag_usa, flag_canada, flag_china, flag_nz, flag_phi, flag_aus, flag_eng, flag_jap, flag_mal, flag_sing))
+
+```
+
+다음으로 해야할 작업은 이미지를 `ggplot`에 넣기 위해 html 태그를 각각의 국가명에 매칭시키는 벡터를 생성한다. 
+
+```{r setnames1}
+labels <- setNames(
+  paste0("<img src='", flags$flag_path, "' width='30'  height = '20'>"),  flags$nations)
+
+labels
+```
+
+이제 X축 라벨을 `setNames()`를 통해 생성한 labels 벡터를 사용한다. 
+
+```{r boxplot1}
+plot.aboard.by.nation +
+  scale_x_discrete(labels = labels) 
+```
+
+위의 플롯은 원하는대로 X축 라벨에 이미지가 나오지 않는다. HTML 태그를 태그로 인식하지 않고 텍스트로 인식했기 때문이다. 이를 HTML 태그로 인식하기 위해서는 `ggtext` 패키지의 `element_markdown()`을 사용하면 원하는 형태로 출력된다. 
+
+```{r boxplot2}
+plot.aboard.by.nation +
+  scale_x_discrete(labels = labels) + 
+  theme(axis.text.x = ggtext::element_markdown())
+
+```
+
+텍스트 대신 이미지가 들어가면서 보기가 나아졌지만 호주와 뉴질랜드의 국기가 비슷해서 좀 헤깔린다. 그리고 말레이시아와 싱가포르 국기는 좀 낮설다. 국기 아래에 국가명을 추가해주면 좀 더 보기가 나을 듯 하다.
+
+이를 위해서는 아래와 같이 HTML 태그에 국가명을 붙여준다. 
+
+```{r setnames2}
+labels <- setNames(
+  paste0("<img src='", flags$flag_path, "' width='30'  height = '20'> <br> ", flags$nations),  flags$nations)
+
+labels
+
+plot.aboard.by.nation +
+  scale_x_discrete(labels = labels) + 
+  theme(axis.text.x = ggtext::element_markdown())
+
+```
+
