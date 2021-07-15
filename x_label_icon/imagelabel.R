@@ -59,7 +59,7 @@ aboard.by.nation.element.top10 |>
   
 plot.aboard.by.nation
 
-d## 국기 이미지 파일 설정
+## 국기 이미지 파일 설정
 flag_usa <- 'D:/R/Github/tistory/x_label_icon/usa.png'
 flag_canada <- 'D:/R/Github/tistory/x_label_icon/canada.png'
 flag_china <- 'D:/R/Github/tistory/x_label_icon/china.png'
@@ -92,13 +92,21 @@ plot.aboard.by.nation +
 
 library(showtext)
 showtext.auto()
-font_add(family = "나눔스퀘어볼드", regular = 'C:/Users/estnd/AppData/Local/Microsoft/Windows/Fonts/NANUMSQUAREB.TTF')
+font_add(family = "나눔스퀘어", regular = 'C:/Users/estnd/AppData/Local/Microsoft/Windows/Fonts/NanumSquare.ttf')
+font_add(family = "나눔펜", regular = 'C:/Users/estnd/AppData/Local/Microsoft/Windows/Fonts/NanumPen.ttf')
 
+
+titles <- '<i style="color: #ff0000;font-size:30pt;face:bold;">2020년 초등학교</i> <span style="text-decoration: underline;">국가별 유학생(유출) 현황                   </span>'
+
+titles <- c(titles = "This is some basic <em>2020년</em> 초등학교 유학생 국가별 유출 현황")
 
 plot.aboard.by.nation +
   scale_x_discrete(labels = labels) + 
-  theme(text = element_text(family = "나눔스퀘어")) + 
-  theme(axis.text.x = ggtext::element_markdown(color = "black", size = 10))
+  labs(title = '<span style="color: #ff0000;background-color:aqua;font-size:15pt;text-decoration:line-through;">**2020**</span> <span style="text-decoration: underline;">국가별 유학생(유출) 현황                   </span>') +
+  theme(text = element_text(family = "나눔펜")) + 
+  theme(axis.text.x = ggtext::element_markdown(color = "black", size = 10)) + 
+  theme(plot.title = ggtext::element_markdown())
+
 
 
 
