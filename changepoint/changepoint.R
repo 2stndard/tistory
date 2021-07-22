@@ -1,6 +1,5 @@
 library(readxl)
 library(dplyr)
-library(xts)
 students.all <- read_excel("d:/R/Github/concept-of-time-series/students.xlsx", skip = 16, na = '-', sheet = 1, col_types
                            = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric','numeric', 'numeric', 'numeric'))
 
@@ -50,14 +49,36 @@ covid19[,3]
 install.packages('changepoint')
 library(changepoint)
 library(tidyverse)
-
+library(patchwork)
 ## cpt.mean
-cpmean.students <- cpt.mean(data = pull(students[, 2]), method = 'BinSeg')
-ggplot(students, aes(연도, 학생수계)) + 
+cpmean.BinSeg.students <- cpt.mean(data = pull(students[, 2]), method = 'BinSeg')
+cpmean.AMOC.students <- cpt.mean(data = pull(students[, 2]), method = 'AMOC')
+cpmean.PELT.students <- cpt.mean(data = pull(students[, 2]), method = 'PELT')
+
+p.BinSeg <- ggplot(students, aes(연도, 학생수계)) + 
   geom_line(aes(group = 1)) + 
-  geom_vline(xintercept = pull(students[cpmean.students@cpts, 1]), color = 'red')
+  geom_vline(xintercept = pull(students[cpmean.BinSeg.students@cpts, 1]), color = 'red') + 
+  ggtitle('BinSeg')
+
+p.AMOC <- ggplot(students, aes(연도, 학생수계)) + 
+  geom_line(aes(group = 1)) + 
+  geom_vline(xintercept = pull(students[cpmean.AMOC.students@cpts, 1]), color = 'blue') + 
+  ggtitle('AMOC')
+
+p.PELT <- ggplot(students, aes(연도, 학생수계)) + 
+  geom_line(aes(group = 1)) + 
+  geom_vline(xintercept = pull(students[cpmean.PELT.students@cpts, 1]), color = 'green') + 
+  ggtitle('PELT')
+
+p.BinSeg / p.AMOC / p.PELT + 
+  plot_annotation(title = '연도별 학생수 변화점', 
+                  theme = theme(plot.title = element_text(size = 16, hjust = 0.5)))
 
 cpmean.employees <- cpt.mean(data = employees[, 2], method = 'BinSeg')
+cpmean.employees <- cpt.mean(data = employees[, 2], method = 'AMOC')
+cpmean.employees <- cpt.mean(data = employees[, 2], method = 'PELT')
+cpmean.employees <- cpt.mean(data = employees[, 2], method = 'SegNeigh')
+
 ggplot(employees, aes(time, total)) + 
   geom_line(aes(group = 1)) + 
   geom_vline(xintercept = employees[cpmean.employees@cpts, 1], color = 'red')
