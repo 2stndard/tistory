@@ -1,5 +1,10 @@
 ---
-output: html_document
+output:
+  html_document:
+    self_contained: TRUE
+    keep_md: FALSE
+    theme: NULL
+    highlight: NULL
 ---
 
 ```{r setup, include=FALSE}

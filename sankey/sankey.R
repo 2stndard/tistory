@@ -2,6 +2,8 @@ library(tidyverse)
 library(readxl)
 library(plotly)
 library(networkD3)
+library(htmlwidgets)
+library(webshot)
 
 df <- read_excel('./sankey/(직업계고) 시도.유형별 취업현황_2020.xlsx', skip = 2, na = '-', sheet = 1, col_types = c('text', 'text', rep('numeric', 18)), col_names = F)
 
@@ -28,6 +30,7 @@ plot_ly(type = 'sankey',
         orientation = 'h',
         node = list(
           label = c(from, to),
+          color = c(rep('red', 3), rep('blue', 5)),
           pad = 5, 
           thickness = 30, 
 ##          valueformat = ".0f",
@@ -41,7 +44,19 @@ plot_ly(type = 'sankey',
           value = sankey$학생수
         ), 
         textfont = list(size = 12)
-)
+) -> sd
+
+htmlwidgets::saveWidget(sd, file=paste0(getwd(), "/sankey/sankey_w.html"))
+
+#install phantom:
+webshot::install_phantomjs()
+
+# Make a webshot in pdf : high quality but can not choose printed zone
+webshot::webshot(paste0(getwd(), "/sankey/sankey.html") , paste0(getwd(), "/sankey/sankey.pdf"), delay = 0.2)
+
+
+
+
 
 links <- data.frame(
   source = c(rep(0, 5), rep(1, 5), rep(2, 5)),
@@ -58,3 +73,8 @@ sankeyNetwork(Links = links, Nodes = nodes,
               Value = "value", NodeID = "name", 
               sinksRight=FALSE, fontSize = 12, nodeWidth = 20)
 
+devtools::install_github("issactoast/R4Tistory")
+3
+library(R4Tistory)
+getwd()
+knitr4blog("D:/R/Github/tistory/sankey/sankey1.Rmd")
