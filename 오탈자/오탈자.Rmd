@@ -10,7 +10,7 @@ library(xts)
 library(tsibble)
 library(readxl)
 library(tidyverse)
-students.all <- read_excel("D:/R/Github/concept-of-time-series/students.xlsx", skip = 16, na = '-', sheet = 1, col_types = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
+students.all <- read_excel("C:/R/git/concept-of-time-series/students.xlsx", skip = 16, na = '-', sheet = 1, col_types = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
 students <- students.all %>% 
   filter(지역규모 == '계') %>% select(-지역규모)
 students$연도 <- as.Date(paste0(students$연도, '-01-01'))
@@ -19,7 +19,7 @@ students.xts <- as.xts(students[,-1], order.by = students$연도)
 students.tsibble <- as_tsibble(students, index = 연도)
 
 
-employees <- read.csv('D:/R/Github/concept-of-time-series/산업별_취업자_20210206234505.csv', header = TRUE, na = '-', strip.white = TRUE, stringsAsFactors = TRUE)
+employees <- read.csv('C:/R/git/concept-of-time-series/산업별_취업자_20210206234505.csv', header = TRUE, na = '-', strip.white = TRUE, stringsAsFactors = TRUE)
 colnames(employees) <- c('time', 'total', 'employees.edu')
 employees$time <- as.Date(paste0(employees$time, '. 01'), format = '%Y. %m. %d')
 employees.ts <- ts(employees, start = c(2013, 01), frequency = 12)
@@ -27,7 +27,7 @@ employees.xts <- xts(employees[,2:3], order.by = employees[,1])
 employees.tsibble <- as_tsibble(employees, index = time)
 
 
-covid19 <- read.csv('D:/R/Github/concept-of-time-series/covid19.csv', header = TRUE, na = '-', strip.white = TRUE, stringsAsFactors = TRUE)
+covid19 <- read.csv('C:/R/git/concept-of-time-series/covid19.csv', header = TRUE, na = '-', strip.white = TRUE, stringsAsFactors = TRUE)
 colnames(covid19) <- c('category', 'status', 'date', 'value')
 covid19 <- covid19[, c(3, 1, 2, 4)]
 covid19$date <- as.Date(covid19$date, "%Y. %m. %d")
@@ -109,7 +109,7 @@ xts:diff()의 첫번째 블럭의 두번째 줄
 
 을
 
-> students.xts\$증감율 \<- round((students.xts\$students.xts\$유치원), 3) \* 100
+> students.xts\$증감율 \<- round((students.xts\$증감/students.xts\$유치원), 3) \* 100
 
 로 수정합니다.
 
