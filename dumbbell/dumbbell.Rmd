@@ -144,6 +144,8 @@ rate.df |>
 
 ### **`ggplot2` 패키지의 `geom_segment()`**
 
+
+
 `geom_segment()`로 덤벨 차트를 그리는 것은 `ggalt`의 `geom_dumbbell()`을 사용하는 방법과 유사하게 xend를 설정함으로써 그릴 수 있다. 여기서는 화살표를 추가할수 있다는 점이 다르다. 
 
 ```{r geom_segment, message=FALSE, warning=FALSE}

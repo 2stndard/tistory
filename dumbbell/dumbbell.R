@@ -54,7 +54,3 @@ rate.df |>
   theme(legend.position="top") +
   coord_flip() + 
   labs(title = '2019년 대비 2020년 지역별 고등교육기관 학생수 비율', x = '비율(%)', color = '증감')
-
-  
-  
-?geom_segment
