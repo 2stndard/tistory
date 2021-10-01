@@ -1,97 +1,99 @@
 library(readxl)
 library(tidyverse)
 
-df <- read_excel('./legend/주요-01 유초 연도별 시도별 교육통계 모음(1999-2021)_210901.xlsx', skip = 3, na = '-', sheet = '03 연령별 학생수', col_types = c('numeric', 'text', 'text', rep('numeric', 42)), col_names = F)
-df <- df |>
-  select(1:5) |>
-  rename('year' = '...1', 'province' = '...2', 'sch_class' = '...3', 'stu_total' = '...4', 'stu_female' = '...5') |>
-  filter(sch_class == '(특목고)', province == '전국') |>
-  mutate(stu_male = stu_total - stu_female)
+df <- read_excel('./legend/주요-01 유초 연도별 시도별 교육통계 모음(1999-2021)_210901.xlsx', skip = 3, na = '-', sheet = '01 개황', col_types = c('numeric', 'text', 'text', rep('numeric', 48)), col_names = F)
 
-df_longer <- gather(df, sex, value, 4:6)
+df_adj <- df |>
+  select(1:3, 5, 11, 17, 21) |>
+  rename('year' = '...1', 'province' = '...2', 'sch_class' = '...3', 'class_total' = '...5', 'stu_total' = '...11', 'teach_total' = '...17', 'teach_tmp_total' = '...21') |>
+  filter(sch_class == '초등학교', year == 2021) |>
+  mutate(stu_per_cls = round(stu_total / class_total, 2), 
+         stu_per_teach = round(stu_total / teach_total, 2), 
+         temp_per_teach = (teach_tmp_total / teach_total) * 100)
+
+View(df_adj)
+
+df_adj$province <- fct_relevel(df_adj$province, '전국', '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주')
+
 
 ## 기본 그래프
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수')
+df_adj |>
+  ggplot(aes(x = province)) + 
+  geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
+  labs(x = '지역', y = '학급당 학생수')
 
 ## 범례 제목 변경
 ## 범례 제목 변경 방법 1 - labs()를 이용
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수', color = '구분')
+df_adj |>
+  ggplot(aes(x = province)) + 
+  geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
+  labs(x = '지역', y = '학급당 학생수', size = '교원당 학생수', color = '비정규교원비율')
 
-## 범례 제목 변경 방법 2 - scale_color_*()를 이용
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수') + 
-  scale_color_discrete(name = '구분')
+
+## 범례 제목 변경 방법 2 - scale_*()를 이용
+df_adj |>
+  ggplot(aes(x = province)) + 
+  geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
+  labs(x = '지역', y = '학급당 학생수') + 
+  scale_color_continuous(name = '비정규교원비율') + 
+  scale_size_continuous(name = '교원당 학생수')
+
+
 
 ## 범례 제목 변경 방법 3 - guides()를 이용
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수') + 
-  guides(color = guide_legend(title="구분"))
-
+df_adj |>
+  ggplot(aes(x = province)) + 
+  geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
+  labs(x = '지역', y = '학급당 학생수') + 
+  guides(color = guide_legend(title = '비정규교원비율'), 
+         size = guide_legend(title = '교원당 학생수'))
 
 
 ## 범례 라벨 변경
-## 범례 라벨 변경 방법 1 - scale_color_*()를 이용
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수') + 
-  scale_color_discrete(name = '구분', labels = c('남학생', '여학생'))
-
+## 범례 라벨 변경 방법 1 - scale_*()를 이용
+df_adj |>
+  ggplot(aes(x = province)) + 
+  geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
+  labs(x = '지역', y = '학급당 학생수') + 
+  scale_color_continuous(name = '비정규교원비율', breaks = c(2, 4, 6, 8), labels = c('2%', '4%', '6%', '8%')) + 
+  scale_size_continuous(name = '교원당 학생수', breaks = c(10:16), labels = c('10명', '11명', '12명', '13명', '14명', '15명', '16명'))
 
 ## 범례 위치 변경
 ## 범례 위치 변경 방법 1 - themes()를 이용 - 그래프 영역 밖에 범례를 두고자 할때
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수', color = '구분') + 
-  scale_color_discrete(name = '구분', labels = c('남학생', '여학생')) + 
-  theme(legend.position = "bottom") ## 
-
-## 범례 위치 변경 방법 1 - themes()를 이용 - 그래프 영역 안에 범례를 두고자 할때
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수', color = '구분') + 
-  scale_color_discrete(name = '구분', labels = c('남학생', '여학생')) + 
-  theme(legend.position = c(0.9, 0.8))
-
+df_adj |>
+  ggplot(aes(x = province)) + 
+  geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
+  labs(x = '지역', y = '학급당 학생수') + 
+  scale_color_continuous(name = '비정규교원비율', breaks = c(2, 4, 6, 8), labels = c('2%', '4%', '6%', '8%')) + 
+  scale_size_continuous(name = '교원당 학생수', breaks = c(10:16), labels = c('10명', '11명', '12명', '13명', '14명', '15명', '16명')) + 
+  theme(legend.position = "bottom") 
 
 
 ## 범례 세부 조정 - guides()를 이용 - 범례 제목 위치 설정
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수') + 
-  scale_color_discrete(labels = c('남학생', '여학생')) + 
-  guides(color = guide_legend(title="구분", title.position = 'top'))
+df_adj |>
+  ggplot(aes(x = province)) + 
+  geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
+  labs(x = '지역', y = '학급당 학생수') + 
+  scale_color_continuous(name = '비정규교원비율', breaks = c(2, 4, 6, 8), labels = c('2%', '4%', '6%', '8%')) + 
+  scale_size_continuous(name = '교원당 학생수', breaks = c(10:16), labels = c('10명', '11명', '12명', '13명', '14명', '15명', '16명')) + 
+  guides(color = guide_legend(title.position = 'bottom'),
+         size = guide_legend(title.position = 'left'))
 
 
 ## 범례 세부 조정 - guides()를 이용 - 범례 제목 정렬 위치 설정
-df_longer |>
-  filter(sex != 'stu_total') |>
-  ggplot(aes(x = as.factor(year))) + 
-  geom_line(aes(y = value, group = sex, color = sex)) +
-  labs(x = '연도', y = '학생수') + 
-  scale_color_discrete(labels = c('남학생', '여학생')) + 
-  guides(color = guide_legend(title="구분", title.position = 'top', title.hjust = 0.5))
+df_adj |>
+  ggplot(aes(x = province)) + 
+  geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
+  labs(x = '지역', y = '학급당 학생수') + 
+  scale_color_continuous(name = '비정규교원비율', breaks = c(2, 4, 6, 8), labels = c('2%', '4%', '6%', '8%')) + 
+  scale_size_continuous(name = '교원당 학생수', breaks = c(10:16), labels = c('10명', '11명', '12명', '13명', '14명', '15명', '16명')) + 
+  guides(color = guide_legend(title.position = 'top'), 
+         size = guide_legend(title.position = 'top'))
+
+
+
+
+
 
 df_longer |>
   filter(sex != 'stu_total') |>
