@@ -1,7 +1,26 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 범례(Legned) in R - Part II
+
+## 학급당 학생수, 교원당 학생수, 비정규 교원 비율을 하나의 Plot에..
+
+앞선 포스트에 이어 `ggplot2`에서 범례를 설정하는 방법에 대해 알아보자. 이번 포스트에서는 `theme()`를 사용하여 범례의 위치, 배경, 테두리 등을 설정하는 방법을 설명한다. 
+
+### 기본 Plot
+
+본 포스트에서 사용하는 기본 Plot은 다음과 같이 생성하였다.
+
+```{r include=FALSE, warning= FALSE, message=FALSE}
 library(readxl)
 library(tidyverse)
 
-df <- read_excel('./legend/주요-01 유초 연도별 시도별 교육통계 모음(1999-2021)_210901.xlsx', skip = 3, na = '-', sheet = '01 개황', col_types = c('numeric', 'text', 'text', rep('numeric', 48)), col_names = F)
+df <- read_excel('./주요-01 유초 연도별 시도별 교육통계 모음(1999-2021)_210901.xlsx', skip = 3, na = '-', sheet = '01 개황', col_types = c('numeric', 'text', 'text', rep('numeric', 48)), col_names = F)
 
 df_adj <- df |>
   select(1:3, 5, 11, 17, 21) |>
@@ -11,11 +30,12 @@ df_adj <- df |>
          stu_per_teach = round(stu_total / teach_total, 2), 
          temp_per_teach = (teach_tmp_total / teach_total) * 100)
 
-View(df_adj)
-
 df_adj$province <- fct_relevel(df_adj$province, '전국', '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주')
 
-## 기본 그래프
+```
+
+
+```{r basic_plot, echo=FALSE, message=FALSE}
 basic_plot <- df_adj |>
   ggplot(aes(x = province)) + 
   geom_point(aes(y = stu_per_cls, size = stu_per_teach, color = temp_per_teach)) +
@@ -30,10 +50,22 @@ basic_plot +
                         breaks = c(11, 12, 13, 14, 15), 
                         labels = c('11명', '12명', '13명', '14명', '15명'), 
                         guide = guide_legend(order = 0)) 
+```
 
+### 범례 위치 변경
 
-## 범례 위치 변경
+범례의 위치는 기본적으로 좌측에 위치한다. 이를 바꾸기 위해서는 `theme()`의 `legend.position` 매개변수에 범례 위치를 설정하는 키워드를 통하여 바꿀수 있다.
 
+범례 위치를 설정하는 키워드는 다음과 같다.
+
+| 키워드 |  위치  |
+|:------:|:------:|
+| right  | 오른쪽 |
+|  left  |  왼쪽  |
+|  top   |  위쪽  |
+| bottom | 아래쪽 |
+
+```{r posizion}
 basic_plot + 
   scale_color_continuous(name = '비정규교원비율', 
                          breaks = c(3, 5, 7), 
@@ -45,8 +77,14 @@ basic_plot +
                         guide = guide_legend(order = 0)) +
   theme(legend.position = 'bottom')
 
-## 범례 제거
 
+```
+
+### 범례 제거
+
+범례를 없애기를 원할 경우에는 앞선 위치 설정 방법과 동일한데 `theme()`의 `legend.position` 키워드에 'none'을 설정하면 범례가 없어진다.
+
+```{r none}
 basic_plot + 
   scale_color_continuous(name = '비정규교원비율', 
                          breaks = c(3, 5, 7), 
@@ -58,8 +96,20 @@ basic_plot +
                         guide = guide_legend(order = 0)) +
   theme(legend.position = 'none')
 
-## 범례 정렬
+```
 
+### 범례 정렬
+
+범례의 위치는 `theme()`의 `legend.position`으로 설정할 수 있는데 기본적으로 각각 사이드의 중간에 정렬된다. 설정된 사이드내에서 위쪽이나 아래쪽, 혹은 오른쪽이나 왼쪽에 위치하게 설정하기 위해서는 `legend.justification` 매개변수에 아래의 키워드를 설정함으로써 위치를 설정 할 수 있다.
+
+| 키워드 |    정렬    |
+|:------:|:----------:|
+| right  | 오른쪽정렬 |
+|  left  |  왼쪽정렬  |
+|  top   |  위쪽정렬  |
+| bottom | 아래쪽정렬 |
+
+```{r justification}
 basic_plot + 
   scale_color_continuous(name = '비정규교원비율', 
                          breaks = c(3, 5, 7), 
@@ -69,11 +119,16 @@ basic_plot +
                         breaks = c(11, 12, 13, 14, 15), 
                         labels = c('11명', '12명', '13명', '14명', '15명'), 
                         guide = guide_legend(order = 0)) +
-  theme(legend.position = 'bottom', legend.justification = 'right') ## botttom, left, right
+  theme(legend.position = 'left', legend.justification = 'bottom') 
+
+```
 
 
-## 범례 방향
+### 범례 방향
 
+위의 범례를 보면 왼쪽과 오른쪽에 위치한 범례는 모두 세로 방향으로 범례가 표현되고 위쪽과 아래쪽에 위치한 범례는 모두 가로 방향으로 범례가 표현된다. 만약 왼쪽과 오른쪽에 위치한 범례를 가로방향으로 설정하거나 위쪽과 아래쪽에 위치한 범례를 세로방향으로 설정하기 위해서는 `theme()`의 `legend.direction` 매개변수에 'horizontal'(가로방향) 혹은 'vertical'(세로방향)을 설정하여 범례 방향을 바꿀 수 있다. 
+
+```{r direction_ver}
 basic_plot + 
   scale_color_continuous(name = '비정규교원비율', 
                          breaks = c(3, 5, 7), 
@@ -83,11 +138,10 @@ basic_plot +
                         breaks = c(11, 12, 13, 14, 15), 
                         labels = c('11명', '12명', '13명', '14명', '15명'), 
                         guide = guide_legend(order = 0)) +
-  theme(legend.position = 'bottom', legend.direction = 'vertical') ## botttom, left, right
+  theme(legend.position = 'bottom', legend.direction = 'vertical')
+```
 
-
-## 범례 배경
-
+```{r direction_hor}
 basic_plot + 
   scale_color_continuous(name = '비정규교원비율', 
                          breaks = c(3, 5, 7), 
@@ -97,11 +151,15 @@ basic_plot +
                         breaks = c(11, 12, 13, 14, 15), 
                         labels = c('11명', '12명', '13명', '14명', '15명'), 
                         guide = guide_legend(order = 0)) +
-  theme(legend.background = element_rect(fill = 'red')) ## botttom, left, right
+  theme(legend.position = 'left', legend.direction = 'horizontal')
+```
+
+### 범례 배경
+
+범례의 배경을 설정하기 위해서는 `theme()`의 `legend.background`에 색 이름을 설정함으로써 바꾸어줄 수 있다. 다만 앞의 설정과는 다른 것이 범례 배경을 설정할 때는 `element_rect()`의 `fill` 매개변수에 색 이름을 설정해야 한다는 것이다. 
 
 
-## 범례 테두리
-
+```{r background='black'}
 basic_plot + 
   scale_color_continuous(name = '비정규교원비율', 
                          breaks = c(3, 5, 7), 
@@ -111,11 +169,34 @@ basic_plot +
                         breaks = c(11, 12, 13, 14, 15), 
                         labels = c('11명', '12명', '13명', '14명', '15명'), 
                         guide = guide_legend(order = 0)) +
-  theme(legend.background = element_rect(color = 'blue', size = 2, fill = 'red')) ## botttom, left, right
+  theme(legend.background = element_rect(fill = 'red'))
+
+```
 
 
-## 범례 여백
+### 범례 테두리
 
+범례의 테두리를 설정하기 위해서는 `theme()`의 `legend.background`에 색 이름을 설정함으로써 바꾸어줄 수 있다. 이 설정도 앞의 범례 배경과 같이 `element_rect()`를 사용하는데 `color`로 색을 지정하고 `size`로 두께를 지정하여 설정한다. 
+
+```{r box}
+basic_plot + 
+  scale_color_continuous(name = '비정규교원비율', 
+                         breaks = c(3, 5, 7), 
+                         labels = c('3%', '5%', '7%'), 
+                         guide = guide_colorbar(reverse = TRUE, order = 1)) + 
+  scale_size_continuous(name = '교원당 학생수', 
+                        breaks = c(11, 12, 13, 14, 15), 
+                        labels = c('11명', '12명', '13명', '14명', '15명'), 
+                        guide = guide_legend(order = 0)) +
+  theme(legend.background = element_rect(color = 'blue', size = 2, fill = 'red')) 
+```
+
+
+### 범례 여백
+
+위의 범례 테두리를 그려보면 범례 안에서의 여백이 없음이 명확히 보인다. 여백을 만들기 위해서는 `theme()`의 `legend.margin`을 사용하는데 앞선 범례 배경이나 범례 테두리와 유사하게 `margin()`을 사용하여 네개의 수치를 전달하는데 12시 방향에서부터 시계방향인 3시, 6시, 9시의 여백을 지정하게 할 수 있다.
+
+```{r margin}
 basic_plot + 
   scale_color_continuous(name = '비정규교원비율', 
                          breaks = c(3, 5, 7), 
@@ -126,26 +207,20 @@ basic_plot +
                         labels = c('11명', '12명', '13명', '14명', '15명'), 
                         guide = guide_legend(order = 0)) +
   theme(legend.background = element_rect(color = 'blue'), 
-        legend.margin = margin(0, 0, 0, 0)) ## 위에서부터 시계방향 여백
+        legend.margin = margin(0, 10, 10, 0))
+```
 
 
-## 범례 여백
+### 범례 제목 꾸미기
 
-basic_plot + 
-  scale_color_continuous(##name = '비정규교원비율', 
-                         breaks = c(3, 5, 7), 
-                         labels = c('3%', '5%', '7%'), 
-                         guide = guide_colorbar(reverse = TRUE, order = 1)) + 
-  scale_size_continuous(##name = '교원당 학생수', 
-                        breaks = c(11, 12, 13, 14, 15), 
-                        labels = c('11명', '12명', '13명', '14명', '15명'), 
-                        guide = guide_legend(order = 0)) +
-  theme(legend.background = element_rect(color = 'blue'), 
-        legend.margin = margin(0, 0, 0, 10)) ## 위에서부터 시계방향 여백
+범례의 제목에 대한 강조나 기울임을 하기 위해서는 `theme()`의 `legend.title`을 설정하는데 앞선 범례 배경이나 범례 테두리와 유사하게 `element_text()`의 여러 매개변수를 사용하여 설정할 수 있다. 아래의 코드에서 `face`는 범례 제목의 타입을 다음과 같이 나타낸다.
 
+  1 : 일반 형태
+  2 : 굵은 형태(Bold)
+  3 : 기울임 형태(Italic)
+  4 : 굵은 기울임 형태(Bold Italic)
 
-## 범례 제목 꾸미기
-
+```{r face}
 basic_plot + 
   scale_color_continuous(name = '비정규교원비율', 
     breaks = c(3, 5, 7), 
@@ -155,21 +230,12 @@ basic_plot +
     breaks = c(11, 12, 13, 14, 15), 
     labels = c('11명', '12명', '13명', '14명', '15명'), 
     guide = guide_legend(order = 0)) +
-  theme(legend.title = element_text(color = 'blue', size = 20, face = 2)) ## face 1-보통, 2-굵게, 3-기울임, 4-굵게 기울임
+  theme(legend.title = element_text(color = 'blue', size = 20, face = 2))
+```
 
 
-## 범례 제목 정렬
 
-basic_plot + 
-  scale_color_continuous(name = '비정규교원비율', 
-                         breaks = c(3, 5, 7), 
-                         labels = c('3%', '5%', '7%'), 
-                         guide = guide_colorbar(reverse = TRUE, order = 1)) + 
-  scale_size_continuous(name = '교원당 학생수', 
-                        breaks = c(11, 12, 13, 14, 15), 
-                        labels = c('11명', '12명', '13명', '14명', '15명'), 
-                        guide = guide_legend(order = 0)) +
-  theme(legend.background = element_rect(color = 'blue'),legend.title.align = 1, 
-        legend.text.align = 1)
+
+
 
 
