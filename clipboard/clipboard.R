@@ -12,11 +12,17 @@ write.csv(gapminder, 'gapminder.csv')
 
 clipboard <- read.csv('clipboard', sep = '\t')
 
-write.csv(clipboard, 'clipboard')
+write.csv(gapminder, 'clipboard-128')
 
 clipboard1 <- read.clipboard()
 ?readClipboard
 
 clipboard1 <- clipr::read_clip_tbl()
 
-?write_
+?read.table
+
+gapminder |> write_clip()
+
+df <- read.csv('clipboard', sep = '\t')
+
+?read_clip
