@@ -12,10 +12,40 @@ df_adj$province <- fct_relevel(df_adj$province, '서울', '부산', '대구', '�
 
 df_adj |>
   ggplot(aes(x = year, y = stu_total)) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  facet_wrap(~province, ncol = 3)
+
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
   geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total)) +
-  geom_line(aes(color = sch_class, group = sch_class)) + 
+  facet_wrap(~province, ncol = 3)
+
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total)) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  facet_wrap(~province, ncol = 3)
+
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total), alpha = 0.05) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
   facet_wrap(~province, ncol = 3) +
-  labs(fill = '전체학교수') + 
   theme(panel.background = element_blank(), 
-        panel.grid = element_line(color = 'grey90'))
+        panel.grid = element_line(color = 'grey'))
+  
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total), alpha = 0.05) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  facet_wrap(~province, ncol = 3) +
+  labs(fill = '전체학교수', color = '학교급') + 
+  theme(panel.background = element_blank(), 
+        panel.grid = element_line(color = 'grey')) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue")
 
