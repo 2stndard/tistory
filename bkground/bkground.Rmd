@@ -1,0 +1,164 @@
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## facet 배경색을 통한 데이터 시각화
+
+이번 포스트에서는 Plot에서 데이터를 표현하는 또다른 방법으로 배경색을 통해 데이터를 표현하는 방법에 대해 언급하고자 한다. 일반적으로 X, Y축으로 표현하는 데카르트 좌표계를 활용한 Plot은 두개의 변수를 표현할 수 있다. 'Factfullness'를 저술한 한스로슬링은 데카르트 좌표계에 표현되는 포인트의 크기를 사용하여 세개의 변수를 표현하는 방법도 제안하였다. 여기에 분할(facet)을 사용하면 추가적인 변수에 대한 Plot을 표현할 수도 있다. 여기에 추가적인 정보를 표현하기 위한 몇가지 방법이 있는데 이 중 하나로 배경색을 통해 추가적인 정보를 전달하는 방법에 대해 포스팅하고자 한다.    
+
+### 데이터 Import & 기본 Plot
+
+이번 포스트에서 사용하는 데이터는 지난 '범례 꾸미기' 포스트에서 사용했던 데이터 파일인 한국교육개발원 교육통계 홈페이지[(https://kess.kedi.re.kr)](https://kess.kedi.re.kr)의 [시도별 교육통계 주제별 자료 연도별 모음(1999-2021)](https://kess.kedi.re.kr/userfile/6733224)를 사용하였다.
+
+```{r data_import, message=FALSE, warning=FALSE}
+library(readxl)
+library(tidyverse)
+
+df <- read_excel('./주요-01 유초 연도별 시도별 교육통계 모음(1999-2021)_210901.xlsx', skip = 3, na = '-', sheet = '01 개황', col_types = c('numeric', 'text', 'text', rep('numeric', 48)), col_names = F)
+
+df_adj <- df |>
+  select(1:3, 5, 11, 17, 21) |>
+  rename('year' = '...1', 'province' = '...2', 'sch_class' = '...3', 'class_total' = '...5', 'stu_total' = '...11', 'teach_total' = '...17', 'teach_tmp_total' = '...21') |>
+  filter(province != '전국', sch_class == c('유치원', '초등학교', '중학교', '고등학교'))
+
+df_adj$province <- fct_relevel(df_adj$province, '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주')
+
+head(df_adj)
+
+```
+
+위의 데이터를 사용하여 연도, 학교급, 학생수, 학급수, 지역의 다섯가지 변수를 표현한 Plot을 다음과 같이 생성할 수 있다.  
+
+```{r basic_plot}
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  geom_point(aes(size = class_total, color = sch_class)) + 
+  facet_wrap(~province, ncol = 3) + 
+  labs(x = '연도', y = '학생수', color = '학교급', size = '학급수' )
+
+```
+
+위의 Plot을 보면 서울, 경기쪽의 학생수가 많아 나머지 시도의 Plot이 잘 보이지 않는다. 썩 좋은 방법은 아니지만 각각의 Plot이 잘 보일 수 있도록 각 분할의 Y축 범위를 각각 설정하도록 한다. 
+
+```{r facet_free}
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  geom_point(aes(size = class_total, color = sch_class)) + 
+  facet_wrap(~province, ncol = 3, scales="free_y") + 
+  labs(x = '연도', y = '학생수', color = '학교급', size = '학급수' )
+
+```
+
+일부 학생수가 많은 시도의 Y축 수치가 지수형태로 표현되었고 천단위 구분이 없어 확인이 어렵다. 이는 다음과 같이 수정할 수 있다. ([ggplot에 천단위 기호 넣기 in R](https://2stndard.tistory.com/4) 포스팅 참조)
+
+```{r scale}
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  geom_point(aes(size = class_total, color = sch_class)) + 
+  facet_wrap(~province, ncol = 3, scales="free_y") + 
+  labs(x = '연도', y = '학생수', color = '학교급', size = '학급수' ) +
+  scale_y_continuous(labels = scales::comma)
+
+```
+
+### 배경색을 활용한 전체 학교수 시각화
+
+위의 Plot은 이미 다섯가지 변수를 표현하고 있다. 여기에 학교수를 추가로 표현하고자 하면 어떻게 하면 될까? 몇가지 방법이 있지만 이 포스트에서는 각 분할(facet)의 배경색을 사용하여 추가적인 데이터를 시각화하겠다. 
+
+#### geom_rect()를 사용하여 배경색 설정
+
+각 분할의 배경색 설정은 일반적으로 `theme()`의 `panel.background` 변수를 사용하여 설정할 수 있다. 하지만 이렇게 설정된 배경색은 모든 분할에 공통으로 적용되기 때문에 변수에 따라 변경할 수 없다. 이렇게 배경색을 변경하기 위해서 `geom_rect()`를 사용하여 배경 사이즈에 맞게 사각형을 그리고 그 사각형을 채우는(fill) 색을 `aes()`를 사용하여 변경해 줄 수 있다. 
+
+```{r geom_rect1}
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  geom_point(aes(size = class_total, color = sch_class)) + 
+  geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total)) +
+  facet_wrap(~province, ncol = 3, scales="free_y") + 
+  labs(x = '연도', y = '학생수', color = '학교급', size = '학급수', fill = '전체학교수' ) +
+  scale_y_continuous(labels = scales::comma)
+
+```
+
+그런데 지금 위에서 보는 Plot은 배경색만 보이고 내부의 데이터가 보이지 않는다. 이는 `geom_rect()`가 마지막으로 그려졌기 때문에 사각형이 위를 덮어버려 벌어지는 현상이다. 다음과 같이 `geom_rect()`코드의 위치를 바꾸어주면 해결된다. 
+
+
+```{r geom_rect2}
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total)) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  geom_point(aes(size = class_total, color = sch_class)) + 
+  facet_wrap(~province, ncol = 3, scales="free_y") + 
+  labs(x = '연도', y = '학생수', color = '학교급', size = '학급수', fill = '전체학교수' ) +
+  scale_y_continuous(labels = scales::comma)
+
+```
+
+#### geom_rect()를 사용하여 배경색 투명도 설정
+
+위 Plot에서 아쉬운 점은 Plot이 눈금선이 보이지 않는다는 것이다. `geom_rect()`가 눈금선 위에 그려졌기 때문에 눈금선이 가려진 것인데 이를 완벽히 표현할 수는 없으나 배경색의 투명도를 설정함으로써 눈금선을 볼 수 있다. 
+
+이를 위해서는 `geom_rect()`의 `alpha` 매개변수를 통해 설정할 수 있다. 
+
+```{r geom_rect_alpha}
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total), alpha = 0.05) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  geom_point(aes(size = class_total, color = sch_class)) + 
+  facet_wrap(~province, ncol = 3, scales="free_y") + 
+  labs(x = '연도', y = '학생수', color = '학교급', size = '학급수', fill = '전체학교수' ) +
+  scale_y_continuous(labels = scales::comma)
+
+```
+
+위의 Plot은 앞선 Plot과 달리 배경색이 파란색을 띄지 않는다. 이는 `geom_rect()`로 그려진 사각형이 투명해지면서 원래 배경색이었던 회색과 더해져 이상한 색이 나타난 것이다. 또 눈금선이 잘 나타나지 않는데 흰색으로 설정된 눈금선의 색이 희미해 잘 보이지 않는 것이다. 따라서 Plot의 배경색을 없애고, 눈금선을 회색으로 변경한다. 
+
+```{r geom_rect_alpha1}
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total), alpha = 0.05) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  geom_point(aes(size = class_total, color = sch_class)) + 
+  facet_wrap(~province, ncol = 3, scales="free_y") + 
+  labs(x = '연도', y = '학생수', color = '학교급', size = '학급수', fill = '전체학교수' ) +
+  scale_y_continuous(labels = scales::comma) +
+  theme(panel.background = element_blank(), 
+        panel.grid = element_line(color = 'grey'))
+```
+
+#### geom_rect()를 사용하여 배경색 그라디언트 설정
+
+그럼에도 불구하고 배경색이 푸른색 계열로 나타나지 않는다. 이는 시스템 디폴트 그라디언트가 
+적절하지 않는 것으로 보인다. 따라서 시스템 디폴트 그라디언트 대신 사용자가 원하는 그라디언트를 설정해서 쓸 수 있다. 아래의 Plot은 밝은 파랑부터 어두운 파랑까지의 그라디언트를 설정하는 코드이다. 
+
+```{r geom_rect_gradient, warning=FALSE}
+
+df_adj |>
+  ggplot(aes(x = year, y = stu_total)) +
+  geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf, fill = teach_total), alpha = 0.05) +
+  geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
+  geom_point(aes(size = class_total, color = sch_class)) + 
+  facet_wrap(~province, ncol = 3, scales="free_y") + 
+  labs(x = '연도', y = '학생수', color = '학교급', size = '학급수', fill = '전체학교수' ) +
+  scale_y_continuous(labels = scales::comma) +
+  theme(panel.background = element_blank(), 
+        panel.grid = element_line(color = 'grey')) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue")
+```
+
