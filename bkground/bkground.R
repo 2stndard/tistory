@@ -1,5 +1,12 @@
 library(readxl)
 library(tidyverse)
+library(plotly)
+if(!require(showtext)) {
+  install.packages('showtext')
+  library(showtext)
+}
+
+showtext_auto()
 
 df <- read_excel('./legend/주요-01 유초 연도별 시도별 교육통계 모음(1999-2021)_210901.xlsx', skip = 3, na = '-', sheet = '01 개황', col_types = c('numeric', 'text', 'text', rep('numeric', 48)), col_names = F)
 
@@ -10,11 +17,22 @@ df_adj <- df |>
 
 df_adj$province <- fct_relevel(df_adj$province, '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주')
 
-df_adj |>
+plot <- df_adj |>
   ggplot(aes(x = year, y = stu_total)) +
   geom_line(aes(color = sch_class, group = sch_class), size = 1) + 
   facet_wrap(~province, ncol = 3)
 
+plot1 <- ggplotly(plot)
+plot1
+reticulate::use_miniconda('r-reticulate')
+
+
+save_image(plot1, 'plot1.pdf')
+orca(plot1, 'plot1.svg')
+?save_image
+orca_serve()
+?kaleido
+kaleido()
 
 df_adj |>
   ggplot(aes(x = year, y = stu_total)) +
