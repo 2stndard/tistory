@@ -1,0 +1,191 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## histogram의 bins 이해하기
+
+데이터의 도수분포를 시각화할 때 많이 사용되는 시각화가 histogram을 사용하는 것이다. histogram은 변수의 변화에 따라 데이터의 사례수가 몇 개인지를 표현하는데 사용된다. 유사한 방법으로 확률 분포를 표현할 수도 있고 최대값을 1로 두고 상대적 비율을 표현하는 방식으로도 사용이 가능하다. 그런데 사용하다보면 histogram을 설명하기가 어려운 경우가 있을 것이다. 이 경우가 어떤 경우인지 알아보고 이 경우 어떻게 해결할 지에 대해 살펴보자. 
+
+### Data Import
+
+이번 포스트에서는 [한국교육개발원 교육통계서비스 홈페이지](https://kess.kedi.re.kr)에서 제공하는 대학의 전체 학과 데이터 셋[학교/학과별 데이터셋 - 대학 - 학과별(상반기) - 2021](https://kess.kedi.re.kr/contents/dataset?itemCode=04&menuId=m_02_04_03_02&tabId=m2)을  활용하겠다.
+
+```{r data_import, warning=FALSE, message=FALSE}
+library(readxl)
+library(tidyverse)
+
+df <- read_excel('./21년 고등 학과별 입학정원 입학 지원 재적 재학 휴학 외국인유학생 졸업 교원_211119.xlsx', skip = 12, na = '-', sheet = '학과별 주요 현황', col_names = T, col_types = c(rep('text', 8), rep('numeric', 56)))
+
+## 전체 데이터 중에 대학교 데이터만 사용하겠다. .  
+df.전처리 <- df |>
+  filter(학제 %in% c('대학교'))
+
+```
+
+
+
+### histogram 그리기
+
+`ggplot2`로 histogram을 그리는 가장 간단한 방법은 `geom_histogram()`을 사용하는 것이다. `geom_histogram()`은 대표적인 단변량 그래프이다. 단변량이란 하나의 변수만으로 시각화가 구현된다는 것이다. 보통 X축과 Y축의 두 축에 두개의 변수를 매핑해서 그리는 그래프는 다변량 그래프이다. 하지만 `geom_histogram()`은 하나의 축에만 변수를 매핑함으로써 그래프가 그려진다.
+아래의 그래프는 입학생 수에 따른 학과수의 분포를 `geom_histogram()`을 사용해 그린 것이다. 
+
+```{r basic_histogram, message=FALSE}
+df.전처리 |>
+  ## 그래프의 표현을 위해 입학자의 수를 제한하였다. 
+  filter(입학자_전체_계 >= 1, 입학자_전체_계 < 60) |>
+  ggplot(aes(x = 입학자_전체_계)) +
+  geom_histogram()
+```
+
+위의 코드에서도 보이듯이 `geom_histogram()`에 사용하는 변수 하나(입학자_전체_계)만을 X축에 매핑해서 간단히 그릴수 있다. 하지만 원칙적으로는 Y축에 변수의 수를 세는 통계치의 매핑이 생략되어 있는 것 뿐이다. 위의 코드는 사실상 아래의 코드로 변환되어 실행되는 것이다. 
+
+```{r basic_histogram1}
+df.전처리 |>
+  ## 그래프의 표현을 위해 입학자의 수를 제한하였다. 
+  filter(입학자_전체_계 >= 1, 입학자_전체_계 < 60) |>
+  ggplot(aes(x = 입학자_전체_계)) +
+  geom_histogram()
+```
+
+
+### histogram 그리기
+
+데이터의 전체 분포를 확인하기 위해서 사용하는 시각화 방법 중 많이 쓰는 방법이 histgram을 통해 분포를 확인하는 것이다. histgram은 각각의 변량에 대한 사례수를 표현하는 막대 그래프를 의미한다. histogram의 Y축은 사례수(n)으로 고정되기 때문에 대표적인 단변량 시각화이다. 따라서 다른 `ggplot2` 그래프와는 달리 X, Y축의 매핑값을 지정하지 않고 X축의 매핑값만으로 시각화가 가능하다. 앞서 전처리된 데이터에 대한 histogram을 다음과 같이 생성한다.
+
+```{r histogram1, warning=FALSE}
+df.전처리 |>
+  ggplot(aes(x = 입학자_전체_계)) +
+  geom_histogram() +
+  labs(x = '입학학생수', y = '학과수')
+```
+
+샘플 데이터는 하나의 학과당 하나의 레코드이기 때문에 사례수(n)은 학과수와 동일하다. 따라서 Y축의 이름을 count가 아닌 학과수로 표현하였다. 이 histogram은 매우 왜도가 심한 것으로 보인다. 
+왜도의 정도를 `moments` 패키지의 `skewness()`를 사용하여 측정하면 다음과 같다. 
+
+```{r skew1}
+library(moments)
+skewness(df.전처리$입학자_전체_계)
+```
+
+일단 왜도 값이 플러스 값이 나왔다. 이는 왼쪽의 봉우리가 높고 오른쪽으로 꼬리가 길게 치우쳐진 histogram을 의미한다. 그리고 값은 20이 넘게 나온다. 이 값은 매우 큰 값이다. 값의 정도를 비교해 보기 위해 다음의 예를 살펴보자. 
+
+```{r simulation, warning=FALSE}
+set.seed(123)
+
+##  베타 확률분포 함수를 이용하여 왼쪽으로 치우친(left skewed) 데이터 10000개를 생성
+samples <- rbeta(10000,5,1)
+
+## 시뮬레이션을 위한 데이터 프레임을 생성
+sim.data <- data.frame(samples)
+
+ggplot(data = sim.data, aes(x = samples)) + geom_histogram()
+
+skewness(sim.data$sample)
+
+set.seed(123)
+##  베타 확률분포 함수를 이용하여 오른쪽으로 치우친(right skewed) 데이터 10000개를 생성
+samples <- rbeta(10000,1,5)
+
+## 시뮬레이션을 위한 데이터 프레임을 생성
+sim.data <- data.frame(samples)
+
+ggplot(data = sim.data, aes(x = samples)) + geom_histogram()
+
+skewness(sim.data$sample)
+
+```
+
+위의 예에서 보이듯이 다소 치우쳐진 데이터들이 1을 겨우 넘는 작은 값을 보여주는 것을 보면 20이 넘는 값은 매우 치우침이 크다는 것을 알 수 있다. 
+
+그럼 원래 데이터로 돌아가서 얼마나 큰 값을 가진 데이터가 있길래 저렇게 오른쪽으로 치우쳤는지 확인해볼 필요가 있다. 다음과 같이 입학자의 규모가 큰 순서대로 20개, 작은 순서대로 20개를  확인해보자
+
+```{r max}
+df.전처리 |>
+  arrange(desc(입학자_전체_계)) |>
+  select(학과명, 입학자_전체_계)
+```
+
+```{r min}
+df.전처리 |>
+  arrange(입학자_전체_계) |>
+  select(학과명, 입학자_전체_계)
+```
+
+위의 데이터에서 보듯이 입학자가 가장 많은 학과는 간호학과로 1만명이 넘어간다. 또 입학자가 가장 작은 학과는 여러 학과가 있는데 입학자가 0명이다. 입학자가 10명 이하의 학과수는 다음과 같이 구할 수 있다. 
+
+```{r min_10}
+df.전처리 |>
+  group_by(입학자_전체_계) |>
+  count() |>
+  head(10)
+```
+
+위의 데이터에서 보면 입학생이 없는 학과가 5077개로 나타났다. 입학생이 없는 학과는 의미가 없으므로 제외하고 다시 histogram을 생성해본다. 
+
+```{r histogram2, warning=FALSE}
+df.전처리 |>
+  filter(입학자_전체_계 != 0) |>
+  ggplot(aes(x = 입학자_전체_계)) +
+  geom_histogram() +
+  stat_bin(aes(y=..count.., label=..count..), geom="text", vjust=-.5) +
+  labs(x = '입학학생수', y = '학과수') -> p
+
+p
+
+p$coordinates$limits
+
+ggplot_build(p)$panel$ranges_params[[1]]$x.range
+
+
+skewness(df.전처리 |>
+           filter(입학자_전체_계 != 0) |>
+           select(입학자_전체_계)
+         )
+
+```
+
+입학자가 0인 학과를 제외하니 다소 치우침이 완화되었다. 하지만 아직도 histogram은 효율성이 떨어지는 듯하다. 게다가 맨 앞의 막대가 약 2800정도를 가리키는 것으로 보이는데 입학생이 0인 학과를 제외하고 입학생이 1인 학과의 수도 9밖에 안되는데 왜 2800 정도의 막대가 표현되었는가? 
+
+이를 이해하기 위해서 다음의 코드 실행결과를 살펴보자
+
+```{r first_bar, warning=FALSE}
+df.전처리 |>
+  filter(입학자_전체_계 != 0, 입학자_전체_계 <= 347) |>
+  summarise(sum = n()) |>
+  ungroup() |>
+  mutate(전체_충원률_그룹 = cut(data$전체_충원률, breaks = 30))
+
+|>
+  count(전체_충원률_그룹)
+
+
+|>
+  filter(입학자_전체_계 <= 178) |>
+  summarise(sum = sum(sum))
+  count('입학자가 있는 전체 학과수')
+
+2998 / 30
+
+df.전처리 |>
+  filter(입학자_전체_계 != 0, 입학자_전체_계 <= 178) |>
+  count('입학자가 100명 미만 전체 학과수')
+
+  ggplot(aes(x = 입학자_전체_계)) +
+  geom_histogram() +
+  labs(x = '입학학생수', y = '학과수')
+
+skewness(df.전처리 |>
+           filter(입학자_전체_계 != 0) |>
+           select(입학자_전체_계)
+         )
+
+```
+
+
+
+
+
