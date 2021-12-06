@@ -12,7 +12,7 @@ showtext_auto()
 
 ### 표도 데이터 시각화의 방법
 
-데이터 시각화를 한다고 하면 대부분 떠올리는 작업이 그래프를 그리는 작업이다. 데이터 시각화를 시작할 때는 먼저 데이터를 대상으로 할지, 어떤 그래프를 써서 데이터를 예쁘고 직관적으로 표현할지를 고민하게 된다. 하지만 데이터 시각화 결과가 들어갈 보고문서에는 대부분 그래프와 함께 작성하는 것이 표이다. 데이터 시각화라고 할 때 많은 사람들은 표까지 생각하지는 않는 듯하다. 인터넷 상의 표의 정의[^1]를 보면 '시각적 의사소통과 자료의 정렬 양식'으로 나와 있다. 결국 표도 데이터 시각화의 일부인 것이다.
+데이터 시각화를 한다고 하면 대부분 떠올리는 작업이 그래프를 그리는 작업이다. 데이터 시각화를 시작할 때는 먼저 데이터를 대상으로 할지, 어떤 그래프를 써서 데이터를 예쁘고 직관적으로 표현할지를 고민하게 된다. 하지만 데이터 시각화 결과가 들어갈 보고문서에는 대부분 그래프와 함c께 작성하는 것이 표이다. 데이터 시각화라고 할 때 많은 사람들은 표까지 생각하지는 않는 듯하다. 인터넷 상의 표의 정의[^1]를 보면 '시각적 의사소통과 자료의 정렬 양식'으로 나와 있다. 결국 표도 데이터 시각화의 일부인 것이다.
 
 [^1]: <https://ko.wikipedia.org/wiki/%ED%91%9C>
 
@@ -60,7 +60,7 @@ showtext_auto()
 
 R에서 표를 만들기 위해 사용되는 패키지 중에 하나가 `gt` 패키지이다. `gt` 패키지는 표의 세부 구성들을 상세히 구분하고 이들을 구조적으로 조화롭게 구성시켜서 표를 만드는 다양한 함수와 매개 변수들을 제공한다. `gt` 패키지에서 사용하는 표의 세부 파트는 다음의 그림과 같다.
 
-![출처 : [https://gt.rstudio.com/reference/figures/gt_parts_of_a\\\_table.svg](https://gt.rstudio.com/reference/figures/gt_parts_of_a\_table.svg){.uri}](https://gt.rstudio.com/reference/figures/gt_parts_of_a_table.svg)
+![출처 : [https://gt.rstudio.com/reference/figures/gt_parts_of_a\\\_table.svg](https://gt.rstudio.com/reference/figures/gt_parts_of_a_table.svg){.uri}](https://gt.rstudio.com/reference/figures/gt_parts_of_a_table.svg)
 
 표의 구성을 보면 앞에서 살펴보았던 APA 가이드라인상의 표와 유사한 형태를 보인다. 이와 같이 표를 세부적인 파트로 구분하고 이들을 각각 설정함으로써 표를 만들 수 있다.
 
@@ -94,7 +94,8 @@ df$학제 <- fct_relevel(df$학제, '대학교', '교육대학', '산업대학',
 ```{r data_setting, warning=FALSE, message=FALSE}
 df.gt <- df |>
   group_by(학제, 학위과정) |>
-  summarise_at(vars(학과수_전체, 지원자_전체_계, 입학자_전체_계, 재적생_전체_계, 재학생_전체_계, 휴학생_전체_계, 외국인유학생_총계_계, 졸업자_전체, 전임교원_계, 비전임교원_계, 시간강사_계), funs(sum, mean)) |>
+  summarise_at(vars(학과수_전체, 지원자_전체_계, 입학자_전체_계, 재적생_전체_계, 재학생_전체_계, 휴학생_전체_계), funs(sum, mean)) |>
+#  summarise_at(vars(학과수_전체, 지원자_전체_계, 입학자_전체_계, 재적생_전체_계, 재학생_전체_계, 휴학생_전체_계, 외국인유학생_총계_계, 졸업자_전체, 전임교원_계, 비전임교원_계, 시간강사_계), funs(sum, mean)) |>
   ungroup() |>
   filter(학과수_전체_sum > 100) |>
   arrange(학제)
@@ -160,14 +161,14 @@ gt.table2
 
 ```{r gt3, message=FALSE, warning=FALSE, eval=FALSE}
 gt.table3 <- gt.table2 |> 
-  fmt_number(columns = 3:13, decimals = 0, use_seps = TRUE) |>
-  fmt_number(columns = 14:24, decimals = 1, use_seps = TRUE)
+  fmt_number(columns = 3:8, decimals = 0, use_seps = TRUE) |>
+  fmt_number(columns = 9:14, decimals = 1, use_seps = TRUE)
 ```
 
 ```{r gt_preview3, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
 gt.table3 <- gt.table2 |> 
-  fmt_number(columns = 3:13, decimals = 0, use_seps = TRUE) |>
-  fmt_number(columns = 14:24, decimals = 1, use_seps = TRUE) |>
+  fmt_number(columns = 3:8, decimals = 0, use_seps = TRUE) |>
+  fmt_number(columns = 9:14, decimals = 1, use_seps = TRUE) |>
   tab_options(table.font.size = 10)
 
 gt.table3
@@ -177,14 +178,14 @@ gt.table3
 
 ```{r gt4, message=FALSE, warning=FALSE, eval=FALSE}
 gt.table4 <- gt.table3 |> 
-  tab_spanner(columns = 3:14, label = '합계') |>
-  tab_spanner(columns = 14:24, label = '평균')
+  tab_spanner(columns = 3:8, label = '합계') |>
+  tab_spanner(columns = 9:14, label = '평균')
 ```
 
 ```{r gt_preview4, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
 gt.table4 <- gt.table3 |> 
-  tab_spanner(columns = 3:14, label = '합계') |>
-  tab_spanner(columns = 14:24, label = '평균') |>
+  tab_spanner(columns = 3:8, label = '합계') |>
+  tab_spanner(columns = 9:14, label = '평균') |>
   tab_options(table.font.size = 10)
 
 gt.table4
@@ -201,22 +202,22 @@ gt.table5 <- gt.table4 |>
                재적생_전체_계_sum = '재적생', 
                재학생_전체_계_sum = '재학생',
                휴학생_전체_계_sum = '휴학생', 
-               외국인유학생_총계_계_sum = '외국인학생', 
-               졸업자_전체_sum = '졸업자', 
-               전임교원_계_sum = '전임교원', 
-               비전임교원_계_sum = '비전임교원', 
-               시간강사_계_sum = '시간강사', 
+               # 외국인유학생_총계_계_sum = '외국인학생', 
+               # 졸업자_전체_sum = '졸업자', 
+               # 전임교원_계_sum = '전임교원', 
+               # 비전임교원_계_sum = '비전임교원', 
+               # 시간강사_계_sum = '시간강사', 
                학과수_전체_mean = '학과수', 
                지원자_전체_계_mean = '지원자',
                입학자_전체_계_mean = '입학자', 
                재적생_전체_계_mean = '재적생', 
                재학생_전체_계_mean = '재학생',
-               휴학생_전체_계_mean = '휴학생', 
-               외국인유학생_총계_계_mean = '외국인학생', 
-               졸업자_전체_mean = '졸업자', 
-               전임교원_계_mean = '전임교원', 
-               비전임교원_계_mean = '비전임교원', 
-               시간강사_계_mean = '시간강사'
+               휴학생_전체_계_mean = '휴학생'
+               # 외국인유학생_총계_계_mean = '외국인학생', 
+               # 졸업자_전체_mean = '졸업자', 
+               # 전임교원_계_mean = '전임교원', 
+               # 비전임교원_계_mean = '비전임교원', 
+               # 시간강사_계_mean = '시간강사'
   )
 ```
 
@@ -229,22 +230,22 @@ gt.table5 <- gt.table4 |>
                재적생_전체_계_sum = '재적생', 
                재학생_전체_계_sum = '재학생',
                휴학생_전체_계_sum = '휴학생', 
-               외국인유학생_총계_계_sum = '외국인학생', 
-               졸업자_전체_sum = '졸업자', 
-               전임교원_계_sum = '전임교원', 
-               비전임교원_계_sum = '비전임교원', 
-               시간강사_계_sum = '시간강사', 
+               # 외국인유학생_총계_계_sum = '외국인학생', 
+               # 졸업자_전체_sum = '졸업자', 
+               # 전임교원_계_sum = '전임교원', 
+               # 비전임교원_계_sum = '비전임교원', 
+               # 시간강사_계_sum = '시간강사', 
                학과수_전체_mean = '학과수', 
                지원자_전체_계_mean = '지원자',
                입학자_전체_계_mean = '입학자', 
                재적생_전체_계_mean = '재적생', 
                재학생_전체_계_mean = '재학생',
-               휴학생_전체_계_mean = '휴학생', 
-               외국인유학생_총계_계_mean = '외국인학생', 
-               졸업자_전체_mean = '졸업자', 
-               전임교원_계_mean = '전임교원', 
-               비전임교원_계_mean = '비전임교원', 
-               시간강사_계_mean = '시간강사'
+               휴학생_전체_계_mean = '휴학생'
+               # 외국인유학생_총계_계_mean = '외국인학생', 
+               # 졸업자_전체_mean = '졸업자', 
+               # 전임교원_계_mean = '전임교원', 
+               # 비전임교원_계_mean = '비전임교원', 
+               # 시간강사_계_mean = '시간강사'
   ) |>
   tab_options(table.font.size = 10)
 
@@ -269,6 +270,92 @@ gt.table6 <- gt.table5 |>
 
 gt.table6
 ```
+
+이제 전체적인 표의 형태가 대략 갖춰진 듯 하다. 마지막으로 각 행 그룹의 합계, 평균 행을 넣고 마지막에 전체 합계, 평균 행을 넣어주겠다. 각 행 그룹의 요약 행을 넣는 함수는 `summary_rows()`이고 전체 요약 행을 넣는 함수는 `grand_summary_rows()`이다. 
+
+```{r gt7, message=FALSE, warning=FALSE, eval=FALSE}
+gt.table7 <- gt.table6 |> 
+  summary_rows(
+    groups = T,
+    columns = 3:8,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)),
+    formatter = fmt_number, 
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  summary_rows(
+    groups = T,
+    columns = 9:14,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)),
+    formatter = fmt_number, 
+    decimals = 1,
+    use_seps = TRUE
+  ) |>
+    grand_summary_rows(
+    columns = 3:8,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)), 
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  grand_summary_rows(
+    columns = 9:14,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)), 
+    decimals = 1,
+    use_seps = TRUE
+  )
+```
+
+```{r gt_preview7, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
+gt.table7 <- gt.table6 |> 
+  summary_rows(
+    groups = T,
+    columns = 3:8,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)),
+    formatter = fmt_number, 
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  summary_rows(
+    groups = T,
+    columns = 9:14,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)),
+    formatter = fmt_number, 
+    decimals = 1,
+    use_seps = TRUE
+  ) |>
+    grand_summary_rows(
+    columns = 3:8,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)), 
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  grand_summary_rows(
+    columns = 9:14,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)), 
+    decimals = 1,
+    use_seps = TRUE
+  ) |>
+  tab_options(table.font.size = 10)
+
+gt.table7
+```
+
 
 다음 포스트에서는 `gt` 표를 예쁘게 꾸며보는 방법을 알아보도록 하겠다..
 

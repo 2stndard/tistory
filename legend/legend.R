@@ -85,3 +85,5 @@ basic_plot +
   guides(color = guide_legend(title.position = 'top'), 
          size = guide_legend(title.position = 'top'))
 
+remove.packages('bookdown')
+install.packages('bookdown')
