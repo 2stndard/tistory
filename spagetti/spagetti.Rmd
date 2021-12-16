@@ -1,5 +1,9 @@
 ---
-output: html_document
+title: "R마크다운으로 한글 저장"
+output: 
+  officedown::rdocx_document:
+    mapstyles:
+      Normal: ['First Paragraph']
 ---
 
 ```{r setup, include=FALSE}

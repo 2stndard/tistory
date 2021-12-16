@@ -1,0 +1,570 @@
+---
+output:
+  html_document:
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(gt)
+library(openxlsx)
+
+df <- read.xlsx(xlsxFile = './21년 고등 학과별 입학정원 입학 지원 재적 재학 휴학 외국인유학생 졸업 교원_211119.xlsx', sheet = '학과별 주요 현황',  startRow = 13, na.string = '-', colNames = T)
+
+
+df$학제 <- fct_relevel(df$학제, '대학교', '교육대학', '산업대학', '기술대학', '방송통신대학', '사내대학(대학)', '원격대학(대학)', '사이버대학(대학)', '각종대학(대학)', '전문대학(2년제)', '전문대학(3년제)', '전문대학(4년제)', '기능대학', '원격대학(전문)', '사이버대학(전문)', '사내대학(전문)', '전공대학',  '일반대학원', '특수대학원', '전문대학원')
+
+df.gt <- df |>
+  group_by(학제, 학위과정) |>
+  summarise_at(vars(학과수_전체, 지원자_전체_계, 입학자_전체_계, 재적생_전체_계, 재학생_전체_계, 휴학생_전체_계), funs(sum, mean)) |>
+  ungroup() |>
+  filter(학과수_전체_sum > 100) |>
+  arrange(학제)
+
+gt.table7 <- df.gt |> 
+  gt(rowname_col = '학제', 
+     groupname_col = '학위과정') |> 
+  tab_header(title = '고등교육기관 데이터', subtitle = '2021년 전체 고등교육기관 대상') |> 
+  fmt_number(columns = 3:8, decimals = 0, use_seps = TRUE) |>
+  fmt_number(columns = 9:14, decimals = 1, use_seps = TRUE) |> 
+  tab_spanner(columns = 3:8, label = '합계') |>
+  tab_spanner(columns = 9:14, label = '평균') |> 
+  cols_label(학제 = '학교종류', 
+               학과수_전체_sum = '학과수', 
+               지원자_전체_계_sum = '지원자',
+               입학자_전체_계_sum = '입학자', 
+               재적생_전체_계_sum = '재적생', 
+               재학생_전체_계_sum = '재학생',
+               휴학생_전체_계_sum = '휴학생', 
+               학과수_전체_mean = '학과수', 
+               지원자_전체_계_mean = '지원자',
+               입학자_전체_계_mean = '입학자', 
+               재적생_전체_계_mean = '재적생', 
+               재학생_전체_계_mean = '재학생',
+               휴학생_전체_계_mean = '휴학생'
+  ) |> 
+  row_group_order(
+    groups = c('전문대학과정', '대학과정', '대학원과정')
+  ) |> 
+  summary_rows(
+    groups = T,
+    columns = 3:8,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)),
+    formatter = fmt_number, 
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  summary_rows(
+    groups = T,
+    columns = 9:14,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)),
+    formatter = fmt_number, 
+    decimals = 1,
+    use_seps = TRUE
+  ) |>
+  grand_summary_rows(
+    columns = 3:8,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)), 
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  grand_summary_rows(
+    columns = 9:14,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)), 
+    decimals = 1,
+    use_seps = TRUE
+  )
+```
+
+## `gt` 패키지로 데이터 테이블 만들기 - 2
+
+앞선 포스트에서는 `gt` 패키지를 사용해 표안의 데이터 형태를 잡는 것까지 해보았다. 그럼 이번에는 표를 예쁘게 꾸며보는 작업을 해보겠다. 하나 미리 말해둘 것은 필자가 미적감각이 없어 예쁜 표가 나올지는 모르겠다. 예쁜 표를 그리는 방법을 설명할테니 진짜 예쁜 표는 직접 만들어야 할 것이다. ^.^
+
+### `tab_option()` 을 이용하여 전체 표 꾸미기
+
+표를 꾸밀때는 선 형태, 선 색깔, 셀 배경색, 글자 폰트, 글자 크기 등 여러가지 워드프로세서에서나 가능할 만한 여러가지 요소를 직접 설정할 수 있어야 한다. `gt` 패키지에서는 `tab_option()` 함수의 다양한 매개 변수를 설정함에 따라 이들 요소들을 직접 설정할 수 있다. 다만 `tab_option()`에서 제공하는 매개 변수들이 너무 많아서 본 포스트에서 다 설명할 수 없다. `tab_option()`의 매개변수는 `gt`의 [`tab_option()` 매뉴얼](https://gt.rstudio.com/reference/tab_options.html)을 참조하라.
+
+```{r tab_option1, eval=FALSE}
+gt.table8 <- gt.table7 |>
+  tab_options(
+    ## 행 그룹 요약 행의 배경색 설정
+    summary_row.background.color = "lightblue",
+    ## 전체 요약 행의 배경색 설정
+    grand_summary_row.background.color = "lightgreen",
+    ## 구분(Stub) 행의 헤더 외곽선 스타일 설정
+    stub.border.style = 'solid', 
+    ## 구분(Stub) 행의 배경색 설정
+    stub.background.color = '#edf8fb',
+    ## 행 그룹 이름 표현 셀 배경색 설정
+    row_group.background.color = '#ffffcc',
+    ## 열 제목(Heading) 배경색 설정
+    heading.background.color = '#c6dbef',
+    ## 표 몸체(Body) 수평선 스타일 설정
+    table_body.hlines.style = 'dashed', 
+    ## 표 몸체(Body) 수직선 색깔 설정 
+    table_body.vlines.color = 'blue',
+    ## 표 몸체(BOdy) 수직선 스타일 설정
+    table_body.vlines.style = 'dashed'
+  )
+```
+
+```{r tab_option1_preview, echo=FALSE}
+gt.table8 <- gt.table7 |>
+  tab_options(
+    ## 행 그룹 요약 행의 배경색 설정
+    summary_row.background.color = "lightblue",
+    ## 전체 요약 행의 배경색 설정
+    grand_summary_row.background.color = "lightgreen",
+    ## 구분(Stub) 행의 헤더 외곽선 스타일 설정
+    stub.border.style = 'solid', 
+    ## 구분(Stub) 행의 배경색 설정
+    stub.background.color = '#edf8fb',
+    ## 행 그룹 이름 표현 셀 배경색 설정
+    row_group.background.color = '#ffffcc',
+    ## 열 제목(Heading) 배경색 설정
+    heading.background.color = '#c6dbef',
+    ## 표 몸체(Body) 수평선 스타일 설정
+    table_body.hlines.style = 'dashed', 
+    ## 표 몸체(Body) 수직선 색깔 설정 
+    table_body.vlines.color = 'blue',
+    ## 표 몸체(BOdy) 수직선 스타일 설정
+    table_body.vlines.style = 'dashed'
+  ) |>
+  tab_options(table.font.size = 10)
+
+gt.table8
+```
+
+### `tab_style()` 을 이용하여 셀 꾸미기
+
+`tab_option()`에서 많은 설정값을 제공하지만 표를 세부적으로 설정하기가 다소 어려울 것이다. 필자도 전체적으로 설정할 필요가 있을 때는 `tab_option()`을 사용하지만 생각보다 설정이 어려워 셀 단위로 설정하는 `tab_style()`을 사용한다. `tab_style()`은 표에서 설정할 각 부분을 먼저 선택하고 이 부분에 대한 스타일을 설정함으로써 표를 꾸밀 수 있다. 이 함수에서는 셀 위치(`locations`)와 셀 스타일(`style`)을 지정하는 두가지 매개변수가 필요하다. 이 매개변수들을 설정할 때는 도움 함수(helper function)[^1]을 사용하는데 `tab_style()` 의 사용법은 다음과 같다.
+
+[^1]: 특정 함수안에서만 사용이 되는 함수로 해당 함수의 세부 기능을 수행하기 위해 사용되는 함수를 말한다.
+
+::: infobox
+`r kableExtra::text_spec("tab_style(data, locations, style)", bold = TRUE, background = 'grey', color = 'white')`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   locations : 셀의 위치를 설정하기 위한 헬퍼함수
+
+-   style : 셀의 속성을 설정하기 위한 도움 함수, 2개 이상의 도움 함수를 사용해야 할 경우는 list로 만들어준다.
+:::
+
+`tab_style()` 의 위치(`locations`)를 설정하는데 사용하는 도움 함수는 다음과 같다.
+
++------------------------------------------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------+
+| 도움함수명                                                             | 설명                                                              | 매개변수                                                       |
++========================================================================+===================================================================+================================================================+
+| [`cell_fill()`](https://gt.rstudio.com/reference/cell_fill.html)       | 셀 안을 채우는 색깔을 지정하는 함수                               | `color`, `alpha`                                               |
++------------------------------------------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------+
+| [`cell_text()`](https://gt.rstudio.com/reference/cell_text.html)       | 셀 안의 문자 형태(색깔, 폰트, 크기, 스타일, 굵기)를 지정하는 함수 | `color`, `font`, `size`, `style`, `weight` , `align`, `indent` |
++------------------------------------------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------+
+| [`cell_borders()`](https://gt.rstudio.com/reference/cell_borders.html) | 셀의 테두리 설정                                                  | `sides`, `color`, `style`, `weight`                            |
++------------------------------------------------------------------------+-------------------------------------------------------------------+----------------------------------------------------------------+
+
+셀의 위치(`locations`)를 설정할 때 사용하는 도움 함수는 다음과 같다.
+
+| 도움 함수                                                                                      | 설명                          | 매개변수              |
+|------------------------------------------------------------------------------------------------|-------------------------------|-----------------------|
+| [`cells_title()`](https://gt.rstudio.com/reference/cells_title.html)                           | 표 제목 셀 선택               | groups                |
+| [`cells_stubhead()`](https://gt.rstudio.com/reference/cells_stubhead.html)                     | 구분(Stub) 열 제목셀 선택     |                       |
+| [`cells_column_spanners()`](https://gt.rstudio.com/reference/cells_column_spanners.html)       | 열 이름 묶음(Spanner) 셀 선택 | spanners              |
+| [`cells_column_labels()`](https://gt.rstudio.com/reference/cells_column_labels.html)           | 열 이름 셀 선택               | columns               |
+| [`cells_row_groups()`](https://gt.rstudio.com/reference/cells_row_groups.html)                 | 행 그룹 셀 선택               | groups                |
+| [`cells_stub()`](https://gt.rstudio.com/reference/cells_stub.html)                             | 구분 셀 선택                  | rows                  |
+| [`cells_body()`](https://gt.rstudio.com/reference/cells_body.html)                             | 표 몸체(Body) 셀 선택         | columns, rows         |
+| [`cells_summary()`](https://gt.rstudio.com/reference/cells_summary.html)                       | 요약 셀 선택                  | groups, columns, rows |
+| [`cells_grand_summary()`](https://gt.rstudio.com/reference/cells_grand_summary.html)           | 전체 요약 셀 선택             | columns, rows         |
+| [`cells_stub_summary()`](https://gt.rstudio.com/reference/cells_stub_summary.html)             | 요약 구분 셀 선택             | groups, rows          |
+| [`cells_stub_grand_summary()`](https://gt.rstudio.com/reference/cells_stub_grand_summary.html) | 전체 요약 구분 셀 선택        | rows                  |
+| [`cells_footnotes()`](https://gt.rstudio.com/reference/cells_footnotes.html)                   | 각주 셀 선택                  |                       |
+| [`cells_source_notes()`](https://gt.rstudio.com/reference/cells_source_notes.html)             | 출처 셀 선택                  |                       |
+
+그러면 이제 차근차근 표를 꾸며보자. 먼저 표 제목을 굵게하고 크기를 20로 설정하는 코드는 다음과 같다.
+
+```{r eval=FALSE}
+gt.table9 <- gt.table8 |>
+  tab_style(
+    locations = cells_title(groups = "title"),
+    style     = list(
+      cell_text(weight = "bold", size = px(20))
+    )
+  )
+```
+
+```{r echo=FALSE}
+gt.table9 <- gt.table8 |>
+  tab_style(
+    locations = cells_title(groups = "title"),
+    style     = list(
+      cell_text(weight = "bold", size = px(20))
+    )
+  ) |>
+  tab_options(table.font.size = 10)
+
+
+gt.table9
+```
+
+<br></br> 이번에는 열 그룹(Spanner) 이름인 '합계'와 '평균' 문자 색과 크기를 설정하겠다.
+
+```{r eval=FALSE}
+gt.table10 <- gt.table9 |>
+  tab_style(
+    locations = cells_column_spanners(spanners = "합계"),
+    style     = list(
+      cell_text(weight = "bold", size = px(12), color = 'blue')
+    )
+  ) %>% 
+  tab_style(
+    locations = cells_column_spanners(spanners = "평균"),
+    style     = list(
+      cell_text(weight = "bold",color = "red", size = px(12))
+    )
+  )
+```
+
+```{r echo=FALSE}
+gt.table10 <- gt.table9 |>
+  tab_style(
+    locations = cells_column_spanners(spanners = "합계"),
+    style     = list(
+      cell_text(weight = "bold", size = px(12), color = 'blue')
+    )
+  ) |>
+  tab_style(
+    locations = cells_column_spanners(spanners = "평균"),
+    style     = list(
+      cell_text(weight = "bold",color = "red", size = px(12))
+    )
+  ) |>
+  tab_options(table.font.size = 10)
+
+
+gt.table10
+```
+
+<br></br> 이번에는 열 이름의 스타일을 설정하겠다. 열의 배경색을 회색으로, 열의 글자색을 흰색으로 설정하는데 필요한 함수는 `cell_text()`와 `cell_fill()`의 두가지가 필요하다. 따라서 이 두가지 함수를 `list()`로 묶어 주어야 한다. `cells_column_label()`의 `columns` 매개변수 설정시에 특정 열의 이름을 설정하여 특정 열을 선택할 수 있고 다수의 열을 선택하려면 열 이름이나 열 번호를 vector로 만들어 설정할 수 있다. 열 전체를 선택해야 할때는 `everything()`을 사용할 수 있다.
+
+```{r eval=FALSE}
+gt.table11 <- gt.table10 |> 
+  tab_style(
+    locations = cells_column_labels(columns = everything()),
+    style     = list(
+      cell_text(color = "white"), 
+      cell_fill(color = 'grey50')
+    )
+  )
+```
+
+```{r echo=FALSE}
+gt.table11 <- gt.table10 |> 
+  tab_style(
+    locations = cells_column_labels(columns = everything()),
+    style     = list(
+      cell_text(color = "white"), 
+      cell_fill(color = 'grey50')
+    )
+  ) |>
+  tab_options(table.font.size = 10)
+
+gt.table11
+```
+
+<br></br> 각각의 행 그룹 이름셀이 노란색으로 표현되어 있는데 위에서 설정한 열 이름 셀의 속성과 유사한 속성으로 바꾸어 주겠다. 행 그룹 이름 셀의 속성을 설정하는 함수는 `cells_row_group()`이다. 이 함수에서 `groups` 매개변수를 사용하여 설정하고자 하는 행 그룹을 지정할 수 있는데 전체 행 그룹 이름 셀을 선택하려면 `everything()`을 사용한다.
+
+```{r eval=FALSE}
+gt.table12 <- gt.table11 |> 
+  tab_style(
+    locations = cells_row_groups(groups = everything()),
+    style     = list(
+      cell_text(color = "grey25", size = 24, align = 'center'), 
+      cell_fill(color = 'grey75')
+    )
+  )
+```
+
+```{r echo=FALSE}
+gt.table12 <- gt.table11 |> 
+  tab_style(
+    locations = cells_row_groups(groups = everything()),
+    style     = list(
+      cell_text(color = "grey25", size = 24, align = 'center'), 
+      cell_fill(color = 'grey75')
+    )
+  ) |>
+  tab_options(table.font.size = 10)
+
+gt.table12
+```
+
+<br></br> 이번에는 구분 셀(Stub)을 설정하도록 하겠다. 현재 그려진 표에는 구분(Stub) 셀, 요약 구분 셀, 전체 요약 구분 셀의 세가지 구분 셀이 있다. 이들 구분 셀들을 모두 굵은 글씨에 중간 정렬로 설정하도록 한다. 구분 셀을 선택하는 함수는 `cells_stub()`, 요약 구분 셀을 선택하는 함수는 `cells_stub_summary()` , 전체 요약구분 셀을 선택하는 함수는 `cells_grand_stub_summary()` 이다. 다음과 같이 설정이 가능하다.
+
+```{r eval=FALSE}
+gt.table13 <- gt.table12 |> 
+  tab_style(
+    locations = cells_stub(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  ) |>
+  tab_style(
+    locations = cells_stub_summary(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  ) |>
+  tab_style(
+    locations = cells_stub_grand_summary(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  )
+```
+
+```{r echo=FALSE}
+gt.table13 <- gt.table12 |> 
+  tab_style(
+    locations = cells_stub(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  ) |>
+  tab_style(
+    locations = cells_stub_summary(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  ) |>
+  tab_style(
+    locations = cells_stub_grand_summary(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  ) |>
+  tab_options(table.font.size = 10)
+
+gt.table13
+```
+
+<br></br> 이번에는 실제 데이터들이 표현되는 표 몸체(Body)를 설정한다. 표 몸체는 표 헤더 셀(Header), 표 구분 셀(Stub)를 제외한 표 내부의 전체 셀을 의미한다. 경우에 따라 특정 열을 선택할 수 있고 특정 열만, 특정 행만을 선택할 수도 있으며 전체 표 몸체 셀을 선택할 수도 있다. 여기서는 합계쪽 데이터는 파란색 글씨에 파란색 선으로 표현하고 평균쪽 데이터는 붉은색 글씨에 붉은색 선으로 표현한다. 코드는 다음과 같다.
+
+```{r eval=FALSE}
+gt.table14 <- gt.table13 |>
+  tab_style(
+    locations = cells_body(rows = everything(), columns = c(9:14)),
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted')
+    )
+  ) |>
+  tab_style(
+    locations = cells_body(rows = everything(), columns = c(3:8)),
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted')
+    )
+  )
+```
+
+```{r echo=FALSE}
+gt.table14 <- gt.table13 |>
+  tab_style(
+    locations = cells_body(rows = everything(), columns = c(9:14)),
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted'), 
+      cell_text(color = 'red')
+    )
+  ) |>
+  tab_style(
+    locations = cells_body(rows = everything(), columns = c(3:8)),
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted'), 
+      cell_text(color = 'blue')
+    )
+  ) |>
+  tab_options(table.font.size = 10)
+
+gt.table14
+```
+
+<br></br> 앞서 표 몸체를 설정한 것과 같이 요약 셀과 전체 요약 셀도 유사하게 설정해보도록 하겠다. 하지만 요약 셀은 배경색을 푸른색과 붉은색 글자색으로 설정하고 전체 요약 셀은 셀 배경을 푸른색과 붉은색으로 채우고 글자색을 하얀색으로 굵게 설정하도록 하겠다.[^2]
+
+[^2]: `cells_summary()`와 `cells_grand_summary` 의 `rows` 와 `columns` 매개변수에서 `everythig()` 이 정상적으로 실행되지 않는데 `gt` 패키지의 오류가 있는 것으로 생각된다.
+
+```{r eval=FALSE}
+gt.table15 <- gt.table14 |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted'), 
+      cell_text(color = 'blue')
+    ), 
+    locations = cells_summary(rows = 1, 
+                              columns = c(3:8), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted'), 
+      cell_text(color = 'blue')
+    ), 
+    locations = cells_summary(rows = 2, 
+                              columns = c(3:8), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted'), 
+      cell_text(color = 'red')
+    ), 
+    locations = cells_summary(rows = 1, 
+                              columns = c(9:14), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted'), 
+      cell_text(color = 'red')
+    ), 
+    locations = cells_summary(rows = 2, 
+                              columns = c(9:14), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'blue', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 1, 
+                              columns = c(3:8)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'blue', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 2, 
+                              columns = c(3:8)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'red', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 1, 
+                              columns = c(9:14)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'red', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 2, 
+                              columns = c(9:14)
+    )
+  )
+```
+
+```{r echo=FALSE}
+gt.table15 <- gt.table14 |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted'), 
+      cell_text(color = 'blue')
+    ), 
+    locations = cells_summary(rows = 1, 
+                              columns = c(3:8), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted'), 
+      cell_text(color = 'blue')
+    ), 
+    locations = cells_summary(rows = 2, 
+                              columns = c(3:8), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted'), 
+      cell_text(color = 'red')
+    ), 
+    locations = cells_summary(rows = 1, 
+                              columns = c(9:14), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted'), 
+      cell_text(color = 'red')
+    ), 
+    locations = cells_summary(rows = 2, 
+                              columns = c(9:14), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'blue', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 1, 
+                              columns = c(3:8)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'blue', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 2, 
+                              columns = c(3:8)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'red', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 1, 
+                              columns = c(9:14)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'red', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 2, 
+                              columns = c(9:14)
+    )
+  ) |>
+  tab_options(table.font.size = 10)
+
+gt.table15
+```
+
+<br></br> 지금까지 `gt` 객체로 표현되는 표를 꾸미는 과정을 살펴보았다. 사실 지금까지는 MS-Word, MS-Excel이나 아래한글에서 설정이 가능하다. 솔직히 워드프로세서나 스프레드 시트 프로그램에서 꾸미는 것이 더 편할 수 도 있다. 하지만 이전 포스트에서 설명한 바와 같이 이런 표를 몇 개 연속적으로 그려야 할 때나 데이터가 업데이트되어 다시 그려야 할 때는 워드프로세서나 스프레드 시트와는 비교할 수 없을 정도로 편리할 것이다. 그리고 워드프로세스나 스프레드 시트보다 더 파워풀한 기능을 다음번 포스트에서 설명하도록 하겠다.
+
+Coming Soon..

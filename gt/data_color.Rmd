@@ -1,0 +1,310 @@
+---
+output:
+  html_document:
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", echo = TRUE, message = FALSE, warning = FALSE)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(gt)
+library(openxlsx)
+
+df <- read.xlsx(xlsxFile = './21년 고등 학과별 입학정원 입학 지원 재적 재학 휴학 외국인유학생 졸업 교원_211119.xlsx', sheet = '학과별 주요 현황',  startRow = 13, na.string = '-', colNames = T)
+
+
+df$학제 <- fct_relevel(df$학제, '대학교', '교육대학', '산업대학', '기술대학', '방송통신대학', '사내대학(대학)', '원격대학(대학)', '사이버대학(대학)', '각종대학(대학)', '전문대학(2년제)', '전문대학(3년제)', '전문대학(4년제)', '기능대학', '원격대학(전문)', '사이버대학(전문)', '사내대학(전문)', '전공대학',  '일반대학원', '특수대학원', '전문대학원')
+
+df.gt <- df |>
+  group_by(학제, 학위과정) |>
+  summarise_at(vars(학과수_전체, 지원자_전체_계, 입학자_전체_계, 재적생_전체_계, 재학생_전체_계, 휴학생_전체_계), funs(sum, mean)) |>
+  ungroup() |>
+  filter(학과수_전체_sum > 100) |>
+  arrange(학제)
+
+gt.table15 <- df.gt |>
+  group_by(학위과정) |>
+  mutate(재적생_rate = 재적생_전체_계_sum/sum(재적생_전체_계_sum)*100) |>
+  ungroup() |>
+gt(rowname_col = '학제', 
+   groupname_col = '학위과정') |> 
+  tab_header(title = '고등교육기관 데이터', subtitle = '2021년 전체 고등교육기관 대상') |> 
+  fmt_number(columns = 3:8, decimals = 0, use_seps = TRUE) |>
+  fmt_number(columns = 9:14, decimals = 1, use_seps = TRUE) |> 
+  tab_spanner(columns = 3:8, label = '합계') |>
+  tab_spanner(columns = 9:14, label = '평균') |> 
+  cols_label(학제 = '학교종류', 
+               학과수_전체_sum = '학과수', 
+               지원자_전체_계_sum = '지원자',
+               입학자_전체_계_sum = '입학자', 
+               재적생_전체_계_sum = '재적생', 
+               재학생_전체_계_sum = '재학생',
+               휴학생_전체_계_sum = '휴학생', 
+               학과수_전체_mean = '학과수', 
+               지원자_전체_계_mean = '지원자',
+               입학자_전체_계_mean = '입학자', 
+               재적생_전체_계_mean = '재적생', 
+               재학생_전체_계_mean = '재학생',
+               휴학생_전체_계_mean = '휴학생'
+  ) |> 
+  row_group_order(
+    groups = c('전문대학과정', '대학과정', '대학원과정')
+  ) |> 
+  summary_rows(
+    groups = T,
+    columns = 3:8,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)),
+    formatter = fmt_number, 
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  summary_rows(
+    groups = T,
+    columns = 9:14,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)),
+    formatter = fmt_number, 
+    decimals = 1,
+    use_seps = TRUE
+  ) |>
+  grand_summary_rows(
+    columns = 3:8,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)), 
+    decimals = 0,
+    use_seps = TRUE
+  ) |>
+  grand_summary_rows(
+    columns = 9:14,
+    fns = list(
+      합계 = ~sum(.),
+      평균값 = ~mean(.)), 
+    decimals = 1,
+    use_seps = TRUE
+  ) |>
+  tab_options(
+    ## 행 그룹 요약 행의 배경색 설정
+    summary_row.background.color = "lightblue",
+    ## 전체 요약 행의 배경색 설정
+    grand_summary_row.background.color = "lightgreen",
+    ## 구분(Stub) 행의 헤더 외곽선 스타일 설정
+    stub.border.style = 'solid', 
+    ## 구분(Stub) 행의 배경색 설정
+    stub.background.color = '#edf8fb',
+    ## 행 그룹 이름 표현 셀 배경색 설정
+    row_group.background.color = '#ffffcc',
+    ## 열 제목(Heading) 배경색 설정
+    heading.background.color = '#c6dbef',
+    ## 표 몸체(Body) 수평선 스타일 설정
+    table_body.hlines.style = 'dashed', 
+    ## 표 몸체(Body) 수직선 색깔 설정 
+    table_body.vlines.color = 'blue',
+    ## 표 몸체(BOdy) 수직선 스타일 설정
+    table_body.vlines.style = 'dashed'
+  ) |>
+  tab_style(
+    locations = cells_title(groups = "title"),
+    style     = list(
+      cell_text(weight = "bold", size = px(20))
+    )
+  )  |>
+  tab_style(
+    locations = cells_column_spanners(spanners = "합계"),
+    style     = list(
+      cell_text(weight = "bold", size = px(12), color = 'blue')
+    )
+  ) %>% 
+  tab_style(
+    locations = cells_column_spanners(spanners = "평균"),
+    style     = list(
+      cell_text(weight = "bold",color = "red", size = px(12))
+    )
+  )  |> 
+  tab_style(
+    locations = cells_column_labels(columns = everything()),
+    style     = list(
+      cell_text(color = "white"), 
+      cell_fill(color = 'grey50')
+    )
+  )  |> 
+  tab_style(
+    locations = cells_row_groups(groups = everything()),
+    style     = list(
+      cell_text(color = "grey25", size = 24, align = 'center'), 
+      cell_fill(color = 'grey75')
+    )
+  )  |> 
+  tab_style(
+    locations = cells_stub(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  ) |>
+  tab_style(
+    locations = cells_stub_summary(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  ) |>
+  tab_style(
+    locations = cells_stub_grand_summary(rows = everything()),
+    style     = list(
+      cell_text(align = 'center', weight = 'bold')
+    )
+  )  |>
+  tab_style(
+    locations = cells_body(rows = everything(), columns = c(9:14)),
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted')
+    )
+  ) |>
+  tab_style(
+    locations = cells_body(rows = everything(), columns = c(3:8)),
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted')
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted'), 
+      cell_text(color = 'blue')
+    ), 
+    locations = cells_summary(rows = 1, 
+                              columns = c(3:8), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'blue', style = 'dotted'), 
+      cell_text(color = 'blue')
+    ), 
+    locations = cells_summary(rows = 2, 
+                              columns = c(3:8), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted'), 
+      cell_text(color = 'red')
+    ), 
+    locations = cells_summary(rows = 1, 
+                              columns = c(9:14), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_borders(color = 'red', style = 'dotted'), 
+      cell_text(color = 'red')
+    ), 
+    locations = cells_summary(rows = 2, 
+                              columns = c(9:14), 
+                              group = everything()
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'blue', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 1, 
+                                    columns = c(3:8)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'blue', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 2, 
+                                    columns = c(3:8)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'red', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 1, 
+                                    columns = c(9:14)
+    )
+  ) |> 
+  tab_style(
+    style     = list(
+      cell_text(color = 'white', weight = 'bold'), 
+      cell_fill(color = 'red', alpha = 0.5)
+    ), 
+    locations = cells_grand_summary(rows = 2, 
+                                    columns = c(9:14)
+    )
+  ) |>
+  tab_options(table.font.size = 10)
+```
+
+## `gt` 패키지로 데이터 강조하기
+
+앞의 2번의 포스트에서 `gt` 패키지를 사용하여 표를 예쁘게(?) 꾸미는 방법에 대해 설명했다. 앞에서 언급했지만 표를 꾸미는 것은 워드프로세스가 더 편할 수도 있다. 하지만 이번 포스트에서는 워드프로세서에서는 불가능한 기능을 설명하겠다.
+
+### `data_color()`를 사용한 데이터 강조
+
+표를 보다보면 최대값이나 최소값을 강조할 필요가 있다. 또 표에 포함된 숫자의 크기에 따라 글자색이나 배경색을 표기해주면 표를 읽기가 더 쉬워진다. `gt` 패키지에서는 이 기능을 지원하기 위해 `data_color()` 함수를 제공한다. 이 함수를 사용하여 열의 숫자에 따라 색을 달리 표현할 수 있다.
+
+`data_color()`의 용법은 다음과 같다.
+
+::: infobox
+`r kableExtra::text_spec('data_color(data, columns, colors, alpha = NULL, apply_to = c("fill", "text"),  autocolor_text = TRUE)', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   columns : 색 변경을 적용해야하는 열
+
+-   color : 열의 색 변경에 사용할 색 벡터로써 `scales` 패키지의 색상 매핑 함수나 열의 개별 값(수준)에 매칭될 색 벡터
+
+-   alpha : 옵션 값으로 열의 색 변경에 적용되는 투명도 값
+
+-   apply_to : 열의 색을 배경색(fill)에 적용할지 글자색(text)에 적용할 지를 지정
+
+-   autocolor_text : 셀의 배경색에 따라 글자색을 변경하는 옵션 지정(기본값은 TRUE)
+:::
+
+위의 `data_color()` 용법에서 `color` 매개변수에는 `scales` 패키지의 색상 패핑 함수를 사용할 수 있다. `scales` 패키지의 색상 매핑 함수는 `scales::col_quantile()`, `scales::col_bin()`, `scales::col_numeric()`, `scales::col_factor()` 를 사용할 수 있다.
+
+-   `scales::col_numeric()` : 선형적 변환에 의해 데이터 값을 색상으로 매핑
+-   `scales::col_quantile()` : 데이터 값을 지정된 분위(기본값은 4)에 따라 색상으로 매핑
+-   `scales::col_bin()` : 데이터 값을 기반으로 구간을 나누고(bins) 이에 따라 색상을 매핑
+-   `scales::col_factor()` : 매핑될 데이터가 팩터인 경우 팩터값에 따라 색상을 매핑
+
+`scales` 패키지의 색상 매핑 함수는 적절한 색상 팔레트를 정의해야 한다. 하지만 사용자가 색상 팔레트를 일일이 정의하는 것은 쉽지 않은 일이다. 따라서 R에서 제공하는 다양한 팔레트를 이용하는 것이 효율적인데 팔레트 설정을 위해 많이 사용되는 패키지가 `paletteer` 패키지이다. `paletteer` 패키지에서 제공하는 `paletteer_d()`는 R에서 제공하는 패키지에 포함되어 있는 팔레트 정보를 벡터로 추출해오는 함수이다. 따라서 이 함수를 사용하면 다양한 패키지에서 제공하는 팔레트를 표 색상을 설정하는데 사용할 수 있다. 다만 이 함수를 사용하는데 하나 주의해야 할 것이 결과값이 수치형 벡터이기 때문에 이를 문자형 벡터로 변환시켜 주는 과정이 필요하다는 점이다. `paletteer::paletteer_d()`를 사용하여 데이터 강조색을 설정하는 코드는 다음과 같다.
+
+```{r}
+gt.table15  |>
+  data_color(
+    columns = c(3:8),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::blue_material"
+      ) |> as.character(),
+      domain = NULL
+    )
+  ) |>
+  data_color(
+    columns = c(9:14),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "ggsci::red_material"
+      ) |> as.character(),
+      domain = NULL
+    )
+  )
+```
+
+
