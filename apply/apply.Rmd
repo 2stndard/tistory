@@ -1,0 +1,83 @@
+---
+title: "apply in R"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# apply 함수의 이해
+
+앞선 포스트에서는 R에서 대규모 데이터에 대한 처리 과정에서 벡터 연산과 루프 연산간의 속도 차이를 살펴보았다. 사실 앞선 포스트에서 비교했던 세가지 방법(함수 자체의 벡터 연산을 통한 대규모 데이터 처리, for 루프에서 함수 호출을 사용한 대규모 데이터 처리, `apply()`를 사용한 대규모 데이터 처리)들에서 사실 첫번째 방법의 속도가 우수하게 나올수 밖에 없었던 하나의 이유는 함수 호출에 대한 오버헤드가 없었다는 점이다. 루프를 사용하는 방법이나 `apply()`를 사용하는 방법은 데이터를 계산할 때마다 함수를 호출해야하기 때문에 이에 대한 속도의 문제가 발생할 수 밖에 없다. 그렇기 때문에 함수 자체에서 벡터 연산을 지원하도록 설계하는 것이 R에서의 대규모 데이터 처리에 핵심일 것이다. 그렇다면 함수 호출이 빈번하게 발생하는 나머지 두 개의 방법에 대한 속도에서도 R에서 대규모의 데이터를 루프없이 실행시키는 `apply()` 계열 함수는 데이터의 갯수가 적으면 루프보다 비효율적이지만 대규모 데이터가 될수록 루프보다는 효율적임을 알 수 있었다. 그러면 `apply()`의 구체적인 사용방법에 대해 알아보도록 하겠다.
+
+`apply()`는 R에서 기본적으로 제공하는 함수로써 대규모의 데이터를 처리할 때 루프를 대신하여 반복되는 작업을 함수화하여 처리할 수 있는 함수이다. `apply()`는 주로 벡터, 리스트, 데이터프레임에서 사용하는 `sum()`, `mean()`, `median()`과 같은 요약 함수들을 반복하여 적용할 때 사용된다. `apply()`는 `apply()`외에도 적용하는 데이터의 종류에 따라 `lapply()`, `sapply()`, `tapply()`들을 사용할 수 있다.
+
+## 데이터 Import
+
+이번 포스트에서 사용하는 데이터는 [한국교육개발원 교육통계서비스 홈페이지](https://kess.kedi.re.kr)의 [고등교육기관 대학 시도별 학교수](https://kess.kedi.re.kr/kessTheme/timeStats?itemCode=03&uppCd1=03040106&menuId=m_02_03_02)를 활용하겠다.
+
+```{r data_import, warning=FALSE, message=FALSE}
+library(readxl)
+library(tidyverse)
+
+df <- read_excel('./대학 시도별 학생수.xlsx', col_names = T, col_types = c('text', rep('numeric', 18)))
+
+df <- df |> filter(합계 != is.na(합계))
+
+df |> head()
+
+```
+
+## apply()
+
+`apply()`는 `apply()`계열의 함수중에 가장 기본적으로 사용되는 함수이다. 사실 `lapply()`, `sapply()`, `tapply()`도 기본적으로 `apply()`에서 파생되어 나온 함수들이기 때문에 `apply()`의 사용법을 잘 알아두면 나머지 `apply()`계열의 함수를 사용하는데 큰 문제가 없다.
+
+`apply()`의 기본적인 작동 원리는 다음의 그림과 같다.
+
+![<https://www.r-bloggers.com/2022/03/complete-tutorial-on-using-apply-functions-in-r/>](https://i2.wp.com/www.rforecology.com/apply_image1.png?w=578&ssl=1)
+
+`apply()`의 기본적인 문법은 다음과 같다. 
+
+```{r eval = FALSE}
+apply(X, MARGIN, FUN, ..., simplify = TRUE)
+  - X : apply를 적용할 데이터프레임
+  - MARGIN : 함수를 행 단위(MARGIN = 1)로 적용할지 열 단위(MARGIN = 2)로 적용할지를 설정
+  - FUN : 적용해야 할 함수 이름
+
+```
+
+앞서 설명한 바와 같이 `apply()`는 데이터프레임에 대한 행방향, 혹은 열방향으로 특정 요약 함수를 적용하는 것이기 때문에 MARGIN을 통해 FUN으로 지정된 함수를 행방향으로 실행할지 열방향으로 실행할지를 결정한다. 
+
+앞서 불러들인 데이터에 대해 `apply()`를 적용해보겠다. 
+
+앞서 불러들인 데이터에는 행방향으로 연도별 입학자 수가 들어있고 열방향으로 지역별 입학자수가 들어있다. 먼저 각 지역별 평균을 루프를 사용하여 산출하면 다음과 같다. 
+
+```{r}
+means <- NULL
+for(i in 2:length(colnames(df))) {
+  means[i-1] <- mean(pull(df[, i]))
+}
+
+means
+
+mean(pull(df[, 2]))
+```
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
