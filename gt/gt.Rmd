@@ -1,5 +1,7 @@
 ---
-output: html_document
+output:
+  html_document:
+    css: style.css
 ---
 
 ```{r setup, include=FALSE}
@@ -12,8 +14,10 @@ showtext_auto()
 
 ### 표도 데이터 시각화의 방법
 
+---
+** note **
 데이터 시각화를 한다고 하면 대부분 떠올리는 작업이 그래프를 그리는 작업이다. 데이터 시각화를 시작할 때는 먼저 데이터를 대상으로 할지, 어떤 그래프를 써서 데이터를 예쁘고 직관적으로 표현할지를 고민하게 된다. 하지만 데이터 시각화 결과가 들어갈 보고문서에는 대부분 그래프와 함c께 작성하는 것이 표이다. 데이터 시각화라고 할 때 많은 사람들은 표까지 생각하지는 않는 듯하다. 인터넷 상의 표의 정의[^1]를 보면 '시각적 의사소통과 자료의 정렬 양식'으로 나와 있다. 결국 표도 데이터 시각화의 일부인 것이다.
-
+---
 [^1]: <https://ko.wikipedia.org/wiki/%ED%91%9C>
 
 표는 데이터를 직접적으로 표현한다는 점에서 그래프나 플롯과는 다르다. 데이터를 직접 표현하기 때문에 데이터를 정확하게 표현하지만 데이터의 전체적인 흐름이나 분포를 알아보기에는 적절치 않다. 하지만 그래프나 플롯은 정확한 데이터를 알아보기 힘들다는 점에서 표와 그래프, 플롯은 상호 보완적으로 사용되어야 한다.
@@ -48,8 +52,6 @@ showtext_auto()
 
 -   표 몸체(Body) : 표의 헤드와 스텁으로 감싸고 있는 데이터가 표현된 셀들이 표현된 부분을 말한다.
 
-![출처 : <https://cdn1.byjus.com/wp-content/uploads/2019/06/word-image1.jpeg>](https://cdn1.byjus.com/wp-content/uploads/2019/06/word-image1.jpeg)
-
 실무에서 표를 그릴 때 가장 많이 사용하는 툴은 아마도 MS-Excel일 것이다. SpreadSheet로 거의 유일하게(?) 살아남은 이 툴은 표를 그리는 WYSYWYG(What You See IS Wat You Get) 툴로 거의 모든 Spreadsheet를 없애버렸다고 해도 과언이 아닐 듯 하다. 어쨌던 엑셀은 표를 그리는데 매우 특화된 툴임에는 틀림없고 초보자들도 쉽게 사용할 수 있지만 사용하다보면 몇가지 단점을 만날 수 있다.
 
 가장 큰 단점이 반복된 작업을 하기가 어렵다는 점이다. 이는 WYSIWIG 툴들이 가지는 공통된 단점이다. 표를 쉽게 만들 수 있지만 유사한 표를 다시 만들어야 하는 경우 반복된 작업을 수행해야하고 반복된 작업을 꼼꼼히 기록해두지 않으면 동일한 표를 만들기 어렵다. 두번째 단점이 기초 데이터의 구조가 업데이트 되면 표를 다시 그려야 하는 경우가 발생한다는 점이다. 기초 데이터의 열 이름이 바뀌거나 열이 추가, 삭제되면 이 데이터로부터 파생된 표가 정상적으로 표현되지 않는다는 것이다. 이러한 문제는 엑셀을 사용해 본 사용자라면 한번쯤, 아니 자주 겪는 문제일 것이다.
@@ -77,14 +79,18 @@ R에서 표를 만들기 위해 사용되는 패키지 중에 하나가 `gt` 패
 `gt` 패키지를 사용하여 표를 만들어 보기 위해 사용하는 데이터는 [한국교육개발원 교육통계서비스 홈페이지](https://kess.kedi.re.kr)의 [학교/학과별 데이터셋 - 대학 - 학과별(상반기) - 2021](https://kess.kedi.re.kr/contents/dataset?itemCode=04&menuId=m_02_04_03_02&tabId=m2)를 활용하겠다.
 
 ```{r data_import, warning=FALSE, message=FALSE}
-library(readxl)
+library(openxlsx)
 library(tidyverse)
 
-df <- read_excel('./21년 고등 학과별 입학정원 입학 지원 재적 재학 휴학 외국인유학생 졸업 교원_211119.xlsx', skip = 12, na = '-', sheet = '학과별 주요 현황', col_names = T, col_types = c(rep('text', 8), rep('numeric', 56)))
+## `read.xlsx()`을 사용하여 엑셀 파일의 데이터를 불러옴
+df <- read.xlsx(xlsxFile = '../gt/21년 고등 학과별 입학정원 입학 지원 재적 재학 휴학 외국인유학생 졸업 교원_211119.xlsx', 
+                sheet = '학과별 주요 현황',  ## 불러오는 데이터가 저장된 sheet는 '학과별 주요현황'
+                startRow = 13,   ##시작하는 열은 13번쨰열
+                na.string = '-', ## NA값은 '-'로 표기
+                colNames = T)    ## 맨 첫줄은 열 이름
 
 ## 학제 열을 팩터로 변환하고 레벨을 적절히 설정해 줌
 df$학제 <- fct_relevel(df$학제, '대학교', '교육대학', '산업대학', '기술대학', '방송통신대학', '사내대학(대학)', '원격대학(대학)', '사이버대학(대학)', '각종대학(대학)', '전문대학(2년제)', '전문대학(3년제)', '전문대학(4년제)', '기능대학', '원격대학(전문)', '사이버대학(전문)', '사내대학(전문)', '전공대학',  '일반대학원', '특수대학원', '전문대학원')
-
 ```
 
 #### 1. 표로 그릴 데이터 셋 만들기
@@ -93,11 +99,15 @@ df$학제 <- fct_relevel(df$학제, '대학교', '교육대학', '산업대학',
 
 ```{r data_setting, warning=FALSE, message=FALSE}
 df.gt <- df |>
+  ## 원본 데이터를 학제와 학위과정으로 그루핑
   group_by(학제, 학위과정) |>
+  ## 학과수_전체, 지원자_전체_계, 입학자_전체_계, 재적생_전체_계, 재학생_전체_계, 휴학생_전체_계 열에 대해 합계와 평균 열을 생성
   summarise_at(vars(학과수_전체, 지원자_전체_계, 입학자_전체_계, 재적생_전체_계, 재학생_전체_계, 휴학생_전체_계), funs(sum, mean)) |>
-#  summarise_at(vars(학과수_전체, 지원자_전체_계, 입학자_전체_계, 재적생_전체_계, 재학생_전체_계, 휴학생_전체_계, 외국인유학생_총계_계, 졸업자_전체, 전임교원_계, 비전임교원_계, 시간강사_계), funs(sum, mean)) |>
+  ## 그룹을 해제
   ungroup() |>
+  ## 학과수가 적은 학제는 제외
   filter(학과수_전체_sum > 100) |>
+  ## 학제 순서로 정렬
   arrange(학제)
 
 head(df.gt)
@@ -107,10 +117,26 @@ head(df.gt)
 
 #### 2. `gt` 객체 생성하기
 
-`gt` 패키지를 사용하여 표를 그리려면 먼저 `gt` 패키지의 `gt()` 함수를 사용하여 `gt` 객체를 생성한다.(아래의 실행결과는 표의 일부만 표현하였다)
+`gt` 패키지를 사용하여 표를 그리려면 먼저 `gt` 패키지의 `gt()` 함수를 사용하여 `gt` 객체를 생성한다.(아래의 실행결과는 표의 일부만 표현하였다) `gt`객체를 구성하는 가장 기본적인 구성요소는 `gt` 객체를 만들 데이터(데이터프레임 혹은 티블 객체), 구분 열(Stub), 행 그룹(Row Group)의 세가지가 필요하다. 행 그룹을 설정하기 위해서 `gt()`의 매개변수로 그루핑할 변수를 지정하는 것이 가능하지만 `group_by()`로 분할된 `grouped_df`를 사용하는 것도 가능하다. 
+
+`gt()`는 데이터프레임(혹은 tibble)을 `gt` 객체로 생성해주는 함수이다. `gt`객체로 생성된 표에 대해 `gt` 패키지에서 제공하는 여러 함수를 적용할 수 있다. `gt()`의 용법과 주요 매개변수는 다음과 같다. 
+
+::: infobox
+`r kableExtra::text_spec('gt(data, rowname_col = "rowname", groupname_col = dplyr::group_vars(data), caption = NULL, rownames_to_stub = FALSE, auto_align = TRUE, id = NULL,row_group.sep = getOption("gt.row_group.sep", " - "))', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   rowname_col : 구분(Stub)로 사용할 열 설정
+
+-   groupname_col : 행 그룹으로 사용할 변수가 담긴 열 설정
+
+:::
+
 
 ```{r gt, message=FALSE, warning=FALSE, eval=FALSE}
+## `gt` 패키지를 사용하기 위해 패키지 로드
 library(gt)
+## `gt()`를 사용하여 `gt` 객체 생성
 df.gt |> 
   gt()
 ```
@@ -125,14 +151,13 @@ df.gt |>
 앞서 설명한 바와 같이 각각의 행을 구분할 수 있는 구분열(Stub)을 설정해야 한다. 또 목표로 설정한 표는 학위과정별로 소계와 평균을 구해야하기 때문에 학위과정별로 그룹핑해야 한다. 행 구분을 위한 구분 열은 `rowname_col`로 설정하고 행을 그루핑하기 위한 열은 `groupname_col`로 설정한다.
 
 ```{r gt1, message=FALSE, warning=FALSE, eval=FALSE}
-library(gt)
 gt.table1 <- df.gt |> 
+  ##  열이름을 '학제'열로, 열 그룹을 '학위과정'으로 설정된 `gt()` 객체를 생성
   gt(rowname_col = '학제', 
      groupname_col = '학위과정')
 ```
 
 ```{r gt_preview1, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
-library(gt)
 gt.table1 <- df.gt |> 
   gt(rowname_col = '학제', 
      groupname_col = '학위과정') |>
@@ -141,10 +166,29 @@ gt.table1 <- df.gt |>
 gt.table1
 ```
 
-이제 표의 각 부분을 설정한다. 먼저 표의 제목부터 설정한다. `tab_header()`를 사용하여 `title` 매개변수로 표 제목을 설정하고 `subtitle`을 사용하여 표 부제목을 설정할 수 있다.
+### 3. 표 꾸미기
+
+#### 표의 각 부분 설정
+
+먼저 표의 각 부분을 설정한다. 앞서 살펴본 `gt` 객체의 각각의 부분들을 설정하는 단계로써 `tab_*`로 시작하는 함수들이 대부분 표의 각 부분을 설정하는 함수이다. 
+
+표 각 부분 설정에는 특정한 순서가 정해져 있지 않지만 여기서는 먼저 표의 제목부터 설정하겠다. 표 제목을 설정할 때 사용하는 함수는 `tab_header()`이다. `tab_header()`의 용법과 주요 매개변수는 다음과 같다. 
+
+::: infobox
+`r kableExtra::text_spec('tab_header(data, title, subtitle = NULL)', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   title : 표 제목 설정
+
+-   subtitle : 표 부제목 설정
+
+:::
+
 
 ```{r gt2, message=FALSE, warning=FALSE, eval=FALSE}
 gt.table2 <- gt.table1 |> 
+  ## 표제목과 부제목을 설정
   tab_header(title = '고등교육기관 데이터', subtitle = '2021년 전체 고등교육기관 대상')
 
 ```
@@ -157,44 +201,169 @@ gt.table2 <- gt.table1 |>
 gt.table2
 ```
 
-다음으로 각각의 셀에 표현되는 수치값의 형태를 설정한다. 합계값은 모두 소수점이하가 필요없고 평균값도 사실 소수점 한자리 이상 표현될 필요는 없을 듯 하다. `gt` 표 각 셀의 숫자 형태는 `fmt_number()`를 사용한다.
+위의 실행 결과를 보면 표 제목과 표 부제목이 잘 설정되었음을 알 수 있다. 그런데 표의 열이 너무 길고 열 이름에 'sum'과 'mean'이 반복되고 있다. 이 부분을 열 그룹으로 묶어(Spanner)주면 보기가 좋아질 수 있을 것이다. `tab_spanner()`는 이렇게 유사한 속성을 가진 열끼리 묶어주는 기능을 제공한다. 그 용법과 주요 매개변수는 다음과 같다. 
 
-```{r gt3, message=FALSE, warning=FALSE, eval=FALSE}
+::: infobox
+`r kableExtra::text_spec('tab_spanner(data, label, columns, id = label, gather = TRUE)', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   label : 열 그룹에 사용할 라벨
+
+-   columns : 열 그룹에 속할 열 이름 벡터
+
+:::
+
+여기서는 3번부터 8번까지의 열을 '합계'로, 9번부터 14번까지 열을 '평균'으로 묶어주었다. 
+
+```{r gt4, message=FALSE, warning=FALSE, eval=FALSE}
 gt.table3 <- gt.table2 |> 
-  fmt_number(columns = 3:8, decimals = 0, use_seps = TRUE) |>
-  fmt_number(columns = 9:14, decimals = 1, use_seps = TRUE)
+  ## 3번부터 8번 열까지 '합계' 열 묶음 생성
+  tab_spanner(columns = 3:8, label = '합계') |>
+  ## 9번부터 14번 열까지 '평균' 열 묶음 생성
+  tab_spanner(columns = 9:14, label = '평균')
 ```
 
-```{r gt_preview3, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
+```{r gt_preview4, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
 gt.table3 <- gt.table2 |> 
-  fmt_number(columns = 3:8, decimals = 0, use_seps = TRUE) |>
-  fmt_number(columns = 9:14, decimals = 1, use_seps = TRUE) |>
+  tab_spanner(columns = 3:8, label = '합계') |>
+  tab_spanner(columns = 9:14, label = '평균') |>
   tab_options(table.font.size = 10)
 
 gt.table3
 ```
 
-표의 몸체(Body)는 적절히 보기좋게 설정된 듯 하다. 그런데 헤더의 열 이름이 사용자 친화적이지 않은 느낌이다. 열의 절반은 합계값이고 절반은 평균값이다. 이를 매 열마다 반복하면 열 이름이 쓸데없이 길어진다. 합계와 평균을 나타내는 열들 묶어(Span) 표기해주는 함수는 `tab_spanner()`이다.
+이외에도 표의 각 부분을 설정하는 다음과 같은 함수가 있다. 
 
-```{r gt4, message=FALSE, warning=FALSE, eval=FALSE}
+::: infobox
+`r kableExtra::text_spec('tab_spanner(data, label, columns, id = label, gather = TRUE)', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   tab_spanner_delim() : 특정한 구분자를 통해 열 라벨과 묶음 라벨을 설정 
+
+-   tab_row_group() : 행 그룹 생성
+
+-   tab_stubhead() : 구분 헤더에 사용할 문자열 설정
+
+-   tab_footnote() : 각주 부분 생성
+
+-   tab_source_note() : 출처 부분 생성
+
+-   tab_style() : 표의 각 셀에 대한 스타일 설정
+
+-   tab_options() : 전체 표의 옵션 설정
+
+:::
+
+#### 표의 데이터 표기 형태 설정
+
+표에는 많은 데이터들이 표현된다. 데이터의 속성에 따라 데이터의 표현 방식도 달라지게 된다. 따라서 표현되는 데이터의 속성에 따라 그 표기 형태를 정해줄 필요가 있다. `gt` 패키지에서는 표에 표기되는 데이터의 표기 형태를 설정하는 다양한 함수를 제공하는데 대부분 `fmt_*` 로 시작되는 함수이다. `gt` 패키지에서 제공하는 주요 `fmt_*()` 함수들은 다음과 같다. 
+
+::: infobox
+
+-   fmt_number() : 수치 형태의 포맷
+
+-   fmt_integer() : 정수 형태의 포맷
+
+-   fmt_scientific() : 과학적 표기법의 포맷
+
+-   fmt_engineering() : 공학적 표기법의 포맷
+
+-   fmt_percent() : 백분율 형태의 포맷
+
+-   fmt_currency() : 통화 형태의 포맷
+
+-   fmt_bytes() : 바이트 형태의 포맷
+
+-   fmt_date() : 날짜 형태의 포맷
+
+-   fmt_time() : 시간 형태의 포맷
+
+-   fmt_datetime() : 날짜, 시간 형태의 포맷
+
+-   fmt_markdown() : 마크다운 텍스트 포맷
+
+-   fmt_passthrough() : 문자의 강제 변환을 위한 포맷
+
+-   fmt_missing() : 누락값에 대한 포맷
+
+-   fmt() : 사용자 정의 포맷을 설정
+
+-   text_transform() : 문자열 변환 함수를 적용하는 포맷
+
+-   data_color() : 데이터의 색을 변경하는 함수
+
+:::
+
+위의 표에서는 모든 데이터들이 수치형 데이터이다. 하지만 합계 그룹의 수치들은 소수점이 필요없고 천단위 구분자가 필요한 형태이고 평균 그룹의 수치들은 소수점 첫자리정도가 의미가 있고 천단위 구분자가 필요하다. 따라서 다음과 같이 설정할 수 있다. 
+
+
+```{r gt3, message=FALSE, warning=FALSE, eval=FALSE}
 gt.table4 <- gt.table3 |> 
-  tab_spanner(columns = 3:8, label = '합계') |>
-  tab_spanner(columns = 9:14, label = '평균')
+  ## 3번열부터 8번열까지는 숫자형 포맷으로 소수점이 없고 1000단위 구분자 사용
+  fmt_number(columns = 3:8, decimals = 0, use_seps = TRUE) |>
+  ## 9번열부터 14번열까지는 숫자형 포맷으로 소수점 아래 한자리이며 1000단위 구분자 사용
+  fmt_number(columns = 9:14, decimals = 1, use_seps = TRUE)
 ```
 
-```{r gt_preview4, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
+```{r gt_preview3, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
 gt.table4 <- gt.table3 |> 
-  tab_spanner(columns = 3:8, label = '합계') |>
-  tab_spanner(columns = 9:14, label = '평균') |>
+  fmt_number(columns = 3:8, decimals = 0, use_seps = TRUE) |>
+  fmt_number(columns = 9:14, decimals = 1, use_seps = TRUE) |>
   tab_options(table.font.size = 10)
 
 gt.table4
 ```
 
-이번에는 열 이름을 사용자가 알아보기 쉽게 바꾸어 준다. 열이름을 바꾸는 함수는 `cols_label()`이다.
+
+#### 열 수정
+
+이번에는 열에 대한 수정을 위한 함수들을 알아본다. `cols_*`로 시작하는 함수들을 사용하여 전체 혹은 일부 열의 속성을 수정할 수 있다. 열의 정렬, 보이기/감추기, 열 라벨 설정, 열 합치기 등을 할 수 있다. 열의 수정을 위한 함수는 다음과 같다. 
+
+::: infobox
+
+-   cols_align() : 수치 형태의 포맷
+
+-   cols_width() : 정수 형태의 포맷
+
+-   cols_label() : 과학적 표기법의 포맷
+
+-   cols_move_to_start() : 공학적 표기법의 포맷
+
+-   cols_move_to_end() : 백분율 형태의 포맷
+
+-   cols_move() : 통화 형태의 포맷
+
+-   cols_hide() : 바이트 형태의 포맷
+
+-   cols_unhide() : 날짜 형태의 포맷
+
+-   cols_merge_range() : 시간 형태의 포맷
+
+-   cols_merge_uncert() : 날짜, 시간 형태의 포맷
+
+-   cols_merge_n_pct() : 마크다운 텍스트 포맷
+
+-   cols_merge() : 문자의 강제 변환을 위한 포맷
+
+:::
+
+위에서 만든 표의 열 이름이 사용자가 알아보기 좀 어렵게 표기되어 있다. 열 이름을 바꾸기 위해 사용하는 함수는 `cols_label()`이다. `cols_label()`의 용법과 주요 매개변수는 다음과 같다. 
+
+::: infobox
+`r kableExtra::text_spec('cols_label(.data, ..., .list = list2(...))', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   ... : 열 라벨로 표시할 문자열과 해당 열 이름에 대한 named vector
+
+-   .list : 열 이름과 열 라벨의 named vector 대신 사용될 list 
+
+:::
+
 
 ```{r gt5, message=FALSE, warning=FALSE, eval=FALSE}
 gt.table5 <- gt.table4 |> 
+  ## 각각의 열 이름 설정
   cols_label(학제 = '학교종류', 
                학과수_전체_sum = '학과수', 
                지원자_전체_계_sum = '지원자',
@@ -202,22 +371,12 @@ gt.table5 <- gt.table4 |>
                재적생_전체_계_sum = '재적생', 
                재학생_전체_계_sum = '재학생',
                휴학생_전체_계_sum = '휴학생', 
-               # 외국인유학생_총계_계_sum = '외국인학생', 
-               # 졸업자_전체_sum = '졸업자', 
-               # 전임교원_계_sum = '전임교원', 
-               # 비전임교원_계_sum = '비전임교원', 
-               # 시간강사_계_sum = '시간강사', 
                학과수_전체_mean = '학과수', 
                지원자_전체_계_mean = '지원자',
                입학자_전체_계_mean = '입학자', 
                재적생_전체_계_mean = '재적생', 
                재학생_전체_계_mean = '재학생',
                휴학생_전체_계_mean = '휴학생'
-               # 외국인유학생_총계_계_mean = '외국인학생', 
-               # 졸업자_전체_mean = '졸업자', 
-               # 전임교원_계_mean = '전임교원', 
-               # 비전임교원_계_mean = '비전임교원', 
-               # 시간강사_계_mean = '시간강사'
   )
 ```
 
@@ -230,35 +389,38 @@ gt.table5 <- gt.table4 |>
                재적생_전체_계_sum = '재적생', 
                재학생_전체_계_sum = '재학생',
                휴학생_전체_계_sum = '휴학생', 
-               # 외국인유학생_총계_계_sum = '외국인학생', 
-               # 졸업자_전체_sum = '졸업자', 
-               # 전임교원_계_sum = '전임교원', 
-               # 비전임교원_계_sum = '비전임교원', 
-               # 시간강사_계_sum = '시간강사', 
                학과수_전체_mean = '학과수', 
                지원자_전체_계_mean = '지원자',
                입학자_전체_계_mean = '입학자', 
                재적생_전체_계_mean = '재적생', 
                재학생_전체_계_mean = '재학생',
                휴학생_전체_계_mean = '휴학생'
-               # 외국인유학생_총계_계_mean = '외국인학생', 
-               # 졸업자_전체_mean = '졸업자', 
-               # 전임교원_계_mean = '전임교원', 
-               # 비전임교원_계_mean = '비전임교원', 
-               # 시간강사_계_mean = '시간강사'
   ) |>
   tab_options(table.font.size = 10)
 
 gt.table5
 ```
 
-표 안의 데이터를 잘 살펴보면 행 그룹의 순서가 대학->전문대학->대학원의 순서로 설정되어 있다. 보통 전문대학->대학->대학원으로 표현되는 것이 일반적이다. 이렇게 행 그룹의 순서를 바꾸는 함수는 `row_group_order()`이다.
+
+#### 행 수정
+
+행 수정에 관련된 함수는 `row_group_order()` 뿐이다. 이 함수는 행 그룹의 순서를 지정해주는 역할을 한다. 
+
+::: infobox
+`r kableExtra::text_spec('row_group_order(data, groups)', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   groups : 행 그룹의 순서를 지정하는 문자형 벡터
+
+:::
+
+앞선 표 안의 데이터를 잘 살펴보면 행 그룹의 순서가 대학->전문대학->대학원의 순서로 설정되어 있다. 보통 전문대학->대학->대학원으로 표현되는 것이 일반적이다. 다음과 같이 이 순서를 변경시켜줄 수 있다. 
 
 ```{r gt6, message=FALSE, warning=FALSE, eval=FALSE}
 gt.table6 <- gt.table5 |> 
-  row_group_order(
-    groups = c('전문대학과정', '대학과정', '대학원과정')
-  )
+  ## 행 그룹 순서를 '전문대학과정', '대학과정', '대학원과정'의 순서로 설정
+  row_group_order(groups = c('전문대학과정', '대학과정', '대학원과정'))
 ```
 
 ```{r gt_preview6, message=FALSE, warning=FALSE, eval=TRUE, echo = FALSE}
@@ -271,31 +433,88 @@ gt.table6 <- gt.table5 |>
 gt.table6
 ```
 
-이제 전체적인 표의 형태가 대략 갖춰진 듯 하다. 마지막으로 각 행 그룹의 합계, 평균 행을 넣고 마지막에 전체 합계, 평균 행을 넣어주겠다. 각 행 그룹의 요약 행을 넣는 함수는 `summary_rows()`이고 전체 요약 행을 넣는 함수는 `grand_summary_rows()`이다. 
+#### 요약 행 추가
+
+표를 생성할 때 원 데이터에는 없는 소계, 총계가 필요한 경우가 있다. `gt` 패키지에서는 이러한 요약행을 자동으로 생성해 주는 기능을 제공한다. `gt`패키지에서 제공하는 요약 행 생성 함수는 `summary_rows()`와 `grand_summary_rows()`이다. 
+
+::: infobox
+
+-   summary_rows() : 요약 함수를 사용하여 그룹별 요약 행을 생성
+
+-   grand_summary_rows() : 요약 함수를 사용하여 전체 요약 행을 생성
+
+:::
+
+앞선 표의 전체적인 표의 형태가 대략 갖춰진 듯 하다. 마지막으로 각 행 그룹의 합계, 평균 행을 넣고 마지막에 전체 합계, 평균 행을 넣어주겠다. 각 행 그룹의 요약 행을 넣는 `summary_rows()`와 `grand_summary_rows()`의 용법과 주요 매개변수는 다음과 같다. 
+
+::: infobox
+`r kableExtra::text_spec('summary_rows(data, groups = NULL, columns = everything(), fns, missing_text = "---", formatter = fmt_number, ...)', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   groups : 요약 행을 넣어줄 그룹 설정
+
+-   columns : 요약 행을 적용할 열을 설정
+
+-   fns : 요약 행에 적용할 그룹 함수을 설정, `mean`, `sum` 등 R에서 제공하는 함수를 사용할 수도 있고 사용자 생성 함수를 사용할 수도 있다. list의 형태로 제공하며 요약 행에 표현될 이름을 같이 지정할 수 있다. 
+
+-   missing_text :데이터에 NA값이 존재할 경우 대체할 텍스트 설정
+
+-   formatter :요약 행의 데이터 포맷 설정
+
+:::
+
+::: infobox
+`r kableExtra::text_spec('grand_summary_rows(data, columns = everything(), fns, missing_text = "---", formatter = fmt_number, ...)', bold = TRUE, background = 'grey', color = 'white', font_size = 20)`
+
+-   data : 표 그리기에 사용할 `gt` 객체
+
+-   columns : 요약 행을 적용할 열을 설정
+
+-   fns : 요약 행에 적용할 그룹 함수을 설정, `mean`, `sum` 등 R에서 제공하는 함수를 사용할 수도 있고 사용자 생성 함수를 사용할 수도 있다. list의 형태로 제공하며 요약 행에 표현될 이름을 같이 지정할 수 있다. 
+
+-   missing_text :데이터에 NA값이 존재할 경우 대체할 텍스트 설정
+
+-   formatter :요약 행의 데이터 포맷 설정
+
+:::
+
+위의 표에 요약 행으로 합계와 평균값, 전체 요약행으로 합계와 평균값을 넣어주는 코드는 다음과 같다. 여기서는 합계 열 그룹과 평균 열 그룹의 값 표기 형태가 다르기 때문에 두 부분으로 나누어서 설정하였다.  
+
 
 ```{r gt7, message=FALSE, warning=FALSE, eval=FALSE}
 gt.table7 <- gt.table6 |> 
+  ## 요약 행을 추가
   summary_rows(
+    ## 요약 행은 그룹마다 설정
     groups = T,
+    ## 3번부터 8번 열까지의 요약열을 설정
     columns = 3:8,
+    ## 적용할 요약함수는 '합계'행으로 `sum()`, '평균값'행으로 `mean()`을 사용
     fns = list(
       합계 = ~sum(.),
       평균값 = ~mean(.)),
+    ## 값의 표현 방식은 숫자형 표기형식
     formatter = fmt_number, 
+    ## 소수점 아래는 없음
     decimals = 0,
+    ## 천단위 구분자 넣음
     use_seps = TRUE
   ) |>
   summary_rows(
     groups = T,
+    ## 9번부터 14번 열까지의 요약열을 설정
     columns = 9:14,
     fns = list(
       합계 = ~sum(.),
       평균값 = ~mean(.)),
     formatter = fmt_number, 
+    ## 소수점 아래는 한자리
     decimals = 1,
     use_seps = TRUE
   ) |>
-    grand_summary_rows(
+  ## 전체 요약행 추가
+  grand_summary_rows(
     columns = 3:8,
     fns = list(
       합계 = ~sum(.),
@@ -355,7 +574,6 @@ gt.table7 <- gt.table6 |>
 
 gt.table7
 ```
-
 
 다음 포스트에서는 `gt` 표를 예쁘게 꾸며보는 방법을 알아보도록 하겠다..
 
