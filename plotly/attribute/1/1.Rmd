@@ -1,0 +1,208 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+# trace의 공통 속성(Attribute)
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+`plotly` 객체에서 가장 중요한 것은 trace의 종류이다. `plot_ly()`만을 사용하여 그래프를 완성할 때 trace의 종류를 생략하면 `plotly`에서 데이터를 파악하여 가장 좋은 trace를 설정해준다.
+
+trace는 `ggplot2`에서 `geom_*()`을 사용하여 데이터를 표현하는 기하 요소를 결정하는 것과 유사한 개념으로 생각하면 쉬울 것이다.
+
+`ggplot2`에서는 그리고자하는 시각화의 형태에 따라 사용하는 함수가 다르지만 `plotly`에서는 하나의 함수로 사용할 수도, 시각화의 종류에 따른 함수를 사용할 수도 있다. 따라서 `plotly` 사용하여 시각화를 만들때는 trace type부터 결정하고 해당 trace의 세부 속성들을 설정해 가면서 만들게 된다. 앞의 포스팅에서 본 것과 같이 `plot_ly()`를 사용하여도 시각화를 완성할 수 있지만 보다 상세하고 섬세한 시각화를 만들기 위해서는 `plot_ly()`로 `plotly` 객체를 위한 스키마를 초기화하고 이 객체에 `add_trace()`나 `add_*()`를 사용하여 trace를 추가함으로써 만든다.
+
+`plotly`의 trace에 따라 매우 많은 속성들이 있다. 이 포스팅에서는 대부분의 trace 설정에 공통적으로 사용되는 주요 속성에 대해 설명한다.
+
+#### x, y, z
+
+trace 설정에서 가장 기본적으로 설정하
+는 속성은 `x`, `y`, `z`이다. 이 세 개의 속성은 X축, Y축, Z축에 매핑하는 변수를 설정한다. 앞서 설명한 바와 같이 `x`, `y`, `z`에 매핑하는 변수는 `~`를 사용하여 매핑하는데 변수를 매핑하지 않고 벡터를 설정하는 것도 가능하다.
+
+```{r eval = FALSE, fig.cap='plotly 기본 산점도 생성'}
+## df_취업률_2000에서 
+df_취업률_2000 |> 
+  ## X축은 졸업자수, Y축은 취업자수로 매핑한 plotly 객체 생성
+  plot_ly(x = ~졸업자수, y = ~취업자수) |>
+  ## 제목과 여백 설정
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+`plotly`는 3차원 그래픽을 지원하기 때문에 Z축을 설정할 수 있다. 동적 시각화는 사용자가 시각화를 자신이 원하는 방향으로 설정하여 관찰할 수 있기 때문에 3차원 효과가 효율적일 수 있다. 하지만 일반적으로 데이터 시각화에서는 3차원 을 사용하는 것은 크게 효과적이지 않다고 알려져 있기 때문에 3차원의 활용은 주의할 필요가 있다.
+
+```{r eval = FALSE, fig.cap='3차원 plotly'}
+df_취업률_2000 |>
+  ## X축은 졸업자수, Y축은 취업자수, Z축은 대계열로 매핑된 plotly 객체 생성
+  plot_ly(x = ~졸업자수, y = ~취업자수, z = ~대계열)
+
+```
+
+#### name
+
+`name`은 `plotly`에서 추가되는 각각의 trace에 대한 이름을 설정한다. 이 이름은 범례 아이템과 마우스 포인터가 데이터 점에 위치할때 나타나는 호버(Hover)에 표기되는 이름이 된다.
+
+다음은 `name`에 범례에 표기되어야 할 변수를 매핑하여 범례 아이템 이름을 설정하는 코드이다.
+
+```{r eval = FALSE, eval = FALSE}
+df_취업률_2000 |>
+  ## X축은 졸업자수, Y축은 취업자수, name은 대계열로 매핑한 plotly 객체 생성
+  plot_ly(x = ~졸업자수, y = ~취업자수, name = ~대계열) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+만약 범례를 사용자가 원하는 형태로 바꾸려면 범례 아이템을 바꾸는 방법으로 할 수 없고 각각의 개별 데이터에 매핑될 벡터나 열을 만들어 주어야 한다. `ggplot2`와 같은 정적 시각화는 시각화가 만들어지면 사용자의 활동에 따라 반응이 없지만 동적 시각화는 마우스 포인터를 데이터에 가져가면 해당 데이터에 대한 내용이 표기되어야 한다. 이 값이 범례값과 달라지면 안되기 때문에 범례만 수정할 수 없고 모든 데이터에 1:1로 매핑되는 범례 아이템 이름 벡터가 필요하다.
+
+```{r eval = FALSE, fig.cap='범례 이름 변경'}
+## 범례로 사용할 문자열 벡터 생성
+legend_items <- df_covid19_100 |> 
+  mutate(legend_name = case_when(
+    iso_code == 'KOR' ~ '한국', 
+    iso_code == 'OWID_ASI' ~ '아시아지역',
+    iso_code == 'OWID_EUR' ~ '유럽지역',
+    iso_code == 'OWID_NAM' ~ '북미지역',
+    iso_code == 'OWID_OCE' ~ '오세아니아지역',
+    iso_code == 'OWID_SAM' ~ '남미지역', 
+    iso_code == 'OWID_AFR' ~ '아프리카지역')) |>
+  select(legend_name) |>
+  pull()
+
+## 범례 순서 설정을 위한 팩터 설정
+legend_items <- fct_relevel(legend_items, '한국', '아시아지역', '유럽지역', '북미지역', '남미지역', '오세아니아지역', '아프리카지역')
+
+df_covid19_100 |>
+  ## X축을 date, Y축을 new_cases, 범례 이름을 앞서 생성한 문자열 벡터로 매핑 
+  plot_ly(x = ~date, y = ~new_cases, name = ~legend_items) |>
+  layout(title = '최근 100일간 코로나19 확진자수', 
+         ## X축 이름을 제거
+         xaxis = list(title = list(text = '')),
+         ## Y축 이름을 설정
+         yaxis = list(title = list(text = '확진자수')),
+         ## 여백 설정
+         margin = margins)
+
+```
+
+

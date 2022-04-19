@@ -1,0 +1,195 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+# trace의 공통 속성(Attribute) - hover 관련 속성(마우스를 올려봅시다)
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## hovertext, hoverinfo, hovermode, hovertemplete
+
+`plotly`와 같은 동적 시각화에서는 대부분 마우스 포인터를 데이터가 표시된 점이나 선에 위치하면 해당 위치의 데이터가 표시된다. `plotly`에서는 이렇게 데이터의 정보를 표시하는 말풍선을 'hover'라고 한다. 'hover'는 시각화를 설계하는 사용자에 따라 표시할 정보를 설정할 수 있는데 이 정보를 설정하는 속성이 `hover*`이다.
+
+`hovertext`는 X, Y 좌표에 표시되는 문자열을 설정하는 속성이다. 단순 문자열을 설정하면 모든 데이터 호버에 동일한 문자열이 표기되지만 벡터를 설정하면 각각의 호버에 매핑된 결과가 표시된다.
+
+```{r eval = FALSE, fig.cap='hovertext 매핑 결과'}
+df_취업률_2000 |>
+  plot_ly(x = ~졸업자수, y = ~취업자수, name = ~대계열,
+          ## hovertext를 학과명으로 매핑
+          hovertext = ~학과명) |>
+  ## 제목과 여백의 설정
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+
+`hoverinfo`는 호버에 표시되는 데이터 정보를 설정하는 속성이다. 호버에 표시되는 데이터 정보는 각각의 trace에 따라 달라지지만 각 trace에서 많이 사용되는 `hoverinfo` 속성은 X, Y, Z축의 좌표를 표기하는 것으로 `x`(X축 좌표), `y`(Y축 좌표), `z`(Z축 좌표) 속성을 사용한다. 이 외에도 , `text`(특정 문자열), `name`(trace name), `none`(제거), `skip`(생략)이 사용될 수 있고 각각은 `+`를 사용하여 조합할 수 있다.
+
+```{r eval = FALSE, fig.cap='hoverinfo 설정 결과'}
+df_취업률_2000 |>
+  plot_ly(x = ~졸업자수, y = ~취업자수, name = ~대계열,
+          ## hovertext, hoverinfo의 설정
+          hovertext = ~학과명, hoverinfo = 'x+y+text') |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+`hovertext`는 X, Y 좌표에 표시되는 문자열을 설정하는 속성이다. `hovertext`는 앞서 설명한 `hoverinfo`를 `text`로 설정하고 `hovertext`를 설정할 때 호버 상자 안에 `text`설정값이 표시되지만, `hoverinfo`를 생략하고 `hovertext`만 설정하면 호버 상자 밖에 `name` 속성 값(범례 값)이 표시된다는 차이가 있다. 또 `hovertext`에 단순 문자열을 설정하면 모든 데이터 호버에 동일한 문자열이 표기되지만 벡터를 설정하면 각각의 호버에 매핑된 결과가 표시된다.
+
+다음의 결과는 hoverinfo와 hovertext 동시 매핑 결과이다.
+
+```{r eval= FALSE}
+df_취업률_2000 |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수, name = ~대계열,
+          ## hoverinfo를 설정하고 hovertext를 중계열로 매핑
+          hoverinfo = 'x+y+text', hovertext = ~중계열) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+다음의 결과는 hoverinfo 없이 hovertext 매핑 결과이다. 
+
+```{r eval=FALSE}
+df_취업률_2000 |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수, name = ~대계열,
+          ## hoverinfo를 설정없이 hovertext를 중계열로 매핑
+          hovertext = ~중계열) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+`hovertemplete`는 호버 상자와 호버 상자에 표시되는 정보의 포맷을 설정하는 속성이다. 이 속성은 앞서 설명한 `hoverinfo`에 설정된 사용되는 속성의 변수를 `%{변수}`의 형태로 사용할 수 있다. 예를 들어 호버 상자에 Y축 값을 'Y값 : '을 붙여 표시하기 위해서는 `Y값 : %{y}`로 설정한다. 앞서 사용된 예에서 X축의 값에 '졸업자:', Y축의 값에 '취업자:', 대계열에 '대계열:'를 표시하고 값을 표시하는 코드는 다음과 같다.
+
+```{r eval = FALSE, fig.cap='hovertemplate 설정 결과'}
+df_취업률_2000 |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수, name = ~대계열, 
+          hoverinfo = 'x+y+text', text = ~대계열, 
+          ## hovertamplate의 설정
+          hovertemplate = ' 졸업자:%{x}, 취업자:%{y}, 대계열:%{text}') |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+```
+
+

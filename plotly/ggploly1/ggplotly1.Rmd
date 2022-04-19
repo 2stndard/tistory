@@ -1,0 +1,161 @@
+---
+output:
+  html_document:
+    css: style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include=FALSE, message = FALSE, warning = FALSE}
+df_취업통계 <- read_excel('d:/R/data/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업통계에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업통계에 저장
+df_취업통계 <- df_취업통계 |> select(1:9, ends_with('계'), '입대자')
+
+```
+
+
+# plotly란?
+
+`plotly`는 오픈 소스인 JavaScript로 구현된 plotly.js를 기반으로 R에서 생성한 데이터 시각화 객체를 Javascript로 생성해주는 패키지이다[^2]. `plotly`는 JavaScript로 구현되기 때문에 `plotly` 객체는 결국 HTML 코드로 구현되고 이 코드는 웹브라우저 상에서 작동함으로써 사용자의 반응에 따른 데이터의 표현이 가능하다.
+
+[^2]: <https://plotly.com>
+
+`plotly`를 통해 생성된 데이터 시각화의 HTML은 R에서 JavaScript를 사용할 수 있게하는 `htmlwidgets` 프레임워크에서 동작하기 할 수 있어 HTML자체로 사용할 수도 있고 R Markdown이나 Shiny App, R-Studio, Jupiter Notebook 등에서 자유롭게 사용이 가능하다.
+
+R의 `plotly`패키지는 동적 시각화를 제공하면서 출판이 가능한 품질의 시각화를 만든다. `plotly`로 선 그래프, 산점도, 막대 차트, 박스 플롯, 히스토그램, 히트맵, 서브플롯, 다중 축 및 3D(WebGL 기반) 차트 등의 다양한 시각화를 생성할 수 있는데 생성할 수 있는 시각화의 종류는 `ggplot2`보다 많다. `plotly`는 R에서 무료로 사용 가능한 패키지로 python, julia, F#, MATLAB 등에서도 지원되는 그래픽 라이브러리를 제공하고 있다.
+
+## plotly의 내부 표현 구조
+
+R 내부에서 `plotly` 객체는 plotly.js에서 정의된 JSON 스키마로 저장된다. 이 스키마는 트리 형태로 구성되어 있는데 각 노드는 속성(attribute)로 불리는 값을 가지게 되고 이들 속성들이 모여서 전체 그림(Figure)를 구성한다. 예를 들어 `fig |> layout(width = 20)`이라는 코드는 'layout' 루트 노드에 하위 노드인 'width' 속성을 20으로 설정하게 된다. 이 속성값은 `plotly`의 함수(`add_trace()`, `layout()` 등)를 사용하여 노드의 값을 설정하거나 직접 노드의 속성 값을 설정할 수 있다. 예를 들어 앞의 `fig |> layout(width = 20)`의 경우 `fig.layout.width = 20`으로 설정할 수 있다. `plotly` 객체를 생성하기 위해서는 많은 노드의 속성 값이 필요하지만 사용자가 직접 설정하지 않은 속성 값은 기본값으로 설정되거나 `plotly`가 내부적으로 계산하여 속성 값들이 설정되게 된다.
+
+R에서 `plotly` 객체를 표현하는데 사용되는 트리의 첫번째 레벨 노드는 'data', 'layout', 'frame'의 세 가지가 있다.
+
+## 'data' 노드
+
+`plotly` 스키마에서 사용하는 트리 중 첫 번째 레벨 노드인 'data' 노드는 뒤에서 설명할 'trace'에 관련한 속성 노드들이 하위 노드로 구성되는데 'trace'로 설정되는 문자열로 설정되고 해당 'trace'에 관련된 속성의 이름과 값들로 구성된 리스트로 표현된다.
+
+`plotly`에서의 'trace'는 스캐터, 선, 박스 등 약 40개 이상의 `type`이 제공되고 각각의 'trace'는 데이터를 표현하는 도형적 요소들을 결정한다. 이 'trace'는 `type` 속성으로 설정할 수 있고 trace의 종류에 따라 속성 값을 표현하는 노드들을 `list()`를 사용하여 리스트로 만들어 설정한다.
+
+각각의 trace는 그 trace 도형 타입과 관련된 하나의 subplot에 표현되고, 파이 trace를 제외한 모든 trace는 단일 범례 요소(Single Legend Entry)를 가진다. 하지만 trace의 종류에 따라 설정 가능한 속성이 달라지기 때문에 각각의 trace마다 설정할 수 있는 속성들을 잘 파악할 필요가 있다.
+
+## 'layout' 노드
+
+'layout' 노드는 데이터와 관련되지 않는 속성들을 정의하는 노드로써 `list()`를 사용하여 하위 속성들을 리스트로 만들어 설정해야 한다.
+
+데이터와 관련되지 않는 'layout' 노드에서 설정할 수 있는 속성 값은 플롯 여백, 플롯 제목, 플롯 축 제목, 주석, 도형 등과 관련된 값이다.
+
+## 'frame' 노드
+
+마지막 첫 레벨 노드는 'frame' 노드이다. 이 'frame' 노드는 `plotly`의 애니메이션 기능과 관련된 속성 값을 설정하는 노드이다.
+
+
+## ggplot 객체의 전환
+
+R에서 `plotly`를 사용한 인터랙티브 데이터 시각화를 만드는 방법은 두 가지이다. 첫 번째는 R에서 데이터 시각화에 가장 많이 사용하는 `ggplot2`를 사용하여 생성한 객체를 `plotly` 객체로 전환하는 방법이고 두 번쨰는 `plotly` 패키지에서 제공하는 함수들을 사용하여 `plotly` 객체를 직접 생성하는 방법이다.
+
+기존의 R 사용자가 가장 쉽게 `plotly`를 사용한 인터랙티브 데이터 시각화를 생성하는 방법은 그동안 사용했던 `ggplot2` 패키지를 사용하여 생성했던 `ggplot` 객체를 `plotly` 객체로 전환하는 것이다. 이 방법은 `plotly` 패키지에서 제공하는 `ggplotly()`를 사용하면 간단히 전환된다.
+
+::: {.comment}
+ggplotly(p = ggplot2::last_plot(), width = NULL, height = NULL, tooltip = "all", dynamicTicks = FALSE, layerData = 1, originalData = TRUE, source = "A", ...)\
+- p : plotly로 전환할 ggplot 객체\
+- width : plotly 객체의 너비 설정\
+- height : plotly 객체의 높이 설정\
+- tooltip : plotly 객체에서 마우스의 위치에 따라 표시되는 툴팁의 문자열 설정\
+- dynamicTicks : plotly 객체가 Zooming 될 때 눈금자(Tick)을 동적으로 재설정할 것인지를 설정하는 논리값\
+- layerData : 레이어의 데이터를 리턴할지를 설정\
+- originalData : 원천 데이터(original)를 리턴할지 스케일(scale)된 데이터를 리턴할지를 설정하는 논리값
+:::
+
+`ggplotly()`를 사용해보기 위해 코로나바이러스 데이터 셋을 사용하도록 하겠다.
+
+코로나바이러스 데이터 셋은 Github에서 매일 업데이트된 csv 파일을 다운로드 받았다. [^1] 이를 `plotly` 실습에 사용하기 위해 다음과 같이 전처리 하였다.
+
+[^1]: <https://github.com/owid/covid-19-data/blob/master/public/data/owid-covid-data.csv>
+
+```{r}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+## 코로나 관련 온라인 데이터 로딩
+covid19_df <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+
+covid19_df_100 <- covid19_df |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter((iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR'))) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 국가 이름의 순서를 설정 
+covid19_df_100$location <- fct_relevel(covid19_df_100$location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')
+
+```
+
+`ggplot` 객체를 `plotly` 객체로 전환하는 코드는 다음과 같다.
+
+```{r eval = FALSE, fig.cap='ggplot2 객체의 전환'}
+## plotly 패키지 설치 및 로딩
+if(!require('plotly')) {
+  install.packages('plotly')
+  library(plotly)
+}
+
+ggplotly <- covid19_df_100 |> 
+  ## x축이 date, y축이 new_cases, color가 location으로 매핑된 ggplot 객체 생성
+  ggplot(aes(x = date, y = new_cases, color = location )) +
+  ## group과 linetype이 location으로 매핑된 geom_line 레이어 생성
+  geom_line(aes(group = location, linetype = location)) +
+  ## x축 스케일을 날짜형이고 1개월 단위로 눈금 설정
+  scale_x_date(breaks = '1 months') +
+  ## y축의 라벨에 천 단위 구분자 설정
+  scale_y_continuous(labels = scales::comma) + 
+  ## x축, y축, linetype, color 이름 설정
+  labs(x = '날짜', y = '확진자수', linetype = '지역', color = '지역', title = '코로나19 신규확진자수')
+
+## ggplot객체를 plotly 객체로 변환
+ggplotly(ggplotly)
+
+```
+
+
+
+앞의 예와 같이 `ggplotly()`는 `ggplot2`패키지를 사용해서 생성한 대부분의 `ggplot` 객체를 전환할 수 있다. 게다가 `ggplot2` 패키지를 확장해서 사용하게 해주는 `ggforce`, `GGally`와 같은 확장 패키지로 생성된 객체도 변환이 가능하다는 장점이 있다. 따라서 `plotly` 객체를 다루는 방법을 잘 익히면 기존에 생성했던 `ggplot` 객체의 시각화를 재활용 할 수있게 된다. 그리고 `plotly`를 사용하다보면 느끼겠지만 `ggplot2`의 통계 요소와 분할 요소의 몇몇 요소들은 `plotly`보다는 `ggplot2`가 훨씬 편리할 떄가 있다. 이러한 경우 `ggplot2`와 `plotly`를 적절히 혼용하면 매우 좋은 결과를 얻을 수 있다.
+

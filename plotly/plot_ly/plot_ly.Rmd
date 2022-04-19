@@ -1,0 +1,90 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+# plotly 시각화 생성
+
+사용데이터 : https://2stndard.tistory.com/68
+
+`plotly` 객체는 pltoly.js를 지원하는 스키마로 표현된다. 사실 `ggplot2`이던 `plotly`이던 각각의 시각화 객체는 R에서 특별하게 정의된 데이터 구조로 표현된다. 이 데이터 구조가 R의 그래픽 엔진을 통해 이미지로 표현되는 것이다. 따라서 `plotly` 객체도 우리가 눈으로 보기에는 이미지로 보이지만 R에서는 plotly.js에서 지원하는 데이터 구조로 표현된 데이터 객체인 것이다.
+
+`plotly` 객체를 생성하기 위해서는 `plot_ly()`를 사용한 `plotly` 객체 생성, `add_trace()`를 사용한 trace 추가, `layout()`을 사용한 레이아웃 설정의 세 부분으로 구성된다.
+
+## plotly 객체 초기화 : plot_ly()
+
+설명한 바와 같이 `plotly`는 보여지기에 그래픽으로 보여지지만 내부적으로는 plotly.js에서 정의한 데이터 구조 형태로 저장된다. 따라서 `plotly`객체를 표현하는 데이터 구조(스키마)를 생성하기 위해서는 제일 먼저 `plotly` 객체의 초기 스키마를 생성해주는 초기화 함수가 필요하다. `plotly` 객체를 시작하기 위한 초기화 함수는 `plot_ly()`이다. `plot_ly()`의 주요 용법은 다음과 같다.
+
+::: {.comment}
+plot_ly(data = data.frame(), ..., type = NULL, name, color, colors = NULL, alpha = NULL, stroke, strokes = NULL, alpha_stroke = 1, size, sizes = c(10, 100), span, spans = c(1, 20), symbol, symbols = NULL, linetype, linetypes = NULL, split, frame, width = NULL, height = NULL, source = "A")\
+- p : plotly로 시각화할 데이터프레임\
+- ... : type에서 설정하는 trace의 종류에 따라 설정할 수 있는 속성 설정\
+- type : trace 타입 설정\
+- name : plotly 객체의 trace name 속성 설정\
+- color : 'fill-color' 속성으로 매핑될 색 값(value) 설정\
+- colors : 'fill-color'에 매핑될 colorbrewer2.org의 팔레트 이름이나 16진수의 '#RRGGBB'형태로 표현된 색의 벡터(vector) 설정\
+- alpha : color에서 설정된 색의 투명도 값(value) 설정\
+- stroke : 'stroke-color'(외곽선 색) 속성으로 매핑될 색 값(value) 설정\
+- strokes : 'stroke-color'(외곽선 색)에 매핑될 colorbrewer2.org의 팔레트 이름이나 16진수의 '#RRGGBB'형태로 표현된 색 벡터(vector) 설정/ - alpha-stroke : stroke(외곽선)에 적용될 alpha 값(value) 설정\
+- size : 'fill-size'에 매핑될 크기값(value) 설정\
+- sizes : size에 매핑될 수치 벡터(vector) 설정\
+- span : 'stroke-size'(외곽선 두께)에 매핑될 두께 값(value) 설정\
+- spans : 'stroke-size'(외곽선 두께)에 매핑될 두께 벡터(vector) 설정\
+- symbol : 점 표현에 사용되는 도형 번호(pch)나 도형 이름 값(value) 설정\
+- symbols : 점 표현에 사용되는 도형 번호(pch)나 도형 이름 벡터(vector) 설정\
+- linetype : 라인 타입의 설정에 사용되는 번호나 라인 타입 값(value) 설정\
+- linetypes : 라인 타입의 설정에 사용되는 번호나 라인 타입 벡터(vector) 설정\
+- split : 다중 traces를 생성시 사용하는 값 설정\
+- frame : 애니메이션 프레임 생성시 사용할는 값 설정\
+- width : 플롯의 너비(픽셀) 설정\
+- height : 플롯의 높이(픽셀) 설정
+:::
+
+`plot_ly()`는 `plotly` 객체 생성을 위한 초기 데이터 생성, trace와 속성을 통한 시각화 생성, 하위 trace에 공통적으로 사용될 속성 값의 설정의 세가지 기능을 수행한다.
+
+첫 번쨰 기능은 `plot_ly()`의 호출을 통해 plotly.js에서 정의된 `plotly` 객체 스키마를 생성한다. 사용자가 직접 plotly.js형태의 스키마 객체를 타이핑하여 생성하는 것은 어려움이 따르기 때문에 `plotly` 객체 스키마 생성, 기본 스키마 속성 설정 등을 지원하는 함수이다. 이 방법은 `ggplot`객체를 생성하기 위해 `ggplot()`를 사용하여 `ggplot` 객체를 생성하는 것과 동일한 방법이고 이 방법에서 영감을 받았다고 한다.
+
+```{r eval=FALSE}
+## 긴 형태의 100일간 코로나19 데이터를 사용한 plotly 객체 생성
+covid19_df_100 |> 
+  plot_ly()
+```
+
+두 번째 기능은 `plotly` 객체 생성을 통한 시각화 생성이다. `ggplot2`에서 `ggplot()`을 사용하여 `ggplot` 객체를 초기화하고 `geom_*()`를 사용하여 기하 요소 레이어를 하나 하나 설정하면서 전체 시각화를 완성한다. `plotly`도 이와 유사하게 초기 `plotly` 객체에 여러개의 trace를 추가함으로써 전체 시각화를 완성해 나갈 수 있다. 하지만 `plotly()`에서는 데이터, trace, trace에 따른 속성까지 설정이 가능하므로 `plot_ly()`만을 사용해도 시각화를 완성할 수 있다. 하지만 시각화에서는 하나 이상의 trace가 사용될때가 많기 때문에 뒤에서 설명할 `add_trace()`나 `add_*()`를 사용하여 trace를 추가하여 시각화를 완성하는 것이 일반적이다.
+
+`plotly`를 사용한 시각화에서 속성에 변수나 값을 할당할 때 꼭 알아 두어야 하는 것은 변수를 매핑하는 방법과 값을 설정하는 방법이 다르다는 것이다. `ggplot2`에서는 변수를 매핑하기 위해서 `aes()`를 사용함으로써 변수를 매핑하였고 값을 실정하기 위해서는 `aes()` 밖에 선언함으로써 설정이 가능하였다. `plotly`에서는 `aes()` 대신 `~`를 사용하여 변수를 매핑한다.
+
+```{r eval=FALSE}
+## 긴 형태의 100일 코로나19 데이터에서
+covid19_df_100 |> 
+  ## 한국 데이터만을 필터링 
+  filter(iso_code == 'KOR') |>
+  ## X축에 data, Y축에 new_cases를 매핑하여 plot_ly()로 시각화 생성
+  plot_ly(x = ~date, y = ~new_cases)
+
+```
+
+세 번째 기능은 `plot_ly` 객체의 전반적으로 사용될 속성 값의 설정 기능이다. `plot_ly()`를 사용하여 설정된 속성 값은 이후 추가되는 trace에 상속되기 때문에 이 속성 값을 다시 설정하지 않으면 `plot_ly()`에서 설정된 속성 값이 사용된다. 이 과정에서 원치않는 속성의 상속을 방지하기 위해 `plot_ly()`에 매개변수를 넣지않고 단순히 `plotly` 객체의 초기화 명령으로 사용도 가능하다.
+
+```{r eval=FALSE}
+covid19_df_100 |> 
+  filter(iso_code == 'KOR') |> 
+  ## plot_ly()로 시각화를 초기화
+  plot_ly() |>
+  ## 스캐터 trace 타입으로 X축에 date, Y축에 new_cases를 매핑한 시각화 생성
+  add_trace(type = 'scatter', x = ~date, y = ~new_cases)
+
+```
+
+`plotly` 객체에서 가장 중요한 것은 trace의 종류이다. `plot_ly()`만을 사용하여 그래프를 완성할 때 trace의 종류를 생략하면 `plotly`에서 데이터를 파악하여 가장 좋은 trace를 설정해준다.

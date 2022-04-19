@@ -1,0 +1,108 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+library(plotly)
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+covid19_df <- read_csv(file = "D:/R/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+
+covid19_df <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+
+
+covid19_df_100 <- covid19_df |> 
+  filter((iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM'))) |>
+  filter(date >= today() - 100) |> 
+  arrange(date)
+
+covid19_df_100_wide <- covid19_df_100 |> select(date, location, new_cases) |> 
+  pivot_wider(id_cols = date, names_from = location, values_from = new_cases) |> 
+  arrange(date)
+
+## 공백을 쓰려면 ``
+names(covid19_df_100_wide) <- c('date', 'Asia', 'Europe', 'North_America', 'Oceania', 'South_America', 'South_Korea')
+
+covid19_stat <- covid19_df |> group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당사망자수 = round(total_deaths / population *100000, 5),
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            전체검사자수 = max(total_tests, na.rm = T), new_tests = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            백신접종완료률 = people_fully_vaccinated / population,
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> ungroup()
+
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+  
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, eval = FALSE}
+covid19_df_100 |> filter(iso_code == 'KOR') |> 
+  plot_ly(x = ~date, y = ~new_cases) |>
+  layout(title = '최근 100일간 우리나라 코로나 19 확진자 수', 
+         xaxis = list(title = ''),
+         yaxis = list(title = '확진자수'), 
+         margin = margins)
+```
+
+
+```{r message = FALSE, warning=FALSE}
+fig <- covid19_df_100 |> filter(iso_code == 'KOR') |>
+  plot_ly(x = ~date, y = ~new_cases) |>
+  layout(title = '최근 100일간 우리나라 코로나 19 확진자 수', 
+         xaxis = list(title = ''),
+         yaxis = list(title = '확진자수'), 
+         margin = margins)
+
+install.packages('listviewer')
+
+json_fig <- plotly_json(fig, FALSE)
+write(json_fig,'test.json')
+jsonlite::toJSON(fig)
+
+fig |> filter(iso_code == 'KOR') |> add_markers()
+
+export(fig, file = 'plotly.svg')
+
+to_JSON(plotly_build(fig))
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

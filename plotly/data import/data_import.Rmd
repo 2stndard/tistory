@@ -1,0 +1,174 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 예제 데이터 Import와 전처리
+
+먼저 `plotly`를 사용하여 시각화를 실습하는데 필요한 데이터 셋 두 가지를 전처리 하겠다.
+
+## Covid19 데이터 셋
+
+첫번째 데이터 셋은 2020년 1월부터 기록된 전세계 국가의 코로나19 발병 관련 데이터이다. 이 데이터는 Github에서 다양한 전세계 데이터를 배포하는 'Open World in Data'에서 제공하는 'COVID-19 Dataset by Our World in Data'를 사용한다.[^1] 이 데이터는 온라인으로 매일 업데이트되기 때문에 다운로드 시점에 따라 시각화 결과가 책과 다소 달라질 수 있다.
+
+[^1]: <https://github.com/owid/covid-19-data/blob/master/public/data/owid-covid-data.csv>
+
+OWID에서 제공하는 데이터를 활용하여 4개의 데이터 셋을 만든다. 첫 번째 데이터 셋은 OWID에서 제공하는 원본 데이터를 가져와서 R에 로딩하는 원본 데이터 셋으로 'df_covid19' 데이터프레임에 저장한다. 'df_covid19' 데이터 프레임은 2020년 1월 1일부터 기록되어 있기 때문에 데이터가 다소 많다. 따라서 이 데이터 중에 최근 100일간의 데이터와 한국과 각 대륙 데이터만을 필터링한 데이터 셋을 두 번째 데이터 셋인 'df_covid19_100' 데이터프레임으로 저장한다. 세 번째 데이터 셋은 100일간의 데이터 셋을 넓은 형태의 데이터 셋으로 변환한 'df_covid19_100_wide'로 저장한 데이터프레임이다. 네 번쨰는 2년 넘게 기록된 Covid19 데이터 셋의 각종 데이터를 국가별 요약 통계치를 산출하여 저장한 'df_covid19_stat' 데이터프레임이다.
+
+```{r message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+  
+```
+
+
+## 대학 학과 취업률 데이터 셋
+
+최근 청년층 실업 문제가 사회적 문제로 대두됨에 따라 대학 졸업생의 취업률이 매우 중요하게 활용되고 있는 데이터이다. 이 데이터는 대학 입학을 앞둔 수험생이나 학부모에게 대학 진학을 위한 학과 선택에 중요한 데이터이고 대학 입장에서는 학생들의 진로 지도를 위해 중요하게 사용되는 데이터이다. 이 데이터는 교육통계서비스 홈페이지에서 제공한다.[^3]
+
+[^3]: 해당 데이터는 교육통계 서비스 홈페이지<https://kess.kedi.re.kr/contents/dataset?itemCode=04&menuId=m_02_04_03_02&tabId=m3>에서 다운로드를 받거나 필자의 블로그(2stndard.tistory.com)에서 다운로드 받을 수 있다.
+
+취업률 데이터 셋은 다음과 같이 데이터를 로딩하고 전처리한다.
+
+```{r eval = FALSE, message = FALSE, warning = FALSE}
+if(!require(readxl)) {
+  install.packages('readxl')
+  library(readxl)
+}
+
+df_취업률 <- read_excel('파일저장경로/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+```{r echo = FALSE, message = FALSE, warning = FALSE}
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
