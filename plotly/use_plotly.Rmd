@@ -1,0 +1,183 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+# plotly 시각화 사용하기
+
+`ggplot2`와 같은 정적 시각화는 시각화 그래프를 만든 이후에는 더 이상의 편집이 불가하다. 따라서 시각화를 일부를 변경하기 위해서는 다시 코딩해서 만들어야하는 불편함이 따른다. 특히 특정 위치의 데이터 값을 확인하거나 특정 구간 데이터를 줌인하기 위해서도 다시 코딩해야하는데 단지 한번의 데이터 확인을 위해 코드를 고쳐야 한다는 것은 큰 어려움이 따른다. 따라서 데이터 분석 과정에서 첫 번쨰로 수행하는 탐색적 데이터 분석(EDA : Exploratory Data Analysis)에 적절한 시각화 방법이 아니다. 반면 `plotly`와 같은 동적 시각화에서는 특징적 데이터 값의 확인, 줌인, 줌 아웃, 특정 데이터만의 표기 등과 같은 탐색적 데이터 분석에 필수적인 기능을 제공한다. 따라서 시각화를 완성한 이후에도 그 사용법을 잘 알아둘 필요가 있다. 당연히 `plolty`에도 완성된 시각화에서 제공하는 다양한 기능이 있다.
+
+본 포스트에 설명되는 사용방법을 아래의 `plotly` 시각화에 직접 사용해보자.
+
+## modebar의 사용
+
+`plotly`가 시각화 사용자와의 상호작용을 위한 주요 기능을 제공하는 메뉴가 'modebar'이다. 'modebar'는 `plotly`가 실행되는 R-Studio나 웹 브라우저에서 오른쪽 상단에 나타나는 버튼 메뉴를 말한다. 기본적으로 설정되는 'modebar'는 다음의 그림과 같이 8개의 기능을 버튼을 통해 제공한다.
+
+![modebar 버튼과 기능](D:/R/git/datavisualization/plotly/chap3/ployly_3_1.png)
+
+## 마우스를 사용한 데이터 확인
+
+`plotly` 시각화에서 가장 쉽게 사용하는 기능은 마우스를 사용하여 해당 위치의 데이터 정보를 확인하는 기능이다. `plotly` 객체로 생성된 시각화 위에 표현된 각 trace들은 자체 데이터를 JSON의 형태로 포함하고 있기 때문에 마우스 포인터를 trace위에 위치시키면 해당 trace의 정보가 표시된다.
+
+마우스 포인터를 사용하여 표시되는 기본 정보는 X, Y축에 매핑된 정보와 trace에 설정되거나 매핑된 `name` 속성이 표시된다. 이 정보를 변경하기 위해서는 두가지 방법이 있는데 앞선 plotly 시각화 생성에서 설명한 호버(hover)의 설정인 `hoverinfo`를 사용하는 방법과 `hovertemplate`를 사용하는 방법이다. `hoverinfo`(실행결과 2-\*)를 사용하는 방법이 보다 간단하고 쉬운 반면 `hovertemplate`(실행결과 2-\*)는 표시되는 정보를 세부적으로 설정할 수 있다는 장점이 있다.
+
+![박스 trace의 정보 표시](D:/R/git/datavisualization/plotly/chap3/ployly_3_2.png)
+
+## 마우스 드래그를 통한 줌
+
+`plotly`로 완성된 시각화에서 trace가 나타나는 plotting area에서 마우스를 클릭한 상태로 드래그하면 다음 그림과 같이 줌 인 영역을 선택할 수 있다. 이렇게 영역을 선택한 후에 마우스 클릭을 놓으면 해당 부분이 줌인 되어 표시되게 된다. 만약 다시 처음의 상태로 돌아가려면 모드바의 집 아이콘인 'Reset Axes' 버튼을 사용한다.
+
+![마우스 드래그를 통한 줌](D:/R/git/datavisualization/plotly/chap3/ployly_3_3.png)
+
+## 마우스 휠을 사용한 줌
+
+줌인과 줌아웃을 지원하는 많은 프로그램에서는 마우스 휠을 사용하는 프로그램이 많다. `plotly`도 마우스 휠을 사용하여 줌인과 줌아웃을 사용할 수 있는데 이 기능은 기본적으로 지원하지 않고 `config()`를 사용하여 설정해야 한다. `config()`는 `plotly` 시각화가 사용자와의 상호작용을 지원하는 기능을 조절하고 설정하는 다양한 속성을 조절하는 함수이다. `config()`에서 설정할 수 있는 주요 속성은 다음과 같다.[^2]
+
+[^2]: <https://github.com/plotly/plotly.js/blob/master/src/plot_api/plot_config.js>
+
+| 속성                   | 설명                                           | 속성값                                            | 세부 속성                                                                                |
+|------------------------|------------------------------------------------|---------------------------------------------------|------------------------------------------------------------------------------------------|
+| staticPlot             | 정적 시각화로 설정                             | 논리값                                            |                                                                                          |
+| editable               | 시각화를 편집할 수 있는지를 설정               | 논리값                                            |                                                                                          |
+| edit                   | editable이 TRUE인 경우 편집 가능한 세부 속성   | 세부 속성들의 리스트                              | annotationPosition, annotationText, axisTitleText, legendPosition, legendText, titleText |
+| scrollZoom             | 마우스 휠을 줌으로 사용할지를 설정             | 'cartesian', 'gl3d', 'geo', 'mapbox', TRUE, FALSE |                                                                                          |
+| doubleClick            | 마우스 더블 클릭을 어떤 기능으로 사용할지 설정 | FALSE, 'reset', 'autosize', 'reset+autosize'      |                                                                                          |
+| showTips               | 팁(호버)를 사용할지 설정                       | 논리값                                            |                                                                                          |
+| displayModeBar         | 모드바의 표시 방법 설정                        | 'hover', TRUE, FALSE                              |                                                                                          |
+| modeBarButtonsToRemove | 모드바의 버튼 중 없앨 버튼 설정                | 버튼 ID 문자열                                    |                                                                                          |
+| modeBarButtonsToAdd    | 모드바에 포함시킬 버튼 설정                    | 버튼 ID 문자열                                    |                                                                                          |
+| toImageButtonOptions   | 이미지 저장 버튼의 설정                        |                                                   |                                                                                          |
+| displaylogo            | 모드바의 plotly 로고를 표시할지 설정           | 논리값                                            |                                                                                          |
+
+## 축의 이동
+
+`plotly` 시각화에서 마우스를 사용한 기능중에 또 하나가 축의 이동이다. `plotly`의 플롯 영역(plotting area)에서 마우스를 클릭하고 드래그를 하면 줌인의 기능을 위한 사각형이 만들어지지만 X, Y축의 위치에서 마우스를 클릭하고 드래그하면 축을 이동시킬수 있다. 따라서 줌인한 후에 축을 이동시키면 사용자가 자세히 보기를 원하는 지역의 데이터를 확인할 수 있다. 
+
+![축의 이동](D:/R/git/datavisualization/plotly/chap3/ployly_3_4.png)
+
+## 범례의 사용
+
+`plotly`에서 범례는 단순히 trace들의 이름과 표현방식을 매핑해주는 역할을 넘어 trace들의 표시를 조절할 수 있는 기능이 있다. 범례의 아이템을 클릭하면 해당 trace가 표시를 토글하는 역할을 한다. 따라서 여러 데이터 trace중에 특정한 trace만을 확인하기 위해서 해당 trace만 남기고 다른 trace의 표시를 꺼둘수 있는 기능이 있다. 또 `legendgroup`으로 그룹화된 범례는 해당 그룹의 아이템의 클릭만으로 그 그룹의 전체 trace를 켜거나 꺼둘 수 있다.
+
+![범례의 토글](D:/R/git/datavisualization/plotly/chap3/ployly_3_5.png)
