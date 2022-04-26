@@ -1,0 +1,205 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+# trace의 공통 속성(Attribute) - color 관련 속성
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## color, colors
+
+`color`는 스캐터 trace에 표현되는 점, 선, 문자의 내부 색을 설정하는 속성이다. 내부 색을 설정할 때는 먼저 색을 변수에 매핑할지, 특정 색상으로 설정할 지를 결정해야 한다. 이를 설정하는 매개변수가 `color`이다. `color`에 변수를 `~`를 사용하여 매핑하면 해당 변수의 값에 따라 색이 매핑되어 표현된다.
+
+```{r eval = FALSE, fig.cap='color 매핑 결과'}
+df_취업률_2000 |> 
+  ## X, Y축의 매핑과 color를 대계열로 매핑
+  plot_ly(x = ~졸업자수, y = ~취업자수, color = ~대계열) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+
+반면 특정한 색으로 설정할 때는 `color`에 특정 색 이름을 설정하면 모든 marker가 동일한 색으로 나타난다. 이 과정에서 하나 주의해야 할 것이 설정의 방법이다. 일반적인 변수 설정과 같이 색상명을 설정하면 다음과 같이 정확한 색상이 나타나지 않는다.
+
+```{r eval = FALSE}
+df_취업률_2000 |> 
+  ## plot_ly()에 color를 색 이름 설정
+  plot_ly(x = ~졸업자수, y = ~취업자수, color = 'darkblue') |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+`plotly`에서 색의 사용은 기본적으로 매핑을 전제로 사용된다. 따라서 앞의 코드에서 `color = 'black'`으로 설정하는 것은 색을 검정색으로 지정하는 것이 아니고 'black'이라는 이름으로 매핑된 색 배열을 불러온다는 의미이다. 하지만 미리 매핑되어 정의된 'black' 색 배열이 없기 때문에 `plotly`의 디폴트 색 팔레트를 사용하여 색이 설정된다. 자신이 원하는 색을 직접 설정하기 위해서는 'asis'를 의미하는 `I()`를 사용하여 색을 설정하여야 한다.
+
+```{r eval = FALSE}
+df_취업률_2000 |> 
+  ## plot_ly()에 color를 I()사용하여 색 이름 설정
+  plot_ly(x = ~졸업자수, y = ~취업자수, color = I('darkblue')) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+
+`colors`는 `color`에서 매핑된 변수에 따른 색의 스케일을 설정하는 속성이다. `plotly`에서 색의 스케일을 설정할 때 다음의 세 가지 방법 중 하나를 사용한다.
+
+첫 번째 방법은 `RColorBrewer` 패키지에서 제공하는 팔레트의 이름을 설정하는 방법이다. `RColorBrewer` 패키지는 R에서 색 ekdma팔레트를 제공하는 패키지 중 가장 대중적으로 사용되는 패키지로 `ggplot2`에서도 많이 사용된다. 이 패키지에서 제공하는 팔레트의 이름을 `colors`에 지정함으로써 해당 팔레트를 사용할 수 있다.
+
+두 번째 방법은 사용할 색을 직접 지정하는 방법이다. 사용할 색의 이름을 가지는 문자열 벡터를 사용하여 직접 색을 지정한다.
+
+세 번째는 `colorRamp()`나 `scales::colour_ramp()`와 같은 색 보간 함수를 사용하는 방법이다. `colorRamp()`는 매개변수로 전달되는 색 벡터의 사이 색을 반환하는 함수를 만들어주는데 0부터 1까지의 값 범위내에 해당하는 색을 반환해준다.
+
+다음은 `RColorBrewer` 패키지의 팔레트 이름을 사용한 색 설정 방법이다.
+
+```{r eval = FALSE}
+df_취업률_2000 |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수,
+          ## color를 대계열로 매핑하고 colors를 'Accent' 팔레트로 설정
+          color = ~대계열, colors = 'Blues') |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+```
+
+다음은 색상 이름을 벡터로 설정하여 사용한 색 설정 방법이다.
+
+```{r eval = FALSE}
+color_vector <- c('red', 'blue', 'green', 'yellow', 'purple', 'black', 'pink')
+
+df_취업률_2000 |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수, 
+          ## color를 대계열로 매핑하고 colors를 색 이름 벡터로 설정
+          color = ~대계열, colors = color_vector) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+```
+
+다음은 `colorRamp()`를 사용한 색 설정 방법이다. 
+
+```{r eval = FALSE}
+df_취업률_2000 |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수, 
+          ## color를 대계열로 매핑하고 colors를 colorRamp()로 설정
+          color = ~대계열, colors = colorRamp(c('red', 'yellow', 'blue'))) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+```
+

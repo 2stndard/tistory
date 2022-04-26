@@ -1,0 +1,207 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+##### geom_histogram()의 bins와 binwidth
+ 
+`geom_histogram` 은 도수 분포표를 그리는 기하 요소 함수이다. 도수 분포는 초등학교때 배우는 가장 기본적인 막대 그래프로 각각의 변수 변량에 따른 데이터의 개수를 표현하는 시각화 방법이다. 변수 변량에 따른 데이터의 개수를 표현하기 때문에 X축 데이터만 설정하면 데이터를 자동적으로 데이터를 분석하여 X축에 매핑된 변수의 변량별로 데이터 개수를 산출하고 이 개수를 시각화 한다. 도수 분포표에 사용하는 방법은 막대 그래프이다. 하지만 막대로 표현된 도수 분포표는 막대 그래프에 속하는 종류 중 하나이지만 그 성질은 막대 그래프와는 다소 차이가 있다.
+
+`geom_histogram()` 은 연속된 수치값을 X축에 매핑한다. 하지만 내부적으로 적절한 단위로 전체 X값을 분리하여 이산값으로 만들어 준 후에 막대 그래프를 생성한다. 이 과정을 설정하는 요소가 통계 요소이고 `geom_histogram()` 에서 사용되는 유일한 통계 요소는 연속된 값을 층화하여 구간하는 방법인 binning이다. 이처럼 자동적으로 계산되는 binning 떄문에 연속된 일변량 기하 요소에 속하고, 통계 요소인 'bin'을 사용한다.
+
+`geom_histogram` 의 사용법과 주요 매개변수는 다음과 같다.
+
+::: {.comment}
+geom_histogram(mapping = NULL, data = NULL, stat = "bin", position = "stack", ..., binwidth = NULL, bins = NULL, na.rm = FALSE, orientation = NA, show.legend = NA, inherit.aes = TRUE)\
+- mapping : aes()를 사용하여 매핑할 미적 요소, 생략되면 ggplot()에 정의된 미적매핑 사용\
+- data : 시각화를 위해 사용될 데이터, 생략되면 ggplot()에 정의된 데이터 사용\
+- stat : 시각화에 적용될 통계요소, 기본값은 'bin'\
+- position : 시각화에 적용될 위치요소, 기본값은 'stack'\
+- ... : 미적 요소의 설정\
+- bins : X축을 나누는 bin의 개수 설정\
+- binwidth : X축을 나누는 bin의 너비 설정, 숫자벡터를 사용할 수 있다. (bin과 binwidth는 동시에 사용될 수 없다)\
+- na.rm : 결측치를 제거할지를 결정하는 논리값\
+- orientation : 레이어의 원점 설정\
+- show.legend : 범례를 표시할지에 대한 논리값\
+- inherit.aes : ggplot()에서 설정한 매핑값을 상속받을지 결정하는 논리값
+:::
+
+
+```{r}
+##  df_취업통계를 ggplot 객체로 생성하고 p_histogram에 저장
+p_histogram <- df_취업률 |>
+  ggplot()
+```
+
+`geom_histogram()`에서 히스토그램의 표현을 위해 설정하는 매개변수로 가장 중요하게 사용되는 것이 히스토그램 막대의 범위이다. 이 범위를 어떻게 설정하는가에 따라 히스토그램의 형태가 많이 달라지게 된다. 데이터의 빈도수를 가장 적절하게 표현할 수 있는 막대의 크기는 전체 데이터의 분포를 탐색적으로 살펴보는데 매우 중요한 요소가 된다.  이렇게 히스토그램에 가장 중요한 막대의 범위는 `geom_histogram()`에서 `bins`와 `binwidth`의 두가지 방법으로 설정이 가능하다. 
+
+첫 번쨰는 `geom_histogram()`에서 기본적으로 사용하는 방법인 `bins`의 설정이다. `bins`는 히스토그램으로 표현될 변수의 전체 범위를 몇개의 막대로 표현할지에 대한 설정이다. 기본값은 30으로 특별하게 막대의 범위를 설정하지 않으면 변수의 전체 범위를 30등분하여 각각의 범위에 속하는 데이터 빈도를 막대로 표현하게 된다.  
+
+다음은 bins가 30(default)인 히스토그램이다. 아래에서 보이듯이 0부터 100까지의 취업률 범위를 30으로 나누었기 때문에 각각의 막대의 중심간의 거리는 약 3.3이 될것이다. 첫 번째 막대는 0을 중심으로 약 -1.6 ~ 1.6 사이이고 두 번쨰 막대는 3.3을 중심으로 1.6 ~ 4.9 사이의 범위에 해당하고 이 구간에 해당하는 데이터의 빈도를 막대로 표현하게 된다.   
+
+```{r fig.cap='bins가 30(default)인 geom_histogram'}
+## p_histogram에 x축을 '취업률_계'열로 매핑, binning 옵션을 주지 않았으므로 bins = 30이 기본값으로 설정한 geom_histogram 레이어를 생성 
+p_histogram +
+  geom_histogram(aes(x = 취업률_계))
+```
+
+위의 히스토그램의 막대를 100개로 늘려보면 다음과 같다. 
+
+```{r fig.cap='bins가 100인 geom_histogram'}
+## p_histogram에 x축을 '취업률_계'열로 매핑, bins = 90으로 설정한 geom_histogram 레이어를 생성 
+p_histogram +
+  geom_histogram(aes(x = 취업률_계), bins = 100)
+```
+
+두 번째 방법은 막대의 실제 범위 크기를 설정하는 방법이다. 이는 `binwidth` 매개변수를 통해 설정하게 되는데 `binwidth`로 설정된 크기만큼의 범위가 설정된다. 첫 번째 막대는 앞서 `bins`와 마찬가지로 변수 변량의 첫 번째 값을 중앙에 두고 양쪽으로 `binwidth`만큼 간격을 두는 막대를 그리고 다음번 막대부터 `binwidth` 크기만큼의 막대가 그려지게 된다. 따라서 마지막 막대는 겅우에 따라 그 구간이 정확히 전체 간격에 맞지 않는 경우가 발생할 수 있다. 
+
+다음은 `binwidth`를 10으로 설정한 히스토그램이다. 첫 번째 막대는 취업률의 시작값인 0을 중심으로 -5 ~ 5까지의 범위에 해당하는 데이터 사례값을 표현한 막대가 그려지고 이후부터 구간의 크기가 10인 막대가 순차적으로 그려진다. 
+
+```{r fig.cap='binwidth가 10인 geom_histogram'}
+## p_histogram에 x축을 '취업률_계'열로 매핑, binwidth = 10으로 설정한 geom_histogram 레이어를 생성 
+p_histogram +
+  geom_histogram(aes(x = 취업률_계), binwidth = 10)
+```
+
+이번에는 `binwidth`를 5로 설정하여 총 20개의 막대를 만들어 본다. 
+
+```{r fig.cap='binwidth가 5인 geom_histogram'}
+## p_histogram에 x축을 '취업률_계'열로 매핑, binwidth = 5으로 설정한 geom_histogram 레이어를 생성 
+p_histogram +
+  geom_histogram(aes(x = 취업률_계), binwidth = 5)
+```
+
+`geom_histogram()` 에 매핑될 수 있는 미적 요소는 alpha, color, fill, linetype, size 등이다.
+
+-   `color` : 막대의 외곽선 색을 설정
+-   `fill` : 막대의 채움색을 설정
+-   `alpha` : 막대 채움색의 투명도 설정, 0에서 1사이의 값을 가짐
+-   `linetype` : 막대의 외곽선 타입을 설정
+
+```{r fig.cap='미적 요소가 설정된 geom_histogram'}
+## p_histogram에 x축을 '취업률_계'열로 매핑, 각각의 미적 요소을 설정한  geom_histogram 레이어를 생성 
+p_histogram + 
+  geom_histogram(aes(x = 취업률_계), color = 'red', fill = 'red', alpha = 0.2, linetype = 2)
+```
