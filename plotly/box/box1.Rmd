@@ -1,0 +1,207 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+# violin trace의 사용
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+박스 플롯은 데이터의 전반적 분포를 살펴볼 수 있는 매우 좋은 시각화 방법이다. 앞서 설명한 산점도는 X, Y축 모두 연속형 수치 데이터를 사용하지만 박스 플롯은 이산형 데이터로 분류되는 데이터의 전반적 분포를 시각화할 수 있다는 점에서 활용도가 크고 산점도(Scatter Plot)에서는 표현할 수 없었던 중간값, IQR 범위, 이상치 등의 추가적인 정보를 같이 볼 수 있다는 장점이 있다. 
+
+박스 플롯으로 표현되는 상자의 중심은 중앙값이다. 중앙값은 가로선으로 표현되며 그 주위를 상자가 둘러싸고 있다. 상자의 상단과 하단은 관측값들의 25%와 75%를 나타낸다. 상자의 상단과 하단 범위를 벗어나면 사분위 범위의 1.5배에 해당하는 '수염(whisker)'으로 표현된다. 수염 밖에 존재하는 값은 점으로 표기하며 이상치로 간주된다.
+
+이 박스 플롯의 단점은 데이터의 25%, 50%, 75%의 사분위 지점을 알 수 있지만 데이터의 전반적인 분포를 알아보기는 어렵다. 이 단점을 극복하기 위해 사용하는 시각화가 바이올린 플롯이다. 바이올린 trace는 바이올린 플롯을 생성하기 위해 사용되는 trace이다. 앞 장에서 설명했듯이 바이올린 플롯은 박스 플롯에서 확인하기 어려운 데이터의 분포를 확인할 수 있는 시각화 방법이다.
+
+바이올린 trace를 사용해 바이올린 플롯을 생성하기 위해서는 `add_trace(type = 'violin')`를 사용하여야하고 래핑함수를 제공하지 않는다.
+
+
+::: {.comment}
+add_trace(p, type = 'violin', ..., data = NULL, inherit = TRUE)\
+- p : plot_ly()로 생성한 plotly 객체\
+- type : trace 타입을 'violin'로 설정\
+- ... : 바이올린 trace의 line 모드에 설정할 수 있는 속성 설정\
+- data : 시각화할 데이터프레임\
+- inherit : plot_ly()에 설정된 속성 type을 상속할지를 결정하는 논리값\
+:::
+
+```{r eval = FALSE}
+p_violin <- 
+  df_취업률_2000 |> plot_ly()
+
+p_violin |> 
+  ## 바이올린 trace 추가
+  add_trace(type = 'violin', x = ~대계열, y = ~취업률) |>
+  layout(title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+```
+
+바이올린 trace에서 사용되는 주요 속성은 다음과 같다.
+
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| 속성        | 설명                                           | 속성 값                                      | 세부 속성                                                                                  |
++=============+================================================+==============================================+============================================================================================+
+| type        | trace type 속성                                | 'violin'                                     |                                                                                            |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| visible     | trace의 표시 설정                              | TRUE, FALSE, 'legendonly'                    |                                                                                            |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| width       | 바이올린 trace 너비 설정                       | 0 이상의 수치값                              |                                                                                            |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| orientation | 바이올린 trace의 방향 설정                     | 'v', 'h'                                     |                                                                                            |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| marker      | 바이올린 trace의 세부 설정                     | 세부 속성들의 리스트                         | color, line(color, outliercolor, outlierwidth, width), opacity, outliercolor, size, symbol |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| line        | 바이올린 trace 외곽선 설정                     | 세부 속성들의 리스트                         | color, width                                                                               |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| box         | 바이올린 trace 내부에 표현되는 박스 trace 설정 | 세부 속성들의 리스트                         | fillcolor, line(color, width), visible, width                                              |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| pointpos    | 샘플 점이 그려지는 상대적 위치 설정            | -2\~2까지의 수치                             |                                                                                            |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| jitter      | 샘플 점이 그려지는 너비 설정                   | 0 \~ 1 사이 값                               |                                                                                            |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| meanline    | 평균 선의 설정                                 | 세부 속성들의 리스트                         | color, visible, width                                                                      |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+| points      | 데이터 값을 점으로 표시 여부 설정              | 'all', 'outlier', 'suspectedoutliers', FALSE |                                                                                            |
++-------------+------------------------------------------------+----------------------------------------------+--------------------------------------------------------------------------------------------+
+
+위에서 그려진 바이올린 플롯은 `ggplot2`의 `geom_violin()`으로도 그려지는 형태의 바이올린 플롯이다. 하지만 `plotly`에서는 `ggplot2`에서 지원하지 못하는 특별한 형태의 바이올린 플롯을 지원한다. 바이올린 플롯을 반으로 나누어서 두 개의 그룹을 비교해 볼 수 있는 형태의 바이올린 플롯이다. 
+
+두 개의 그룹을 비교해볼 수 있도록 반반씩 붙여주는 바이올린 플롯은 `add_trace()`의 `side`속성과 `layout()`의 `violinmode` 속성으로 설정할 수 있다. `side`에 'positive'와 'negative'로 오른쪽과 왼쪽의 위치를 설정하고 겹쳐 그릴수 있도록 `violinmode`를 'overlay'로 설정하면 바이올린 플롯과 박스플롯이 겹쳐져서 그려진다. 
+
+```{r eval = FALSE}
+p_violin |> 
+  add_trace(data = df_취업률_2000 |> filter(과정구분 == '대학과정'),
+            type = 'violin', x = ~대계열, y = ~취업률, name = '대학', 
+            side = 'positive', box = list(visible = TRUE, width = 0.5), 
+            meanline = list(visible = TRUE, color = 'red', width = 1)) |>
+  add_trace(data = df_취업률_2000 |> filter(과정구분 == '전문대학과정'), 
+            type = 'violin', x = ~대계열, y = ~취업률, name = '전문대학', 
+            side = 'negative', box = list(visible = TRUE, width = 0.5), 
+            meanline = list(visible = TRUE, color = 'red', width = 1)) |> 
+  layout(violinmode = "overlay", 
+         title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+
+```
+
