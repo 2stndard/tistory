@@ -1,0 +1,238 @@
+{
+  "visdat": {
+    "116850bb2b1a": ["function () ", "plotlyVisDat"]
+  },
+  "cur_data": "116850bb2b1a",
+  "attrs": {
+    "116850bb2b1a": {
+      "x": {},
+      "y": {},
+      "mode": "markers",
+      "marker": {
+        "opacity": 1,
+        "line": {
+          "width": 0.5,
+          "color": "white"
+        },
+        "sizemode": "diameter"
+      },
+      "text": ["Aruba", "Afghanistan", "Angola", "Anguilla", "Albania", "Andorra", "United Arab Emirates", "Argentina", "Armenia", "Antigua and Barbuda", "Australia", "Austria", "Azerbaijan", "Burundi", "Belgium", "Benin", "Bonaire Sint Eustatius and Saba", "Burkina Faso", "Bangladesh", "Bulgaria", "Bahrain", "Bahamas", "Bosnia and Herzegovina", "Belarus", "Belize", "Bermuda", "Bolivia", "Brazil", "Barbados", "Brunei", "Bhutan", "Botswana", "Central African Republic", "Canada", "Switzerland", "Chile", "China", "Cote d'Ivoire", "Cameroon", "Democratic Republic of Congo", "Congo", "Cook Islands", "Colombia", "Comoros", "Cape Verde", "Costa Rica", "Cuba", "Curacao", "Cayman Islands", "Cyprus", "Czechia", "Germany", "Djibouti", "Dominica", "Denmark", "Dominican Republic", "Algeria", "Ecuador", "Egypt", "Eritrea", "Spain", "Estonia", "Ethiopia", "Finland", "Fiji", "Falkland Islands", "France", "Faeroe Islands", "Micronesia (country)", "Gabon", "United Kingdom", "Georgia", "Guernsey", "Ghana", "Gibraltar", "Guinea", "Gambia", "Guinea-Bissau", "Equatorial Guinea", "Greece", "Grenada", "Greenland", "Guatemala", "Guam", "Guyana", "Hong Kong", "Honduras", "Croatia", "Haiti", "Hungary", "Indonesia", "Isle of Man", "India", "Ireland", "Iran", "Iraq", "Iceland", "Israel", "Italy", "Jamaica", "Jersey", "Jordan", "Japan", "Kazakhstan", "Kenya", "Kyrgyzstan", "Cambodia", "Kiribati", "Saint Kitts and Nevis", "South Korea", "Kuwait", "Laos", "Lebanon", "Liberia", "Libya", "Saint Lucia", "Liechtenstein", "Sri Lanka", "Lesotho", "Lithuania", "Luxembourg", "Latvia", "Macao", "Morocco", "Monaco", "Moldova", "Madagascar", "Maldives", "Mexico", "Marshall Islands", "North Macedonia", "Mali", "Malta", "Myanmar", "Montenegro", "Mongolia", "Northern Mariana Islands", "Mozambique", "Mauritania", "Montserrat", "Mauritius", "Malawi", "Malaysia", "Namibia", "New Caledonia", "Niger", "Nigeria", "Nicaragua", "Niue", "Netherlands", "Norway", "Nepal", "Nauru", "New Zealand", "Oman", "Africa", "Asia", "Northern Cyprus", "European Union", "Europe", "High income", "International", "Kosovo", "Low income", "Lower middle income", "North America", "Oceania", "South America", "Upper middle income", "World", "Pakistan", "Panama", "Pitcairn", "Peru", "Philippines", "Palau", "Papua New Guinea", "Poland", "Puerto Rico", "Portugal", "Paraguay", "Palestine", "French Polynesia", "Qatar", "Romania", "Russia", "Rwanda", "Saudi Arabia", "Sudan", "Senegal", "Singapore", "Saint Helena", "Solomon Islands", "Sierra Leone", "El Salvador", "San Marino", "Somalia", "Saint Pierre and Miquelon", "Serbia", "South Sudan", "Sao Tome and Principe", "Suriname", "Slovakia", "Slovenia", "Sweden", "Eswatini", "Sint Maarten (Dutch part)", "Seychelles", "Syria", "Turks and Caicos Islands", "Chad", "Togo", "Thailand", "Tajikistan", "Tokelau", "Turkmenistan", "Timor", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Tuvalu", "Taiwan", "Tanzania", "Uganda", "Ukraine", "Uruguay", "United States", "Uzbekistan", "Vatican", "Saint Vincent and the Grenadines", "Venezuela", "British Virgin Islands", "United States Virgin Islands", "Vietnam", "Vanuatu", "Wallis and Futuna", "Samoa", "Yemen", "South Africa", "Zambia", "Zimbabwe"],
+      "hoverinfo": "text",
+      "key": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242],
+      "color": ["#000000"],
+      "size": [8],
+      "symbol": ["circle"],
+      "colors": "#000000",
+      "alpha_stroke": 1,
+      "sizes": [4, 80],
+      "spans": [1, 20],
+      "symbols": "circle",
+      "type": "scattergl"
+    }
+  },
+  "layout": {
+    "width": 800,
+    "height": 600,
+    "margin": {
+      "b": 40,
+      "l": 60,
+      "t": 25,
+      "r": 10
+    },
+    "xaxis": {
+      "domain": [0, 1],
+      "automargin": true,
+      "title": "십만명당사망자수",
+      "showgrid": false,
+      "color": "black",
+      "ticklen": 5,
+      "mirror": [],
+      "showline": true,
+      "zeroline": true
+    },
+    "yaxis": {
+      "domain": [0, 1],
+      "automargin": true,
+      "title": "백신접종완료률",
+      "showgrid": false,
+      "color": "black",
+      "ticklen": 5,
+      "mirror": [],
+      "showline": true,
+      "zeroline": true
+    },
+    "annotations": [
+      {
+        "x": 215.76933,
+        "y": 0.77895537065053,
+        "ax": null,
+        "ay": null,
+        "text": "France",
+        "textangle": 0,
+        "font": {
+          "color": "black",
+          "size": 12
+        },
+        "arrowcolor": "black",
+        "arrowwidth": 1,
+        "arrowhead": 0,
+        "arrowsize": 1.5,
+        "xanchor": "auto",
+        "yanchor": "auto"
+      },
+      {
+        "x": 248.4345,
+        "y": 0.728096514976429,
+        "ax": null,
+        "ay": null,
+        "text": "United Kingdom",
+        "textangle": 0,
+        "font": {
+          "color": "black",
+          "size": 12
+        },
+        "arrowcolor": "black",
+        "arrowwidth": 1,
+        "arrowhead": 0,
+        "arrowsize": 1.5,
+        "xanchor": "auto",
+        "yanchor": "auto"
+      },
+      {
+        "x": 43.13989,
+        "y": 0.868092803253566,
+        "ax": null,
+        "ay": null,
+        "text": "South Korea",
+        "textangle": 0,
+        "font": {
+          "color": "black",
+          "size": 12
+        },
+        "arrowcolor": "black",
+        "arrowwidth": 1,
+        "arrowhead": 0,
+        "arrowsize": 1.5,
+        "xanchor": "auto",
+        "yanchor": "auto"
+      },
+      {
+        "x": 297.7429,
+        "y": 0.658667955059313,
+        "ax": null,
+        "ay": null,
+        "text": "United States",
+        "textangle": 0,
+        "font": {
+          "color": "black",
+          "size": 12
+        },
+        "arrowcolor": "black",
+        "arrowwidth": 1,
+        "arrowhead": 0,
+        "arrowsize": 1.5,
+        "xanchor": "auto",
+        "yanchor": "auto"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "align": "left",
+        "text": "",
+        "font": {
+          "color": "black"
+        },
+        "xref": "paper",
+        "yref": "paper",
+        "showarrow": false
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "align": "right",
+        "text": "",
+        "font": {
+          "color": "black"
+        },
+        "xref": "paper",
+        "yref": "paper",
+        "showarrow": false
+      }
+    ],
+    "hovermode": "closest",
+    "legend": {
+      "font": {
+        "color": "black"
+      },
+      "x": 1.02,
+      "y": 1
+    },
+    "showlegend": true
+  },
+  "source": "lab_plotly",
+  "config": {
+    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "showSendToCloud": false,
+    "edits": {
+      "annotationTail": true
+    },
+    "toImageButtonOptions": {
+      "format": "svg"
+    }
+  },
+  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "data": [
+    {
+      "x": [253.74318, 19.28183, 5.60801, 66.1157, 121.68745, 200.37749, 23.04055, 281.4202, 290.55351, 136.73932, 27.08989, 199.58925, 94.94936, 0.31007, 270.24671, 1.30913, 136.13159, 1.78164, 17.51436, 534.3025, 84.36791, 198.78362, 483.47474, 73.30401, 167.93648, 210.97726, 185.13579, 309.75482, 135.20653, 49.37354, 2.56443, 112.12895, 2.29675, 102.79261, 158.64849, 234.66141, 0.32364, 2.95339, 7.07825, 1.44731, 7.3537, 0, 272.63963, 18.12133, 71.54285, 163.12344, 75.317, 165.65936, 42.10653, 112.83419, 374.01093, 159.95143, 18.85857, 87.29147, 103.5212, 39.94992, 15.40681, 128.25577, 23.60771, 2.85995, 223.84325, 191.67092, 6.37109, 62.25262, 95.69177, 0, 215.76933, 57.08112, 0, 13.2963, 248.4345, 422.05925, 0, 4.55374, 302.75148, 3.26734, 14.67669, 8.48429, 12.62164, 278.35025, 194.66443, 38.68608, 95.98426, 0, 155.37833, 122.28577, 109.17228, 386.55869, 7.90179, 477.96581, 56.47199, 114.74066, 36.9468, 140.78136, 165.76979, 61.20543, 31.18289, 114.79927, 269.41662, 98.97554, 0, 136.9069, 23.23666, 101.57432, 10.27358, 51.80779, 18.03328, 10.70946, 80.30478, 43.13989, 59.02665, 9.93311, 153.25408, 5.67545, 92.43321, 199.56508, 219.58488, 76.76311, 32.28246, 337.56379, 166.97804, 307.61666, 0, 43.01805, 149.2915, 270.97247, 4.89318, 54.8177, 243.40058, 0, 445.15166, 3.50503, 133.50126, 35.46144, 432.13051, 65.38947, 0, 6.94897, 20.56497, 60.22887, 77.74291, 13.40107, 108.28286, 155.52628, 108.25177, 1.22957, 1.48722, 3.47638, 0, 130.06392, 46.28927, 40.27307, 0, 12.40661, 81.49902, 18.38882, 30.30028, -0, 239.70062, 241.17614, 193.23439, 176.08291, 6.48216, 39.0123, 238.20442, 23.82464, 292.1279, 98.90886, 78.43158, 13.48535, 186.73616, 0, 639.79839, 54.19421, 33.0142, 7.117, 306.76509, 0, 217.95995, 260.3315, 108.31446, 229.35293, 23.10167, 342.02102, 251.66055, 10.98933, 25.68145, 10.97767, 11.57225, 24.29588, 0, 19.8865, 1.53537, 63.31211, 335.19553, 8.32544, 17.32802, 232.2039, 1.21251, 34.47288, 224.23192, 363.8836, 316.34807, 186.46362, 119.16043, 0, 166.81832, 17.236, 91.77586, 1.141, 3.22001, 39.70931, 1.2821, 0, 0, 9.67352, 10.30358, 271.63108, 239.05466, 116.03107, 0, 3.58835, 1.30572, 7.64586, 258.72377, 206.50462, 297.7429, 4.82382, 0, 95.26463, 19.89553, 203.79318, 0, 43.99462, 3.81602, 63.09717, 6.49532, 7.04479, 166.50846, 21.0035, 36.23071],
+      "y": [0.763617706049722, 0.115555103361761, 0.180562481251995, 0.652826446280992, 0.426757454226237, 0.690410321379631, 0.966171935514899, 0.81509547585623, 0.330208468098411, 0.624817680901061, 0.833032543506207, 0.730250958966157, 0.473253076488476, 0.000858558276499338, 0.785393541829181, 0.202438014972415, 0.632860654187937, 0.0578342275703552, 0.696421730020898, 0.297912538759732, 0.696758842186244, 0.396937371823619, 0.259258657761596, 0.582582599119526, 0.520153612486571, 0.764414095213554, 0.493051682186061, 0.76321154628286, 0.527597425167183, 0.918198454472156, 0.849667906141813, 0.53917880562647, 0.182509628582352, 0.820866696842561, 0.687731068370881, 0.908005637203796, 0.863284239992499, 0.199411583562412, 0.0441420597553756, 0.00558284524626895, 0.120395607791173, 0.835192351468245, 0.689445609601918, 0.339035360220427, 0.545971621335431, 0.789085459908664, 0.878254628363972, 0.599055802325299, 0.883049114259076, 0.720187945379769, 0.640249435104661, 0.754287565322488, 0.113800979248591, 0.417641190489386, 0.825549059725437, 0.54379053533806, 0.136960423677039, 0.774755577250469, 0.32075810117306, null, 0.863739795719395, 0.637250714615587, 0.180620670702505, 0.778250369793891, 0.699081514100691, 0.5031179138322, 0.77895537065053, 0.83369009031048, null, 0.110494030047889, 0.728096514976429, 0.317212062094999, 0.81014435592017, 0.159784619550255, 1.22884449853076, 0.183746866117858, 0.127932874857706, 0.169435224188659, 0.146465492923261, 0.734114427822798, 0.337583506614166, 0.677041569951467, 0.333109697012603, null, 0.460281730772881, 0.796169764855418, 0.480534818961434, 0.549066714817046, 0.0104808804747107, 0.642644892207542, 0.592972144180801, 0.784732466924248, 0.608419069291336, 0.806831116955093, 0.675677852999385, 0.17778053374372, 0.786874444131109, 0.660191475621569, 0.793401333642087, 0.229687145825304, 0.79007252184065, 0.435880359395471, 0.803319496689255, 0.485912945951236, 0.152754565177689, 0.191197745078826, 0.833693094115427, 0.455835832207467, 0.491054420498263, 0.868092803253566, 0.760248286205575, 0.641884836052134, 0.327315050292127, 0.209372094711255, 0.163861431812257, 0.289808623597486, 0.690228472839442, 0.671555124163, 0.336964068275788, 0.696734628021809, 0.726776662140406, 0.698297850914923, 0.832942734636409, 0.625860364393028, 0.649468623481781, 0.263312727927883, 0.0369672033602308, 0.70614767668592, 0.613723626082835, null, 0.401581438361788, 0.0489234514227365, 0.906521991862042, 0.410174219201564, 0.449740546547971, 0.653401243871802, null, 0.411078304308563, 0.223010778809284, 0.365589239108613, 0.761809069692201, 0.0438671617276359, 0.809008062101168, 0.149374416389935, 0.624394119708414, 0.0615798694908759, 0.0629762330403592, 0.656325910546091, 0.877942998760843, 0.722165732045722, 0.73755170722345, 0.655532584418088, 0.789570495723351, 0.796914148606207, 0.579673950334037, 0.161625648687132, 0.683212495063146, -0, 0.732252108145149, 0.654413891106819, 0.743467211281754, 0.461117267965311, 0.121584664694096, 0.514164470562983, 0.629907893037268, 0.633598129234473, 0.738057214309772, 0.769992383933153, 0.588215723701949, 0.538340871324165, 0.697594225648584, 1, 0.789385875022089, 0.604255183687687, null, 0.0288751897822186, 0.593030796094928, null, 0.925958329936212, 0.477437867062919, 0.338424387430698, 0.639947758499862, 0.888001258478006, 0.423144891103888, 0.50231127631142, 0.613576889179594, 0.698762785549118, 0.0795750978454354, 0.0604348910242827, 0.912720588235294, 0.579327317473339, 0.199610792690289, 0.138234564002524, 0.658696786070415, 0.694619229638342, 0.0845506892019927, null, 0.475784273905134, 0.0485967559109939, 0.389113733636575, 0.401481586622462, 0.507468890328429, 0.587456818440937, 0.750762857156074, 0.271552727852749, 0.598097694663872, 0.810362956222829, 0.0802968793979154, 0.750981491867639, 0.120520532533727, 0.183710019128966, 0.726862938208437, 0.50117496826801, 0.707602339181287, 0.477285383805282, 0.446551204539113, 0.673048642269036, 0.50657629398863, 0.532446351988863, 0.623512606649908, 0.516561844863732, 0.777545662529227, 0.0498854458709992, 0.21490763436604, 0.34862399188052, 0.820388895520195, 0.658667955059313, 0.421900847085663, null, 0.272304055936514, 0.497731976303597, 0.5836702494823, null, 0.792044774212393, 0.375744123333673, 0.582026320533622, 0.684387241186346, 0.013495978224661, 0.303846694237147, 0.12546604486303, 0.240586659136051],
+      "mode": "markers",
+      "marker": {
+        "color": "rgba(0,0,0,1)",
+        "size": [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+        "sizemode": "diameter",
+        "symbol": "circle",
+        "opacity": 1,
+        "line": {
+          "color": "white",
+          "width": 0.5
+        }
+      },
+      "text": ["Aruba", "Afghanistan", "Angola", "Anguilla", "Albania", "Andorra", "United Arab Emirates", "Argentina", "Armenia", "Antigua and Barbuda", "Australia", "Austria", "Azerbaijan", "Burundi", "Belgium", "Benin", "Bonaire Sint Eustatius and Saba", "Burkina Faso", "Bangladesh", "Bulgaria", "Bahrain", "Bahamas", "Bosnia and Herzegovina", "Belarus", "Belize", "Bermuda", "Bolivia", "Brazil", "Barbados", "Brunei", "Bhutan", "Botswana", "Central African Republic", "Canada", "Switzerland", "Chile", "China", "Cote d'Ivoire", "Cameroon", "Democratic Republic of Congo", "Congo", "Cook Islands", "Colombia", "Comoros", "Cape Verde", "Costa Rica", "Cuba", "Curacao", "Cayman Islands", "Cyprus", "Czechia", "Germany", "Djibouti", "Dominica", "Denmark", "Dominican Republic", "Algeria", "Ecuador", "Egypt", "Eritrea", "Spain", "Estonia", "Ethiopia", "Finland", "Fiji", "Falkland Islands", "France", "Faeroe Islands", "Micronesia (country)", "Gabon", "United Kingdom", "Georgia", "Guernsey", "Ghana", "Gibraltar", "Guinea", "Gambia", "Guinea-Bissau", "Equatorial Guinea", "Greece", "Grenada", "Greenland", "Guatemala", "Guam", "Guyana", "Hong Kong", "Honduras", "Croatia", "Haiti", "Hungary", "Indonesia", "Isle of Man", "India", "Ireland", "Iran", "Iraq", "Iceland", "Israel", "Italy", "Jamaica", "Jersey", "Jordan", "Japan", "Kazakhstan", "Kenya", "Kyrgyzstan", "Cambodia", "Kiribati", "Saint Kitts and Nevis", "South Korea", "Kuwait", "Laos", "Lebanon", "Liberia", "Libya", "Saint Lucia", "Liechtenstein", "Sri Lanka", "Lesotho", "Lithuania", "Luxembourg", "Latvia", "Macao", "Morocco", "Monaco", "Moldova", "Madagascar", "Maldives", "Mexico", "Marshall Islands", "North Macedonia", "Mali", "Malta", "Myanmar", "Montenegro", "Mongolia", "Northern Mariana Islands", "Mozambique", "Mauritania", "Montserrat", "Mauritius", "Malawi", "Malaysia", "Namibia", "New Caledonia", "Niger", "Nigeria", "Nicaragua", "Niue", "Netherlands", "Norway", "Nepal", "Nauru", "New Zealand", "Oman", "Africa", "Asia", "Northern Cyprus", "European Union", "Europe", "High income", "Kosovo", "Low income", "Lower middle income", "North America", "Oceania", "South America", "Upper middle income", "World", "Pakistan", "Panama", "Pitcairn", "Peru", "Philippines", "Palau", "Papua New Guinea", "Poland", "Puerto Rico", "Portugal", "Paraguay", "Palestine", "French Polynesia", "Qatar", "Romania", "Russia", "Rwanda", "Saudi Arabia", "Sudan", "Senegal", "Singapore", "Saint Helena", "Solomon Islands", "Sierra Leone", "El Salvador", "San Marino", "Somalia", "Saint Pierre and Miquelon", "Serbia", "South Sudan", "Sao Tome and Principe", "Suriname", "Slovakia", "Slovenia", "Sweden", "Eswatini", "Sint Maarten (Dutch part)", "Seychelles", "Syria", "Turks and Caicos Islands", "Chad", "Togo", "Thailand", "Tajikistan", "Tokelau", "Turkmenistan", "Timor", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Tuvalu", "Taiwan", "Tanzania", "Uganda", "Ukraine", "Uruguay", "United States", "Uzbekistan", "Vatican", "Saint Vincent and the Grenadines", "Venezuela", "British Virgin Islands", "United States Virgin Islands", "Vietnam", "Vanuatu", "Wallis and Futuna", "Samoa", "Yemen", "South Africa", "Zambia", "Zimbabwe"],
+      "hoverinfo": ["text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text", "text"],
+      "key": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "100", "101", "102", "103", "104", "105", "106", "107", "108", "109", "110", "111", "112", "113", "114", "115", "116", "117", "118", "119", "120", "121", "122", "123", "124", "125", "126", "127", "128", "129", "130", "131", "132", "133", "134", "135", "136", "137", "138", "139", "140", "141", "142", "143", "144", "145", "146", "147", "148", "149", "150", "151", "152", "153", "154", "155", "156", "157", "158", "159", "160", "161", "163", "164", "165", "166", "167", "168", "169", "170", "171", "172", "173", "174", "175", "176", "177", "178", "179", "180", "181", "182", "183", "184", "185", "186", "187", "188", "189", "190", "191", "192", "193", "194", "195", "196", "197", "198", "199", "200", "201", "202", "203", "204", "205", "206", "207", "208", "209", "210", "211", "212", "213", "214", "215", "216", "217", "218", "219", "220", "221", "222", "223", "224", "225", "226", "227", "228", "229", "230", "231", "232", "233", "234", "235", "236", "237", "238", "239", "240", "241", "242"],
+      "type": "scattergl",
+      "textfont": {
+        "color": "rgba(0,0,0,1)",
+        "size": 8
+      },
+      "error_y": {
+        "color": "rgba(0,0,0,1)",
+        "width": 8
+      },
+      "error_x": {
+        "color": "rgba(0,0,0,1)",
+        "width": 8
+      },
+      "line": {
+        "color": "rgba(0,0,0,1)",
+        "width": 8
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "_isNestedKey": false,
+      "frame": null
+    }
+  ],
+  "highlight": {
+    "on": "plotly_click",
+    "persistent": false,
+    "dynamic": false,
+    "selectize": false,
+    "opacityDim": 0.2,
+    "selected": {
+      "opacity": 1
+    },
+    "debounce": 0
+  },
+  "base_url": "https://plot.ly"
+}
