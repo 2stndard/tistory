@@ -1,12 +1,12 @@
 {
   "visdat": {
-    "7894536310f7": ["function () ", "plotlyVisDat"],
-    "789410f631c0": ["function () ", "data"],
-    "789443392df": ["function () ", "data"]
+    "18045c136a51": ["function () ", "plotlyVisDat"],
+    "180471e16b8a": ["function () ", "data"],
+    "1804356f57d8": ["function () ", "data"]
   },
-  "cur_data": "789443392df",
+  "cur_data": "1804356f57d8",
   "attrs": {
-    "789410f631c0": {
+    "180471e16b8a": {
       "alpha_stroke": 1,
       "sizes": [10, 100],
       "spans": [1, 20],
@@ -16,7 +16,7 @@
       "name": "¥Î«–",
       "inherit": true
     },
-    "789443392df": {
+    "1804356f57d8": {
       "alpha_stroke": 1,
       "sizes": [10, 100],
       "spans": [1, 20],
@@ -56,6 +56,7 @@
   },
   "source": "A",
   "config": {
+    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
     "showSendToCloud": false,
     "scrollZoom": true
   },

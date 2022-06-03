@@ -1,0 +1,78 @@
+{
+  "visdat": {
+    "2c3c23c53e01": ["function () ", "plotlyVisDat"]
+  },
+  "cur_data": "2c3c23c53e01",
+  "attrs": {
+    "2c3c23c53e01": {
+      "alpha_stroke": 1,
+      "sizes": [10, 100],
+      "spans": [1, 20],
+      "type": "funnel",
+      "x": {},
+      "y": {},
+      "text": {},
+      "texttemplate": "%{text:,.0f}",
+      "inherit": true
+    }
+  },
+  "layout": {
+    "margin": {
+      "b": 25,
+      "l": 25,
+      "t": 50,
+      "r": 25
+    },
+    "title": "우리나라 주별 확진자수",
+    "yaxis": {
+      "domain": [0, 1],
+      "automargin": true,
+      "title": "",
+      "tickvals": ["2022-01-09", "2022-01-16", "2022-01-23", "2022-01-30", "2022-02-06", "2022-02-13", "2022-02-20", "2022-02-27", "2022-03-06", "2022-03-13", "2022-03-20", "2022-03-27", "2022-04-03", "2022-04-10", "2022-04-17", "2022-04-24"],
+      "ticktext": ["2022년 2주", "2022년 3주", "2022년 4주", "2022년 5주", "2022년 6주", "2022년 7주", "2022년 8주", "2022년 9주", "2022년 10주", "2022년 11주", "2022년 12주", "2022년 13주", "2022년 14주", "2022년 15주", "2022년 16주", "2022년 17주"]
+    },
+    "xaxis": {
+      "domain": [0, 1],
+      "automargin": true,
+      "title": "new_cases"
+    },
+    "hovermode": "closest",
+    "showlegend": false
+  },
+  "source": "A",
+  "config": {
+    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "showSendToCloud": false
+  },
+  "data": [
+    {
+      "type": "funnel",
+      "x": [4190, 41728, 94735, 181051, 340942, 612207, 1032004, 1461423, 2100189, 2817193, 2442195, 2058375, 1459454, 972082, 589442, 114671],
+      "y": ["2022-01-09", "2022-01-16", "2022-01-23", "2022-01-30", "2022-02-06", "2022-02-13", "2022-02-20", "2022-02-27", "2022-03-06", "2022-03-13", "2022-03-20", "2022-03-27", "2022-04-03", "2022-04-10", "2022-04-17", "2022-04-24"],
+      "text": [4190, 41728, 94735, 181051, 340942, 612207, 1032004, 1461423, 2100189, 2817193, 2442195, 2058375, 1459454, 972082, 589442, 114671],
+      "texttemplate": ["%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}", "%{text:,.0f}"],
+      "marker": {
+        "color": "rgba(31,119,180,1)",
+        "line": {
+          "color": "rgba(31,119,180,1)"
+        }
+      },
+      "xaxis": "x",
+      "yaxis": "y",
+      "frame": null
+    }
+  ],
+  "highlight": {
+    "on": "plotly_click",
+    "persistent": false,
+    "dynamic": false,
+    "selectize": false,
+    "opacityDim": 0.2,
+    "selected": {
+      "opacity": 1
+    },
+    "debounce": 0
+  },
+  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "base_url": "https://plot.ly"
+}

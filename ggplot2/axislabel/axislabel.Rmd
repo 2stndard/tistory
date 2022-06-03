@@ -1,0 +1,254 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dev = 'svglite')
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+##theme_set(theme_grey(base_size = 18)) 
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## 축 눈금 간격 설정
+
+`ggplot2`에서 축의 눈금 간격 설정은 `scale_*_*()`의 `breaks` 속성을 사용하여 설정이 가능하다. 
+
+축의 눈금 설정은 주로 연속형 변수를 축에 매핑할 때 사용한다. 이산형 변수는 각각의 카테고리 이름을 다 붙여주기 때문에 보통 `breaks`를 설정하지 않는것이 일반적이다.
+
+`breaks`를 사용해 눈금 간격을 설정하기 위해서는 간격으로 사용할 문자형 벡터 설정하면 설정된 벡터로 간격이 표시된다. 이를 설정하기 위해서는 사용자가 `c()`를 사용하여 하나 하나 설정할 수도 있고 `seq()`를 사용하여 시작점, 끝점, 간격을 설정할 수도 있다.
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 500, 75)) +
+  scale_y_continuous(breaks = c(50, 100, 200, 400))
+  
+```
+
+또 연속형 변수 타입으로 매핑될 수 있는 데이터 타입이 날짜형(Date) 타입이다. 날짜형 데이터 타입은 `scale_*_date()`나 `scale_*_datetime()`으로 설정할 수 있다. 날짜형 타입도 `breaks`로 설정이 가능하지만 `date_breaks`를 사용하여 날짜나 시간 간격을 설정하 수도 있다. 예를 들어 `date_breaks`를 '1 year', '2 months', '3 weeks', '5 days' 등으로 설정하면 그 간격만큼의 눈금이 설정된다. 
+
+```{r}
+df_covid19_100 |>
+  ggplot(aes(x= date, y = total_cases)) +
+  geom_line(aes(group = location, color = location)) +
+  scale_x_date(breaks = '2 weeks')
+
+```
+
+## 축 눈금 라벨 설정
+
+위의 선 그래프에서 Y축이 지수형태의 라벨로 표현되기 때문에 축을 읽기가 어렵다. `ggplot`는 십만(100,000) 이상의 수치는 위와 같이 지수형으로 표현한다. 이와 같이 축에 표시되는 눈금의 라벨을 사용자가 원하는 형태로 설정하기 위해서는 앞서 사용했던 `scale_*_*()`을 사용한다. 눈금 라벨을 설정하는 방법은 눈금 라벨에 표시되는 문자열을 벡터로 설정하는 방법과 표시 포맷을 설정하는 방법이 있다. 
+
+### 눈금 라벨 벡터 설정
+
+축 눈금에 사용하고자 하는 라벨을 벡터로 설정하여 `labels` 매개변수에 설정하면 앞서 설정한 `breaks`에 1:1로 매핑하여 축에 표기된다. 따라서 `breaks`의 벡터 길이와 `labels` 벡터 길이가 동일해야한다. 
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 500, 75), labels = paste0(seq(0, 500, 75), '명')) +
+  scale_y_continuous(breaks = c(50, 100, 200, 400), labels = c('50명', '100명', '200명', '400명'))
+  
+```
+
+### 눈금 라벨 포맷 설정
+
+눈금이 몇개 되지 않은 경우는 이를 하나 하나 벡터로 설정하여 사용할 수 있지만 눈금이 많은 경우는 하나 하나 벡터를 설정하기가 어렵다. 이렇게 벡터로 설정하는 경우의 가장 큰 문제는 나중에 새로운 데이터를 사용할 때 그 라벨이 적절치 않을 수 있다는 점이다. 또 라벨은 일반적으로 일정한 포맷을 가지는 경우가 많다. 이렇게 눈금에 표기되는 형태를 자동화하고 일정한 포맷으로 설정하기 위해서는 앞서 설명한 `labels`에 문자열 벡터를 설정하지 않고 라벨 표기용 함수를 설정함으로써 해당 라벨을 특정 포맷으로 표기할 수 있다. 
+
+이 예로 가장 많이 사용되는 것이 앞서 표기되었던 지수 형태의 라벨이다.  `ggplot2`는 십만(100,000) 이상의 수치는 위와 같이 지수형으로 표현한다. 위의 선 그래프에서 Y축이 지수형태로 표현되기 때문에 축을 읽기가 어렵다. 또 수치가 잘 인식되려면 천단위 구분자도 필요할 것이다. 이런 경우 라벨을 하나 하나 벡터로 천 단위 구분 기호를 넣어 벡터로 설정하기는 어렵다. 또 비율을 백분률로 표현하기 위해서는 뒤에 '%'를 붙여야 한다. 
+
+앞서 지수형태로 표기된 라벨을 천 단위 표시를 ','로 표기한 자연수 형태로 표기하는 코드는 다음과 같다. 
+
+```{r}
+df_covid19_100 |>
+  ggplot(aes(x= date, y = total_cases)) +
+  geom_line(aes(group = location, color = location)) +
+  scale_x_date(breaks = '2 weeks') +
+  scale_y_continuous(labels = scales::comma)
+
+```
+
+여기서 포맷 설정을 위해 사용한 함수는 `scales` 패키지의 `label_comma()` 함수이다. 이 함수는 `label_comma()`로 사용할 수 있지만 특별한 매개변수 설정이 없다면 단순히 `comma`로만 설정하여 천 단위 구분자를 ','로 설정한 자연수 포맷으로 설정할 수 있다. 
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 500, 75), labels = paste0(seq(0, 500, 75), '명')) +
+  scale_y_continuous(breaks = c(50, 100, 200, 400), labels = c('50명', '100명', '200명', '400명'))
+  
+```
+
+백분률 포맷을 사용하는 예는 다음과 같다. 앞서 설명한 `scales` 패키지의 `label_percent()`를 사용하거나 `percent`를 사용하면 백분률 포맷으로 설정이 가능한데 하나 주의해야 할 것이 `label_percent()`를 사용하기 위해서는 매핑되는 변수가 0부터 1사이의 비율로 표현되어야 한다는 점이다.  
+
+```{r}
+df_취업률_2000 |>
+  ggplot() +
+  geom_bar(aes(x = 대계열, y = 취업률/100), stat = "summary", fun.y = "mean") +
+  scale_y_continuous(labels = scales::percent)
+
+```
+
+앞에서 본 것과 같이 축에 표시되는 라벨은 그 데이터에 따라 표시 포맷을 설정해야한다. `scales` 패키지에서 제공하는 함수들을 사용하여 표시 포맷을 설정할 수 있는데 다음과 같은 함수들로 포맷을 설정할 수 있다.
+
+-   scales::number : 숫자 포맷으로 표현되나 천단위 구분에 빈칸을 사용하는 포맷
+
+-   scales::comma : 숫자 포맷으로 천단위 구분 기호로 콤마(,)를 사용하는 포맷
+
+-   scales::percent : 백분률 포맷으로 원값에 100을 곱한 값이 표시되며 접미어에 '%'가 붙음
+
+-   scales::dollar : 달러 통화 포맷으로 접두사에 '\$'가 붙음
+
+-   scales::scientific : 과학적 포맷으로 지수형태의 표기
+
+위의 함수를 사용할 때 함수의 기본값을 사용한다면 함수의 뒤에 괄호(`()`)없이 함수명만 지정함으로써 사용이 가능하다. 하지만 포맷의 세부 특성을 설정하기 위해서는 함수의 괄호 안에 세부 특성값을 설정할 수 있다. 이 함수들의 사용법과 주요 매개변수는 다음과 같다.
+
+::: {.comment}
+number(accuracy = NULL, scale = 1, prefix = "", suffix = "", big.mark = " ", decimal.mark = ".", trim = TRUE, ...)
+
+comma(x, accuracy = NULL, scale = 1, prefix = "", suffix = "", big.mark = ",", decimal.mark = ".", trim = TRUE, digits, ...)
+
+percent(x, accuracy = NULL, scale = 100, prefix = "", suffix = "%", big.mark = " ", decimal.mark = ".", trim = TRUE, ...)
+
+dollar(x, accuracy = NULL, scale = 1, prefix = "\$", suffix = "", big.mark = ",", decimal.mark = ".", trim = TRUE, largest_with_cents = 1e+05, negative_parens = FALSE, ...)
+
+scientific(x, digits = 3, scale = 1, prefix = "", suffix = "", decimal.mark = ".", trim = TRUE, ...)\
+- accuracy : 반올림 되어 표기될 숫자의 유효숫자 범위를 지정. 예를 들어 0.01로 설정하면 소수점 세째자리에서 반올림하여 소수점 두쨰자리까지 표시됨.\
+- scale : 스케일 팩터를 지정. 표기될 숫자는 포맷팅 되기 전에 스케일 팩터가 곱해짐. 수치값이 매우 작거나 매우 클때 유용함.\
+- prefix : 숫자의 앞 에 표시될 문자 지정\
+- sufix : 숫자의 뒤에 표시될 문자 지정\
+- big.mark : 매 3자리(천단위)마다 표시될 문자 지정\
+- decimal.mark : 소수점으로 표시될 문자 지정
+:::
+
+시계열 데이터에 대한 포맷을 설정하기 위해서는 `scale_*_date()`의 `date_labels` 매개 변수에  Date형이나 Time형의 포맷 설정 문자열을 설정함으로써 라벨 표시를 결정할 수 있다. 
+
+```{r}
+df_covid19_100 |>
+  ggplot(aes(x= date, y = new_cases)) +
+  geom_line(aes(group = location, color = location)) +
+  scale_x_date(breaks = '2 weeks', date_labels = '%y년 %B') +
+  scale_y_continuous(labels = scales::number)
+  
+```

@@ -1,0 +1,346 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+-----------------------------------------------------------------------
+
+
+데이터를 시각화할 때 독자의 눈에 잘 띄도록 디자인하기 위해서는 데이터 자체의 표현과 함께 제목의 표현, 축의 형태, 전체 그래프의 외관 설정 등에도 신경써야 한다. `ggplot2`에서는 다양한 테마요소를 사용하여 이를 설정하는데 하나 하나 설정해서 사용자의 눈에 띄는 디자인을 만드는 것은 상당히 어려운 일임에 틀림없다. 그래서 `ggplot2`, `ggthemes` 패키지 등에서 미리 만들어진 테마들을 제공한다. 이들 테마 중에는 워싱턴 포스트와 같이 유명한 언론지에서 사용하는 테마를 제공하지만 영국의 이코노미스트에서 사용하는 테마는 제공하지 않는다. 물론 영국 이코노미스트 스타일의 시각화를 선호하지 않을 수도 있지만 이 스타일을 만들어 보면 이를 응용하여 자신만의 디자인을 할 수 있을 것이라는 점에서 만들어 보고자 한다.
+
+영국 이코노미스트지의 시각화는 크게 세가지 점에서 특징이 있다. 첫 번째는 Y 축 라벨을 플롯 안에 배치하고 눈금선 위에 옅은 회색으로 표기한다. 두 번째는 Y축 라벨을 플롯 안쪽으로 배치했기 때문에 Y축의 선을 제가한다. 마지막으로 그래프의 전체 모양을 꾸며주기 위해 전체 그래프의 맨 위에 붉은 줄을 그리고 왼쪽 상단 귀퉁이에 작은 붉은 네모를 만들어 준다.
+
+이코노미스트 스타일의 그래프를 그리기 위해 두개의 `ggplot` 객체를 생성하고 `patchwork`로 이어 붙이겠다. 이어 붙일 `ggplot` 객체는 5년 단위의 대학 종류별 입학생 선 그래프와 면적 그래프를 그리는데 선 그래프의 경우 꺽어지는 곳을 힌지 스타일로 꾸며주였다.
+
+먼저 선 그래프를 그리기 위한 데이터를 전처리한다. 데이터는 긴 형태의 입학생수 데이터프레임에서 2001년부터 2021년까지 5년 간격으로 '전문대학', '일반대학', '석사', '박사'의 입학생수 사용한다.
+
+```{r eval=FALSE}
+df_입학자 <- read_excel('파일저장경로/2021_연도별 입학자수.xlsx', 
+                 ## 'data' 시트의 데이터를 불러오는데,
+                 sheet = 'Sheet0',
+                 ## 앞의 10행을 제외하고
+                 skip = 3, 
+                 ## 첫번째 행은 열 이름을 설정
+                 col_names = FALSE, 
+                 ## 열의 타입을 설정, 처음 8개는 문자형으로 다음 56개는 수치형으로 설정
+                 col_types = c(rep('text', 2), rep('numeric', 30)))
+```
+
+```{r echo=FALSE}
+df_입학자 <- read_excel('c:/R/git/datavisualization/chap3/2021_연도별 입학자수.xlsx', 
+                 ## 'data' 시트의 데이터를 불러오는데,
+                 sheet = 'Sheet0',
+                 ## 앞의 10행을 제외하고
+                 skip = 3, 
+                 ## 첫번째 행은 열 이름을 설정
+                 col_names = FALSE, 
+                 ## 열의 타입을 설정, 처음 8개는 문자형으로 다음 56개는 수치형으로 설정
+                 col_types = c(rep('text', 2), rep('numeric', 30)))
+```
+
+
+```{r}
+df_입학자 <- df_입학자 |> select(1, 2, 5, 7, 9, 11, 13, 19, 29, 31)
+
+## df_입학자의 열이름을 적절한 이름으로 설정
+colnames(df_입학자) <- c('연도', '지역', '전문대학', '교육대학', '일반대학', '방송통신대학', '산업대학', '원격및사이버대학', '석사', '박사')
+
+df_입학자 <- df_입학자 |> filter(!is.na(지역))
+
+df_입학자_long <- df_입학자 |> pivot_longer(3:10, names_to = '학교종류', values_to = '입학생수')
+
+
+## df_입학자_long에서 지역이 '전체'이고 연도가 2001년부터 2021년까지 5년단위인 데이터, 학교종류가 '전문대학', '일반대학', '석사', '박사'인 데이터를 필터링
+df_total_line <- df_입학자_long |> 
+  filter(지역 == '전체', 연도 %in% c(seq(from = 2001, to = 2021, by = 5)), 학교종류 %in% c('전문대학', '일반대학', '석사', '박사')) |>
+  mutate(학교종류 = fct_relevel(학교종류, '전문대학', '일반대학', '석사', '박사'))
+
+## 연도의 점 위치를 정확히 맞추기 위해 연도를 각 년도 1월 1일로 설정  
+df_total_line <- df_total_line |>
+  mutate(연도 = as.Date(paste0(연도, '-01-01'), format = '%Y-%m-%d'))
+
+```
+
+첫 번째 선 그래프를 다음과 같이 그린다. 여기서 살펴보아야 할 것이 `geom_point()` 레이어에 설정한 shape 미적요소이다. shape 미적요소를 21에서 25번까지를 설정하면 원의 fill(내부 색)과 color(선 색)을 다르게 설정할 수 있다.
+
+```{r}
+
+p_line_1 <- df_total_line |>
+  ggplot() + 
+  ## geom_line 레이어를 생성
+  geom_line(aes(x = 연도, y = (입학생수)/1000, group = 학교종류, color = 학교종류), size = 2.4) +
+  ## geom_point 레이어 추가
+  geom_point(aes(x = 연도, y = (입학생수)/1000, fill = 학교종류), size = 5,
+             shape = 21, # fill과 color를 따로 설정할 수 있는 모양 설정
+    color = "white", ## 점의 color를 흰색으로 설정하여 힌지 효과를 설정
+    stroke = 1 # 점의 경계선 두께 설정 
+  )
+
+p_line_1
+```
+
+```{r}
+p_line_2 <- p_line_1 + 
+  ##
+  geom_text(
+    data = data.frame(x = as.Date('2022-09-01'), y = seq(0, 300, by = 100)),
+    aes(x, y, label = y),
+    hjust = 1, # Align to the right
+    vjust = -0.5, # Align to the bottom
+    family = "NanumBarunGothic",
+    size = 3, 
+    color = 'grey50'
+  ) + 
+  scale_x_date(
+    expand = c(0, 0), # 수평 축의 확장 여백이 없이 설정
+    limits = c(as.Date('2000-01-01'), as.Date('2022-12-01')),  ## 여백을 없애는 대신 범위에서 여백을 추가
+    ## 축 눈금을 5년마다 하나씩 설정
+    breaks = seq(from = as.Date("2001-01-01"), to = as.Date("2021-01-01"), by = "5 years"), 
+    ## 축 라벨을 5년마다 하나씩 설정
+    labels = lubridate::year(seq(from = as.Date("2001-01-01"), to = as.Date("2021-01-01"), by = "5 years"))) +
+  ## Y축의 범위와 확장 여백을 설정
+  scale_y_continuous(limits = c(0, 380), expand = c(0, 0)) + 
+  theme(
+    text = element_text(size = 20),
+    # 패널 배경색을 흰색으로 설정
+    panel.background = element_rect(fill = "white"),
+    # 눈금선을 모두 제거
+    panel.grid = element_blank(),
+    # Y축의 주 눈금선 색과 두꼐를 설정 
+    panel.grid.major.y = element_line(color = "#A8BAC4", size = 0.3),
+    # Y축의 tick을 제거
+    axis.ticks.length.y = unit(0, "mm"), 
+    # X축의 tick을 2mm로 설정
+    axis.ticks.length.x = unit(2, "mm"),
+    # 축 제목을 제거
+    axis.title = element_blank(),
+    # X축 선색을 검정으로 설정
+    axis.line.x.bottom = element_line(color = "black"),
+    # X축의 문자 크기를 16으로 설정
+    axis.text.x = element_text(size = 15),
+    # Y축 선을 제거
+    axis.text.y = element_blank()
+  )
+
+p_line_2
+```
+
+앞의 그래프에 범례를 없애고 범례 내용을 그래프의 시작점에 직접 표기한다. 다만 전문대학과 일반대학의 시작점이 거의 같기 때문에 전문대학은 2006년에 표기하여 데이터를 구분하도록 해준다.
+
+```{r}
+font_add('NanumBarunGothic', 'c:/windows/fonts/NanumBarunGothic.ttf')
+font_add('NanumBarunGothicBold', 'c:/windows/fonts/NanumBarunGothicBold.ttf')
+
+## 데이터 라벨을 위한 데이터 산출
+## 일반대학, 석사, 박사는 2001년 데이터, 전문대학은 2006년 데이터를 추출하여 bind_rows()로 하나의 데이터프레임으로 만들어 줌
+data_labels <- bind_rows(
+  df_total_line |> filter(lubridate::year(연도) == 2001, 학교종류 %in% c('일반대학', '석사', '박사')), 
+  df_total_line |> filter(lubridate::year(연도) == 2006, 학교종류 %in% c('전문대학')))
+
+p_line_3 <- p_line_2 + 
+  ## data_labels 데이터로 각각의 선에 대한 범례를 표기하는 geom_text 레이어 추가
+  geom_text(data = data_labels, aes(x = 연도, y = (입학생수/1000) + 20, label = 학교종류, color  = 학교종류), hjust = 0, show.legend = F) + 
+  theme(legend.position = 'none') +
+  labs(
+    title = "교육과정별 졸업생수(k)",
+  ) + 
+  theme(
+    # theme_markdown() is provided by ggtext and means the title contains 
+    # Markdown that should be parsed as such (the '**' symbols)
+    plot.title = element_text(family = 'NanumBarunGothicBold', size = 15)
+  )
+
+p_line_3
+```
+
+이제 두 번째 면적 그래프를 그려보겠다. 기본 그래프는 앞의 선 그래프와 유사하나 `geom_line()` 대신 `geom_area()`를 사용하여 면적 그래프로 그려준다.
+
+```{r}
+p_area_1 <- df_total_line |> ggplot() +
+  # color = "white" indicates the color of the lines between the areas
+  geom_area(aes(x = 연도, y = (입학생수)/1000, group = 학교종류, fill = 학교종류), color = "white") +
+#  scale_fill_manual(values = c('grey', 'brown', 'green', 'blue')) +
+  theme(legend.position = "None") + # no legend +
+  scale_x_date(
+  expand = c(0, 0), # The horizontal axis does not extend to either side
+  limits = c(as.Date('2000-01-01'), as.Date('2022-12-01')), 
+  breaks = seq(from = as.Date("2001-01-01"), to = as.Date("2021-01-01"),
+               by = "5 years"), 
+  labels = lubridate::year(seq(from = as.Date("2001-01-01"), to = as.Date("2021-01-01"),
+                               by = "5 years"))  # Set custom break locations
+  # Set custom break locations
+  #    labels = c("2008", "12", "16", "20") # And custom labels on those breaks!
+  ) + 
+  scale_y_continuous(
+    limits = c(0, 790),
+    expand = c(0, 0)
+  )
+
+p_area_1
+```
+
+이제 그래프에 이코노미스트지 형태의 눈금선과 Y축 라벨에 대한 스타일을 적용하도록 하겠다.
+
+```{r}
+p_area_2 <- p_area_1 + 
+    geom_text(
+    data = data.frame(x = as.Date('2022-09-01'), y = seq(0, 800, by = 200)),
+    aes(x, y, label = y),
+    hjust = 1, # Align to the right
+    vjust = -0.5, # Align to the bottom
+    size = 3, 
+    color = 'grey50'
+  ) + 
+  theme(
+    text = element_text(size = 20),
+    # Set background color to white
+    panel.background = element_rect(fill = "white"),
+    # Remove all grid lines
+    panel.grid = element_blank(),
+    # But add grid lines for the vertical axis, customizing color and size 
+    panel.grid.major.y = element_line(color = "#A8BAC4", size = 0.3),
+    # Remove tick marks on the vertical axis by setting their length to 0
+    axis.ticks.length.y = unit(0, "mm"), 
+    # But keep tick marks on horizontal axis
+    axis.ticks.length.x = unit(2, "mm"),
+    # Remove the title for both axes
+    axis.title = element_blank(),
+    # Only the bottom line of the vertical axis is painted in black
+    axis.line.x.bottom = element_line(color = "black"),
+    # Remove labels from the vertical axis
+    axis.text.y = element_blank(),
+    # But customize labels for the horizontal axis
+    axis.text.x = element_text(family = "NanumBarunGothic", size = 15)
+  )
+
+p_area_2
+```
+
+앞서 그린 면적 그래프에서 범례를 제거했기 때문에 각각의 데이터에 데이터 라벨을 표현해주도록 하겠다. 그런데 맨 아래의 박사 영역은 범례를 표현하기에 너무 영역이 좁기 때문에 이 부분은 조금 위에 데이터 라벨을 표기하고 선으로 데이터 영역을 연결해주어 두 번째 그래프를 완성한다.
+
+```{r}
+p_area_3 <- p_area_2 + 
+  geom_text(aes(x = as.Date('2011-01-01'), y = 600), label = '전문대학', color = 'white') + 
+  geom_text(aes(x = as.Date('2011-01-01'), y = 300), label = '일반대학', color = 'white') + 
+  geom_text(aes(x = as.Date('2011-01-01'), y = 80), label = '석사', color = 'white') + 
+  geom_text(aes(x = as.Date('2014-01-01'), y = 80), label = '박사', color = 'white') + 
+  geom_segment(aes(x = as.Date('2014-01-01'), xend = as.Date('2014-01-01'), y = 12, yend = 60), color = 'white') + 
+  theme(legend.position = 'none') + 
+  labs(title = "고등교육기관 졸업생 수(k)") + 
+  theme(plot.title = element_text(family = 'NanumBarunGothicBold', size = 15))
+
+p_area_3
+```
+
+두개의 그래프가 완성되었으니 이제 `patchwork` 패키지를 사용하여 그래프를 수평 방향으로 이어 붙이고 이어 붙인 그래프의 전체 제목과 테마요소를 설정한다.
+
+```{r}
+if(!require(patchwork)) {
+  install.packages('patchwork')
+  library(patchwork)
+}
+
+## 첫 번째 그래프의 플롯 여백을 조절
+plt1 <- p_line_3 + theme(plot.margin = margin(0, 0.05, 0, 0, "npc"))
+
+## 두 번째 그래프의 플롯 여백을 조절
+plt2 <- p_area_3 + theme(plot.margin = margin(0, 0, 0.05, 0, "npc"))
+
+## 두개의 그래프를 
+plt <- plt1 | plt2
+
+title_theme <- theme(
+  plot.title = element_text(hjust = 0.02, size = 25, margin = margin(0.5, 0, 0.3, 0, "npc")),
+  plot.subtitle = element_text(hjust = 0.02, size = 15, margin = margin(0.4, 0, 0.5, 0, "npc")), 
+  plot.margin = margin(0.025, 0, 0.2, 0, "npc")
+)
+
+plt <- plt + plot_annotation(
+  title = "전문대학의 위기",
+  subtitle = "전문대학 학생수 감소 추세",
+  theme = title_theme
+)
+
+plt
+```
+
+전반적으로 그래프가 완성되었다. 이제 이코노미스트지에서 그래프를 꾸미기 위해 사용하는 상단의 붉은색 선과 왼쪽 상단의 네모를 그리도록 한다. 이를 위해 `grid` 패키지의 기능을 이용한다.
+
+`grid` 패키지는 저수준(low-level) 플로팅 요소들을 그리는데 사용되는 각종 함수들을 묶어놓은 패키지이다. 보통 R base 패키지에서 기본적으로 그래프나 플롯을 만들기 위해 제공하는 플로팅 함수들을 저수준 플로팅 함수라고 한다.
+
+| 함수                | 설명                                                  |
+|---------------------|-------------------------------------------------------|
+| plot()              | 플로팅 함수를 사용하기 위한 플로팅 공간을 만드는 함수 |
+| point(x, y)         | 점을 찍는 플로팅 함수                                 |
+| abline(), segment() | 선을 그리는 플로팅 함수                               |
+| arrows()            | 선의 끝을 화살표로 그리는 함수                        |
+| curve()             | 곡선을 그리는 플로팅 함수                             |
+| rect(), polygon()   | 사각형과 다각형을 그리는 플로팅 함수                  |
+| text()              | 문자를 그리는 플로팅 함수                             |
+| legend()            | 범례를 만드는 플로팅 함수                             |
+| axis()              | 축을 만드는 플로팅 함수                               |
+
+`grid` 패키지는 완성된 `ggplot2` 플롯에 저수준 플로팅 요소들을 추가하는데 사용하는 패키지이다. `grid` 패키지에서 기본적 그래픽 요소들(Primitive Graphical Element)를 그리기 위해 다양한 함수를 제공하지만 단독으로는 사용되지 않고 완성된 플롯에 그래픽 요소를 추가하는데 사용된다. 사실상 `ggplot2`의 그래픽 시스템은 `grid` 패키지의 그래픽 시스템위에서 구축되었기 때문에 `grid` 패키지에서 제공하는 저수준의 함수들이 `ggplot2` 객체, 그리고 `lattice` 패키지를 통해 만들어진 플롯에 잘 작동한다. `grid` 패키지는 R의 설치시에 자동적으로 설치되는 패키지 중 하나이다. 따라서 `install.packages()`를 사용해 설치가 따로 필요하지는 않지만 `library()`를 사용하여 패키지 로딩은 필요하다.
+
+이코노미스트지 스타일로 그래프를 꾸며주기 위해 사용하는 `grid` 패키지의 함수는 다음과 같다.
+
+::: {.comment}
+grid.lines(x = unit(c(0, 1), "npc"), y = unit(c(0, 1), "npc"), default.units = "npc", arrow = NULL, name = NULL, gp=gpar(), draw = TRUE, vp = NULL)\
+- x : X값으로 사용될 수치 벡터나 unit 객체\
+- y : Y값으로 사용될 수치 벡터나 unit 객체\
+- default.units : X, Y에 수치벡터가 설정될 때 사용될 단위 설정\
+- arrow : 선의 끝을 화살표로 만들지에 대한 설정\
+- name : 문자열 ID\
+- gp : 그래픽 파라메터 설정\
+- draw : 그래픽 출력을 할지를 설정하는 논리값\
+- vp : Grid Viewpoint 객체 설정
+
+grid.rect(x = unit(0.5, "npc"), y = unit(0.5, "npc"), width = unit(1, "npc"), height = unit(1, "npc"), just = "centre", hjust = NULL, vjust = NULL, default.units = "npc", name = NULL, gp=gpar(), draw = TRUE, vp = NULL)\
+- width : 사각형의 너비를 설정하는 수치 벡터\
+- height : 사각형의 높이를 설정하는 수치 벡터\
+- just : x, y에 상대적인 정렬 설정\
+- hjust : 수평 정렬 설정\
+- vjust : 수직 정렬 설정
+
+grid.text(label, x = unit(0.5, "npc"), y = unit(0.5, "npc"), just = "centre", hjust = NULL, vjust = NULL, rot = 0, check.overlap = FALSE, default.units = "npc", name = NULL, gp = gpar(), draw = TRUE, vp = NULL)\
+- label : 표시할 문자열\
+- rot : 문자열의 표시 각도 설정\
+- check.overlap : 문자열이 겹쳐서 표현될지를 설정하는 논리값
+:::
+
+`grid` 패키지의 함수를 사용하여 다음과 같이 그려주면 이코노미스트지 스타일의 그래프가 만들어 진다.
+
+
+```{r}
+library(grid)
+
+plt
+
+## 그래프 상단의 붉은 선을 그림
+grid.lines(x = c(0, 1), y = c(1, 1), gp = gpar(col = "red", lwd = 4))
+
+# 그래프 왼쪽 상단의 붉은 상자를 그림
+grid.rect(x = c(0, 0), y = c(1, 1), width = 0.05, height = 0.025, just = c("left", "top"),
+  gp = gpar(fill = "red", col = "red", lwd = 0))
+
+# 그래프 왼쪽 하단에 캡션을 삽입
+grid.text('출처: 실전에서 바로쓰는 데이터 시각화 in R', x = 0.005, y = 0.2, just = c("left", "bottom"),
+  gp = gpar(col = "grey50", fontsize = 15))
+
+# 그래프 오른쪽 하단에 캡션을 삽입
+grid.text("참조 : https://www.r-graph-gallery.com/", x = 0.995, y = 0.2, just = c("right", "bottom"),
+  gp = gpar(col = "grey50", fontsize = 15))
+
+```
+

@@ -1,0 +1,249 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+names(df_취업률)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## plotly에 추세선 넣기
+
+추세선은 산점도나 시계열 그래프에서 데이터의 전반적 흐름을 설명해주는 직선 혹은 곡선을 말한다. 데이터의 전반적 상승 흐름이나 하락 흐름을 시각적으로 표현해주는 방법으로 추세선을 그리는 여러가지 방법이 있다. 시계열 데이터의 경우 가장 쉽게 추세선을 그리는 방법은 특정 구간의 시점과 종점을 이어주는 방식으로 그릴 수 도 있고 고점과 저점을 이어주어 그리는 방식도 있다. 하지만 산점도나 시계열 데이터 모두 선형 회귀를 사용하여 추세선을 그려주는 방법이 가장 많이 사용된다. 
+
+`ggplot2`에서는 `geom_smooth()`를 사용하여 간단히 추세선을 그릴 수 있다. 하지만 `plotly`에서는 `geom_smooth()`와 같이 추세선을 그려주는 기능을 지원하지 않는다. 따라서 `plolty`에서 추세선을 그리기 위한 방법 두 가지를 알아보고자 한다. 
+
+### ggplotly() 사용
+
+`ggplot2`에는 있지만 `plolty`에는 없는 기능을 구현하고자 할 때 가장 쉽게 사용할 수 있는 방법은 `ggplotly()`를 사용하는 방법이다. `ggplolty()`는 `ggplot`객체를 `plolty`객체로 변환하는 기능을 제공하는 함수이다. 따라서 `geom_smooth()`로 추세선을 그린 `ggplot`객체를 `ggploltly()`를 사용하여 `plotly`객체로 변환한다. 
+
+다음은 학과의 졸업자수 대비 취업률 산점도와 우리나라의 최근 200일간의 코로나 19 확진자에 대한 추세선을 `geom_smooth()`로 그려서 `ggplotly()`로 `plotly`객체로 변환하는 과정이다. 
+
+
+```{r eval = FALSE}
+ggplot_trend_emp <- df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  geom_smooth(method = 'loess', aes(color="loess")) +
+  geom_smooth(method = 'lm', aes(color="lm")) + 
+  scale_color_manual(name="추세선", values=c("blue", "red"))
+
+ggplotly(ggplot_trend_emp)
+
+```
+
+
+
+```{r eval = FALSE}
+ggplot_trend_covid <- df_covid19 |>
+  filter(iso_code == 'KOR', !is.na(new_cases)) |>
+  filter(date >= max(date) - 200) |>
+  ggplot(aes(x = date, y = new_cases)) +
+  geom_line(aes(group = location)) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%Y %m") +
+  scale_y_continuous(labels = scales::number) +
+  labs(x = '년월', y = '신규확진자') +
+  geom_smooth(method = 'loess', aes(color="loess")) +
+  geom_smooth(method = 'lm', aes(color="lm")) + 
+  scale_color_manual(name="추세선", values=c("blue", "red"))
+
+ggplotly(ggplot_trend_covid)
+
+```
+
+
+### plotly로 직접 그리기
+
+이번에는 `plotly` 함수를 사용하여 직접 추세선을 그리는 과정을 알아보자. 앞서 설명한 바와 같이 추세선을 그리는데 가장 많이 사용하는 방법은 선형 회귀를 사용하는 방법이다. `geom_smooth()`에서도 'method' 매개변수를 사용하여 선형회귀(lm)와 국소회귀(loess) 방법을 설정하여 추세선 그리는 방법을 변경할 수 있다. 
+
+이를 `plotly`에서 구현하기 위해서는 X축과 Y축에 설정되는 독립변수와 종속변수 간의 모델을 R base에서 제공하는 `lm()`과 `loess()`를 사용하여 만들어야 한다. 이렇게 만든 모델에 `fitted()`나 `predict()`를 사용하여 독립변수(X축)에 대응하는 종속변수(Y축)에 대한 추세선을 그려준다. 만약 신뢰구간(Confidence Interval, CI)의 표현이 필요하다면 `add_ribbons()`을 사용하여 그려줄 수 있다. 
+
+#### 선형회귀(lm) 추세선
+
+선형회귀 추세선을 `plotly`로 그리는 방법은 앞서 설명한 바와 같이 `lm()`을 사용하여 선형회귀 모델을 만들고 이를 `fitted()`를 사용하여 해당 모델에 대한 적합치를 Y축에 매핑함으로써 그려줄 수 있다. 
+
+
+```{r eval = FALSE}
+lm_trend_emp <- lm(data = df_취업률_2000, 취업자수 ~ 졸업자수)
+
+df_취업률_2000 |>
+  plot_ly(type = 'scatter', mode = 'markers') |>
+  add_trace(x = ~졸업자수, y = ~취업자수, name = 'data') |>
+  add_trace(mode = 'lines', x = ~졸업자수, y = ~fitted(lm_trend_emp), name = '선형 추세선')
+```
+```{r eval = FALSE}
+df_covid19_trend_kor <- 
+  df_covid19 |>
+  filter(iso_code == 'KOR', !is.na(new_cases)) |>
+  filter(date >= max(date) - 200) |>
+  mutate(date_int = as.integer(date))
+
+trend_linear <- lm(data = df_covid19_trend_kor, new_cases ~ date)
+
+df_covid19_trend_kor |>
+  plot_ly() |>
+  add_trace(type = 'scatter', mode = 'lines', x = ~date, y = ~new_cases, name = 'Data') |>
+  add_trace(type = 'scatter', mode = 'lines', x = ~date, y = fitted(trend_linear), name = '선형 추세선')
+
+```
+
+#### 국소회귀(loess) 추세선
+
+국소회귀 추세선을 `plotly`로 그리는 방법은 앞서 설명한 바와 같이 `loess()`을 사용하여 선형회귀 모델을 만들고 이를 `fitted()`를 사용하여 해당 모델에 대한 적합치를 Y축에 매핑함으로써 그려줄 수 있다. 다만 이 과정에서 X축 변량의 순서대로 `fitted()`값을 그려야 정상적인 추세선이 나타나기 때문에 이 데이터를 정렬하기 위해 임시 데이터프레임을 생성하여 사용하였다. 
+
+```{r eval = FALSE}
+loess_trend_emp <- loess(data = df_취업률_2000, 취업자수 ~ 졸업자수)
+
+df_loess_trend_emp <- data.frame(X = df_취업률_2000$졸업자수, Y = fitted(loess_trend_emp)) |>
+  arrange(X)
+
+df_취업률_2000 |>
+  plot_ly(type = 'scatter', mode = 'markers') |>
+  add_trace(x = ~졸업자수, y = ~취업자수, name = 'data') |>
+  add_trace(data = df_loess_trend_emp, mode = 'lines', x = ~X, y = ~Y, name = 'loess')
+```
+
+이번에는 95% 신뢰구간을 표시하는 방법을 알아보자. 95% 신뢰구간을 표현하기 위해서는 `predict()`를 사용하여 표준오차(Standard Error, se)를 산출하고 이 수치의 1.96을 곱한 값의 상한과 하한을 설정하고 이를 `add_ribbons()`를 사용하여 그려준다.  
+
+```{r eval = FALSE}
+df_covid19_trend_kor <- 
+  df_covid19 |>
+  filter(iso_code == 'KOR', !is.na(new_cases)) |>
+  filter(date >= max(date) - 200) |>
+  mutate(date_int = as.integer(date))
+
+trend_linear_loess <- loess(data = df_covid19_trend_kor, new_cases ~ date_int, span = 0.75)
+
+trend_linear_loess_pred = predict(trend_linear_loess, se = TRUE)
+
+df_covid19_trend_kor |>
+  plot_ly(type="scatter", mode="lines") |>
+  add_trace(x = ~date, y = ~new_cases, name = 'Data') |>
+  add_trace(x = ~date, y = fitted(trend_linear_loess), name = 'loess') |>
+  add_ribbons(x=~date, 
+              ymin=(trend_linear_loess_pred$fit - (1.96 * trend_linear_loess_pred$se)), 
+              ymax=(trend_linear_loess_pred$fit + (1.96 * trend_linear_loess_pred$se)), 
+              name="95% CI", line=list(opacity=0.4, width=0))
+
+```
+

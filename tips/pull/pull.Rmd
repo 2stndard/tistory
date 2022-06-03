@@ -1,0 +1,104 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### **`pull()`**
+
+데이터 프레임의 특정 열을 벡터로 변환해야 할 때가 있다. 보통 자료형 변환을 위해서 R 자체적으로 제공하는 `as.*` 함수를 제공한다. 벡터로 변환하기 위해서도 `as.vector()`를 제공한다. 하지만 `as.vector()`는 행렬(matrix)을 벡터로 변환하는 함수이다. 
+
+R을 사용할 때 행렬도 많이 사용되지만 행렬보다 데이터프레임을 더 많이 사용한다. 사실 행렬로 표현할 수 있는 데이터도 데이터프레임을 사용하는 경우가 더 많은 것 같다. 이는 `tidyverse` 패밀리가 데이터 프레임에 적용이 되는 이유가 가장 큰 것같다. 데이터를 핸들링 하는 익숙한 방법을 사용자는 선호하기 때문이다. 
+
+```{r}
+## test.matrix를 생성
+(test.matrix <- matrix(1:20, ncol = 4))
+
+(test.matrix2 <- matrix(c('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'), ncol = 2))
+
+(test.dataframe <- data.frame(col1 = 1:5, col2 = c('a', 'b', 'c', 'd', 'e'), col3 = 6:10, col4 = c('f', 'g', 'h', 'i', 'j')))
+
+```
+
+그렇다면 행렬과 데이터프레임의 차이는 무엇일까? 행렬은 그 안에 저장되는 모든 데이터는 같은 형태이어야 한다. 하지만 데이터 프레임은 열별로 같은 데이터 형태면 되고 여러 형태의 데이터를 동시에 저장할 수 있다. 
+
+```{r}
+## 같은 데이터 형태를 붙일 수 있다. 
+cbind(test.matrix, c(1:5))
+rbind(test.matrix, c(1:4))
+
+## 다른 데이터 형태를 붙이면 전체 데이터의 변환이 일어나서 모두 같은 데이터 형태로 변환된다.  
+cbind(test.matrix, c('a', 'b', 'c', 'd', 'e'))
+
+## rbin로 데이터프레임의 데이터 형태를 유지하기 위해서는 동일한 형태의 데이터 프레임을 붙여줘야 정상적으로 붙는다. 
+rbind(test.dataframe, c(6, 'x', 11, 'y'))  ## 데이터프레임 데이터가 모두 변환된다.
+
+rbind(test.dataframe, data.frame(col1 = 6, col2 = 'x', col3 = 11, col4 = 'y'))
+
+```
+
+거꾸로 매트릭스 데이터를 벡터로 만들기 위해서는 앞에서 설명한 바와 같이 `as.vector()`를 사용할 수 있다. 
+
+```{r}
+(test.vector <- as.vector(test.matrix))  ##전체를 ()로 싸면 실행결과가 프린트 된다. 
+
+is.vector(test.vector)
+
+(test.vector <- as.vector(test.matrix[, 2]))  ##전체를 ()로 싸면 실행결과가 프린트 된다. 
+
+is.vector(test.vector)
+
+```
+
+그럼 데이터프레임 데이터를 `as.vector()`를 사용해서 벡터로 만들면 다음과 같다. 
+
+```{r error=TRUE}
+(test.vector <- as.vector(test.dataframe))
+
+is.vector(test.vector)   ## 벡터로 변환되지 않는다.
+
+(test.vector <- as.vector(test.dataframe[, 2]))
+
+is.vector(test.vector)   ## 벡터로 변환된다.
+
+```
+
+위와 같이 데이터프레임에서 특정 열의 벡터 변환은 `as.vector()`로 변환된다. 
+
+이 때에 사용되는 함수는 `dplyr`패키지의 `pull()`이다. 
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+(test.vector <- pull(test.dataframe, 2))
+
+is.vector(test.vector)
+
+```
+
+`is.vector()`와 `pull()`은 모두 데이터프레임의 특정 열을 벡터화하는 함수이다. 하지만 `is.vector()`는 `dplyr`의 파이프(`%>%` 또는 `|>`)에서 사용할 수 없지만 `pull()`은 파이프로 연결하여 사용할 수 있다. 
+
+```{r message=FALSE, warning=FALSE}
+(test.vector <- test.dataframe |> pull(2))
+
+is.vector(test.vector)
+```
+
+
+그런데 `dplyr` 패키지에는 특정 열을 선택하는 `select()`가 있는데 왜 또 `pull()`이 필요할까?
+
+다음의 코드를 살펴보자.
+
+```{r message=FALSE, warning=FALSE}
+test.dataframe |> select(2)
+
+test.dataframe |> pull(2)
+
+class(test.dataframe |> select(2))
+
+class(test.dataframe |> pull(2))
+
+```
+
+`select()`는 결과가 데이터프레임으로 산출되고 `pull()`은 결과가 벡터 형태로 산출된다. 

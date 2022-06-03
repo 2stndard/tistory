@@ -1,0 +1,93 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", echo = TRUE, message = FALSE, warning = FALSE)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+```
+
+## apply와 loop
+
+모든 프로그래밍 언어에서는 기본적으로 지원하는 몇가지 공통적인 로직들이 있다. 사칙연산과 같은 수학적 계산 방법, 프로그래밍 결과를 표시하기 위한 화면 제어 방법, 데이터 타입 설정, 변수 설정과 처리와 같은 자료 구조에 관련된 방법등이 이에 속한다. 이 후 다루는 것이 프로그램의 논리적 흐름을 제어할 수 있는 조건문과 반복문이다. R에서도 일반 프로그래밍 언어들이 제공하는 대부분의 기능적 요소들을 기본적을 지원한다. 
+
+하지만 R은 데이터 처리를 위한 프로그램인 만큼 대용량 데이터를 얼마나 빠르게 처리하는가가 성능적 요인을 평가하는 중요한 요인이다. 이렇게 대용량 데이터를 처리하는 과정에서 필수적으로 사용되는 것이 반복적 작업인 loop이다. 동일한 작업을 수만, 수십만, 혹은 수억개의 데이터에 동일하게 적용하여 처리해야하는 연산은 매우 빈번하게 일어나기 때문에 이 반복적 작업을 얼마나 빠르게 처리하는가가 대용량 데이터 처리에 가장 중요한 요인일 것이다. 
+
+특히 대용량 데이터 처리에 하나의 CPU나 GPU만으로는 성능을 만족시킬수 없어 여러개의 CPU나 GPU를 사용하는 병렬 컴퓨팅이 도입되어 그 처리 속도를 높이고 있다. 그런데 아이러니하게도 대용량 데이터 처리에 가장 필수적인 loop는 병렬 컴퓨팅에서는 매우 속도 저하요인이라는 것이다. loop는 보통 loop 인덱스가 하나이고 이 인덱스를 증가해가면서 반복문을 수행하는데 이 loop 인덱스를 쪼개쓰기 어렵다는 점이다. CPU가 2개이던 4개이던 loop는 하나의 프로세서 동작일수 밖에 없다는 것이다. 물론 loop를 병렬화하기 위해 많은 프로그래밍 기법들이 도입되고 있다. 하지만 중요한 것은 결국 프로그래머가 직접 병렬성을 설정하고 프로그래밍해야한다는 점이다. 
+
+논점이 좀 새기는 했지만 이 포스트에서 지적하는 것은 대용량 데이터 처리에는 loop를 사용하여 데이터 하나하나를 처리하는 방법은 매우 비효율적 이라는 점이다. 이 비효율을 개선하기 위해 사용되는 방법이 벡터 처리 방법이다.
+
+벡터 처리 방법은 크게 두가지로 나뉜다. 
+
+첫 번째는 매개변수를 벡터로 받아서 벡터 처리를 하는 방식이다. 
+
+두 번째는 함수의 호출을 for loop 대신 `apply()`를 사용하는 방법이다. 
+
+이 두가지 방법과 for loop의 호출 방법의 시간적 효율성을 비교해보겠다. 
+
+우선 for loop를 사용하여 `sqrt()`를 구하는 함수를 만들어보겠다. 
+
+```{r}
+library(tidyverse)
+
+sqrt_loop <- function(x) {
+  result <- numeric(length(x))
+  for (i in x) {
+    result[i] <- sqrt(x[i])
+  }
+  result
+}
+
+
+```
+
+위의 함수는 매개변수로 전달되는 X값만큼 반복하여 `sqrt()`의 결과를 result 벡터로 생성하는 함수이다. 
+
+이 함수와 동일한 결과를 내는 `apply()`함수는 다음과 같다. 
+
+```{r eval = FALSE}
+result <- sapply(x, sqrt)
+
+```
+
+
+R의 `sqrt()`는 벡터 연산이 가능한 함수이므로 매개변수에 벡터를 전달하면 벡터 연산이 가능하다. 위의 두 개의 코드와 동일한 결과를 내는 `sqrt()` 벡터 연산은 다음과 같다. 
+
+```{r eval = FALSE}
+result <- sqrt(x)
+```
+
+R에서 일련의 코드 실행이 얼마나 시간이 소요되는지를 측정하는 패키지가 `bench`패키지이다. `bench`패키지에서 제공하는 `mark()`를 사용하면 매개변수로 전달되는 두 개의 함수의 처리시간을 측정하여 비교해 준다. 여기서는 벡터 작업을 통한 `sqrt()`의 시간, for loop를 사용한 `sqrt()`의 시간, `sapply()`를 사용한 `sqrt()`의 시간을 비교해보도록 하겠다. 
+
+```{r}
+library(bench)
+
+speed_check <- function(n) {
+  result <- mark(
+    vectorized = sqrt(n),
+    loop = sqrt_loop(n),
+    apply = sapply(n, sqrt)
+  )
+}
+
+```
+
+
+함수들이 완성되었으니 이제 성능 테스트를 해보도록 한다. 앞서 만든 speed_check 함수를 for loop를 사용해 100부터 1000까지  10씩 증가사는 벡터로 실행한다. 이 결과로 생성된 테이블 중에 필요한 데이터만 선택해서 계속 붙여 전체 성능 테이블을 완성한다. 이후 `ggplot2`를 사용하여 전체 실행 시간에 대한 그래프를 그린다.    
+
+```{r}
+perfomance_tibble <- as_tibble()
+for (i in seq(100, 1000, 10)) {
+  result <- speed_check(1:i)
+  perfomance_tibble <- rbind(perfomance_tibble, result |> mutate(n = i, expression = names(expression)) |> select(n, 1:9))
+}
+
+perfomance_tibble |> ggplot(aes(n, total_time, color = expression)) +
+    geom_line()
+```
+
+
+위의 그래프를 보면 벡터의 크기가 전체적으로 실행시간이 가장 짧은 것은 벡터 연산이고 다음이 loop, apply의 순으로 나타난다. 하지만 벡터의 크기가 약 600개를 넘어가면서 loop의 속도가 apply의 속도보다 커지는 상황이 보인다. 하지만 가장 중요한 것은 벡터 연산이 가장 속도가 빠르다는 점이다. 

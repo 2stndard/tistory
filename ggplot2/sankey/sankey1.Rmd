@@ -1,0 +1,68 @@
+---
+output:
+  html_document:
+    self_contained: TRUE
+    keep_md: FALSE
+    theme: NULL
+    highlight: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+
+df <- read_excel('./(직업계고) 시도.유형별 취업현황_2020.xlsx', skip = 2, na = '-', sheet = 1, col_types = c('text', 'text', rep('numeric', 18)), col_names = F)
+
+colnames(df) <- c('지역', '종류', '졸업자.계', '졸업자.남', '졸업자.여', '취업자.계', '취업자.남', '취업자.여', '진학자.계', '진학자.남', '진학자.여', '입대자.계', '입대자.남', '입대자.여', '제외인정자.계', '제외인정자.남', '제외인정자.여', '미취업자.계', '미취업자.남', '미취업자.여')
+
+library(tidyverse)
+sankey <- df |> 
+  ## '지역'열과 '종류'열 중에 na가 아닌 행만 선택한다.  
+  filter(is.na(지역) == FALSE, is.na(종류) == FALSE) |>
+  ## 열 중에서 '지역'열, '졸업자.계'열과 '남', '여'로 끝나는 열을 제외
+  select(-c(지역, 졸업자.계, ends_with('남'), ends_with('여'))) |> 
+  ## 종류 열을 사용하여 group
+  group_by(종류) |>
+  ## 전체 열에 대해 `sum`을 적용
+  summarise_all(sum) |>
+  ## 열이름을 적절히 변경
+  rename(c('취업자' = '취업자.계', '진학자' = '진학자.계', '입대자' = '입대자.계', '제외인정자' = '제외인정자.계', '미취업자' = '미취업자.계')) |>
+  ##  첫번째 열을 제외하고 나머지 열들에 긴 형태의 데이터로 변환
+  gather('구분', '학생수', -1) |>
+  ## 종류 열과 구분 열을 factor로 변환
+  mutate(종류 = fct_relevel(종류, '마이스터고', '특성화고', '일반고_직업반'), 
+         구분 = fct_relevel(구분, '취업자', '진학자', '입대자', '제외인정자', '미취업자')) |>
+  ## 종류 열과 구분 열로 정렬
+  arrange(종류, 구분)
+
+from <- unique(as.character(sankey$종류))
+to <- unique(as.character(sankey$구분))
+
+```
+
+### `plotly`를 활용한 sankey diagram
+
+`plotly`는 `ggplot2`와 같이 그래프, 플롯을 생성할 때 사용하는 패키지로 최근 많이 사용된다. `ggplot2`는 정적(Static)한 그래프나 플롯을 생성하지만 `plotly`는 기본적으로 반응형(interactive) 그래프가 그려고 `ggplot2`에 버금가는 상세 설정이 가능하다는 장점이 있다. 
+
+```{r message=FALSE, warning=FALSE}
+library(plotly)
+plot_ly(type = 'sankey',   ##plotly로 생성하는 그래프의 형태 설정
+        orientation = 'h', ##방향설정으로 h(orizental)
+        node = list(       ## 노드 설정
+          label = c(from, to),  ## 노드의 이름 설정
+          color = c(rep('red', 3), rep('blue', 5)),  ## 각 노드의 색 설정
+          pad = 5,  ## 노드간의 떨어진 거리 설정
+          thickness = 30,  ## 노드 상자의 두께 설정'
+          ## 노드 상자의 테두리 설정
+          line = list(color = 'black', width = 0.5) 
+        ),
+        ## 노드 링크 정보 설정
+        link = list(
+          source = c(rep(0, 5), rep(1, 5), rep(2, 5)),
+          target = c(rep(3:7, 3)),
+        ##  노드 데이터 정보
+          value = sankey$학생수
+        ), 
+        textfont = list(size = 12) ## 노드 이름의 크기 설정
+)
+```

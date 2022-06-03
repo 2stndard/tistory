@@ -1,0 +1,114 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### ggbreak
+
+다변량을 표현하는 플롯을 그릴때 간혹 변량의 값 범위의 차이가 너무 커서 플롯이 효율적으로 그려지지 않는 경우가 있다. 단적인 예로 전체 취업자수와 교육서비스업 취업자를 하나의 플롯으로 표현하는  경우가 이에 해당하는데 이를 해결하기 위해 앞선 포스트에서는 이중축을 사용해 해결하였지만 세개 이상의 다변량을 표현할 때는 이중축으로는 해결이 어렵다. 
+
+이런 경우 간혹 축의 일부를 잘라서 표현하는 경우가 있다. 축의 일부 값을 잘라서 데이터가 표현되지 않는 부분을 최소화함으로써 플롯의 공간을 최대한 활용하는 방법이다. 이렇게 축을 잘라서 사용하는 플롯을 어떻게 만들것인가?
+
+이에 대한 해답으로 `ggbreak`패키지를 소개한다. `ggbreak` 패키지는 축의 일부를 잘라서 플롯의 빈공간을 최소화함으로써 플롯에 표현되는 데이터들이 그 특성을 잘 나타낼수 있도록 만드는 함수를 제공한다. 
+
+### ggbreak 설치
+
+`ggbreak`패키지는 이 포스트를 작성하는 현재 기준으로(21.6.26) R 공식 CRAN에 등록이 되어있기 때문에 다음과 같이 설치가 가능하다. 
+
+```{r install, eval=FALSE}
+install.packages('ggbreak')
+```
+
+`ggberak`는 `ggplot2`로 그린 플롯의 축을 자르기 위한 함수 3가지를 제공한다. 이 함수들은 `ggplot` 구문의 `scales*` 함수들의 확장 함수들이기 때문에 단독으로 사용할 수 없고 `ggplot` 코드 안에서 `+`를 사용하여 호출한다. 
+
+`ggbreak`를 설명하기 위해 학생수 데이터를 사용한다. 학생수 데이터를 사용하기 위해 필요한 데이터 import과정은 '실전에 바로쓰는 시계열 데이터 처리와 분석'을 참조하기 바란다. 
+
+```{r students, include=FALSE}
+library(readxl)
+library(dplyr)
+library(xts)
+students.all <- read_excel("D:/R/Git/concept-of-time-series/students.xlsx", skip = 16, na = '-', sheet = 1, col_types
+                           = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric','numeric', 'numeric', 'numeric'))
+
+students <- students.all %>%
+  filter(지역규모 == '계') %>% select(-지역규모)
+```
+
+
+### Y축 자르기
+
+학생수 데이터에 포함된 전체 학생수, 유치원, 초등학교 학생수에 대한 플롯을 그리면 다음과 같이 생성할 수 있다. 
+
+```{r students1}
+library(ggplot2)
+students %>%
+  ggplot(aes(x = 연도)) + 
+  geom_line(aes(y = 학생수계, group = 1, color = '학생수계')) +
+  geom_line(aes(y = 유치원, group = 1, color = '유치원')) +
+  geom_line(aes(y = 초등학교, group = 1, color = '초등학교'))
+```
+
+위의 플롯에서 보듯이 각각의 변량값 범위의 차이로 인해 값들의 변화량이 잘 드러나지 않는다. 특히 유치원의 경우 거의 직선으로 보인다. 
+
+그럼 위의 플롯의 Y축을 적절하게 잘라서 플롯의 불필요한 공간을 없애보자.
+
+플롯의 축을 자르는 함수는 `ggbreak` 패키지의 `scales_y_break()`인데 자르고자 하는 Y값의 범위를 `c()`를 사용해서 전달만 하면 간단히 끝난다. 
+
+그러면 위의 플롯에서 값이 없어 보이는 구간인 1250000~2500000구간을 자르면 다음과 같이 나타난다. 
+
+```{r ggbreak1}
+library(ggbreak)
+students %>%
+  ggplot(aes(x = 연도)) + 
+  geom_line(aes(y = 학생수계, group = 1, color = '학생수계')) +
+  geom_line(aes(y = 유치원, group = 1, color = '유치원')) +
+  geom_line(aes(y = 초등학교, group = 1, color = '초등학교')) + 
+  scale_y_break(c(1250000, 2500000))
+
+```
+
+하지만 플롯이 별로 나아보이지 않는다. 자를 값의 범위를 잘못 설정한 듯하다. 이렇게 자를 값의 범위는 직접 지정하는 것보다는 최대 최소값을 사용해서 지정하는 것이 좋다. 
+
+```{r ggbreak2}
+students %>%
+  ggplot(aes(x = 연도)) + 
+  geom_line(aes(y = 학생수계, group = 1, color = '학생수계')) +
+  geom_line(aes(y = 유치원, group = 1, color = '유치원')) +
+  geom_line(aes(y = 초등학교, group = 1, color = '초등학교')) + 
+  scale_y_break(c(max(students$유치원), min(students$초등학교)))
+```
+
+플롯에서 축을 쪼개는 것은 여러번 할 수 있다. 위의 플롯에서 초등학교 학생수와 전체 학생수 사이에도 여전히 빈공간이 존재한다. 쪼개진 Y축을 다시 쪼개면 다음과 같다. 
+
+```{r ggbreak3}
+students %>%
+  ggplot(aes(x = 연도)) + 
+  geom_line(aes(y = 학생수계, group = 1, color = '학생수계')) +
+  geom_line(aes(y = 유치원, group = 1, color = '유치원')) +
+  geom_line(aes(y = 초등학교, group = 1, color = '초등학교')) + 
+  scale_y_break(c(max(students$유치원), min(students$초등학교))) +
+  scale_y_break(c(max(students$초등학교), min(students$학생수계)))
+```
+
+X축을 자를때는 `scale_x_break()`를 사용한다.
+
+### 축의 크기 조정
+
+위의 플롯은 유치원 학생수의 변화는 크게 보이지 않지만 초등학교와 전체 학생수의 변화는 앞선 플롯보다 눈에 잘 띈다. 유치원 학생수의 변화량(분산)이 초등학교나 전체 학생수에 비해 작기 때문에 같은 스케일로 그리면 어쩔 수 없는 상황이다. 
+
+만약 유치원 학생수 변화를 좀 크게 보고 싶다면 `scales`매개변수를 사용할 수 있다. 이 매개변수는 축이 잘라짐으로써 분리된 각각의 축의 높이나 넓이에 대한 비율을 지정함으로서 zoom의 효과를 나타낼 수 있다. 하지만 하나 주의해야 할것은 `scale`을 사용해 축의 비율을 다르게 지정하면 변량간의 상대적 변화량에 왜곡이 발생할 수 있다는 점이다. 
+
+```{r ggbreak4}
+students %>%
+  ggplot(aes(x = 연도)) + 
+  geom_line(aes(y = 학생수계, group = 1, color = '학생수계')) +
+  geom_line(aes(y = 유치원, group = 1, color = '유치원')) +
+  geom_line(aes(y = 초등학교, group = 1, color = '초등학교')) + 
+  scale_y_break(c(max(students$유치원), min(students$초등학교)), scale = 1.5) +
+  scale_y_break(c(max(students$초등학교), min(students$학생수계)), scale = 1.5)
+```
+
+위의 플롯은 마치 `facet`을 사용해 `ggplot`을 만든것과 유사한 플롯이 생성된다. 하지만 이 플롯은 전체적으로 하나의 플롯이라는 점에서 `facet`과는 차이가 있다. 

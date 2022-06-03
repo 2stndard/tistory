@@ -1,0 +1,209 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="600px" height="600px"
+     viewBox="0 0 570 290" preserveAspectRatio="none"
+	 xmlns="http://www.w3.org/2000/svg" version="1.1"
+	 xmlns:xlink="http://www.w3.org/1999/xlink">
+<style>
+text {
+	font-family : Verdana, Tahoma, sans-serif;
+	font-size : 11px;
+	fill : black;
+	stroke : none;
+}
+/* As at 20060630, Wikipedia's SVG rasteriser couldn't make use of these styles. Leave them in in case it improves. */
+#percentage_numbers text {
+	text-anchor : end;
+}
+#x_axis_numbers text {
+	text-anchor : middle;
+}
+</style>
+<desc>Dow Jones Industrial Average</desc>
+<defs>
+	<!-- The lines in the graph are scaled significantly. Make sure the stroke width is set appropriately. -->
+	<line id="horizontal_line" x1="2001.50274" x2="2001.963243" y1="0" y2="0" stroke="black" stroke-width="13" />
+	<line id="horizontal_line2" x1="2001.50274" x2="2001.963243" y1="0" y2="0" stroke-width="3"/>
+	<line id="vertical_line" x1="0" x2="0" y1="11000" y2="8000" stroke-width=".0003" />
+</defs>
+<!--
+	ORDER OF TRANSFORMATIONS:
+	(1)	Shift origin from (x, y) to (0, 0) (e.g., from [2004, 0] to [0, 0])
+	(2)	Scale as appropriate
+	(3)	Shift back to viewport's origin
+	(4)	Shift away from edge as desired
+	
+	In working out your calculations, opt for a number that divides nicely into 100s (e.g., 1, 2, 2.5, 5, 10, 20, 25, etc.)
+	
+	CALCULATIONS:
+	Horizontal	=	Width/Range
+				=	800/ 2010-1900
+				~	 7
+	Vertical	=	[-1 * Height]/Range
+				=	-250 / (13000 - 0) 
+				~	-.02
+-->
+<g transform="translate(70 -35)">	
+	<g transform="translate(0 290) scale(1000 -.07) translate(-2001.50274 -8000)">
+		<!-- Horizontal gridlines -->
+		<g stroke="black">
+			<use xlink:href="#horizontal_line" x="0" y="8000" />
+			<use xlink:href="#horizontal_line" x="0" y="9000" />
+			<use xlink:href="#horizontal_line" x="0" y="10000" />
+			<use xlink:href="#horizontal_line" x="0" y="11000" />
+			<use xlink:href="#horizontal_line2" x="0" y="8500" />
+			<use xlink:href="#horizontal_line2" x="0" y="9500" />
+			<use xlink:href="#horizontal_line2" x="0" y="10500" />
+		</g>
+		<!-- Vertical ticks -->
+		<g stroke="black">
+			<use xlink:href="#vertical_line" x="2001.583333" y="0" />
+			<use xlink:href="#vertical_line" x="2001.666667" y="0" />
+			<use xlink:href="#vertical_line" x="2001.750000" y="0" />
+			<use xlink:href="#vertical_line" x="2001.833333" y="0" />
+			<use xlink:href="#vertical_line" x="2001.916667" y="0" />
+		</g>
+		<!-- Plot -->
+		<path fill="#000077" opacity=".5" d="
+			M	2001.963243	8000
+			L	2001.963242	9998.39
+			L	2001.960502	9891.97
+			L	2001.952283	9811.15
+			L	2001.949543	9766.45
+			L	2001.946804	9894.81
+			L	2001.944064	9888.37
+			L	2001.941324	9921.45
+			L	2001.933105	10049.5
+			L	2001.930365	10099.1
+			L	2001.927626	10114.3
+			L	2001.924886	9893.84
+			L	2001.922146	9763.96
+			L	2001.912785	9851.56
+			L	2001.910046	9829.42
+			L	2001.907306	9711.86
+			L	2001.904566	9872.6
+			L	2001.901826	9982.75
+			L	2001.893607	9959.71
+			L	2001.888128	9834.68
+			L	2001.885388	9901.38
+			L	2001.882648	9976.46
+			L	2001.874429	9866.99
+			L	2001.871689	9872.39
+			L	2001.86895	9823.61
+			L	2001.86621	9750.95
+			L	2001.86347	9554.37
+			L	2001.855251	9608
+			L	2001.852511	9587.52
+			L	2001.849772	9554.37
+			L	2001.847032	9591.12
+			L	2001.844292	9441.03
+			L	2001.836073	9323.54
+			L	2001.833333	9263.9
+			L	2001.832192	9075.14
+			L	2001.829452	9121.98
+			L	2001.826712	9269.5
+			L	2001.818493	9545.17
+			L	2001.815753	9462.9
+			L	2001.813014	9345.62
+			L	2001.810274	9340.08
+			L	2001.807534	9377.03
+			L	2001.799315	9204.11
+			L	2001.796575	9163.22
+			L	2001.793836	9232.97
+			L	2001.791096	9384.23
+			L	2001.788356	9347.62
+			L	2001.780137	9344.16
+			L	2001.777397	9410.45
+			L	2001.774658	9240.86
+			L	2001.771918	9052.44
+			L	2001.769178	9067.94
+			L	2001.760959	9119.77
+			L	2001.758219	9060.88
+			L	2001.755479	9123.78
+			L	2001.75274	8950.59
+			L	2001.75	8836.83
+			L	2001.740639	8847.56
+			L	2001.7379	8681.42
+			L	2001.73516	8567.39
+			L	2001.73242	8659.97
+			L	2001.72968	8603.86
+			L	2001.721461	8235.81
+			L	2001.718721	8376.21
+			L	2001.715982	8759.13
+			L	2001.713242	8903.4
+			L	2001.710502	8920.7
+			L	2001.710501	8000
+			L	2001.691325	8000
+			L	2001.691324	9605.51
+			L	2001.683105	9605.85
+			L	2001.680365	9840.84
+			L	2001.677626	10033.3
+			L	2001.674886	9997.49
+			L	2001.665525	9949.75
+			L	2001.662785	9919.58
+			L	2001.660046	10090.9
+			L	2001.657306	10222
+			L	2001.654566	10382.4
+			L	2001.646347	10423.2
+			L	2001.643607	10229.2
+			L	2001.640868	10276.9
+			L	2001.638128	10174.1
+			L	2001.635388	10320.1
+			L	2001.627169	10240.8
+			L	2001.624429	10392.5
+			L	2001.621689	10346
+			L	2001.61895	10412.2
+			L	2001.61621	10415.9
+			L	2001.607991	10416.3
+			L	2001.605251	10298.6
+			L	2001.602511	10293.5
+			L	2001.599772	10458.7
+			L	2001.597032	10401.3
+			L	2001.588813	10512.8
+			L	2001.586073	10551.2
+			L	2001.583333	10510
+			L	2001.582192	10522.8
+			L	2001.579452	10401.7
+			L	2001.571233	10416.7
+			L	2001.568493	10455.6
+			L	2001.565753	10405.7
+			L	2001.563014	10241.1
+			L	2001.560274	10424.4
+			L	2001.552055	10576.7
+			L	2001.549315	10610
+			L	2001.546575	10569.8
+			L	2001.543836	10606.4
+			L	2001.541096	10472.1
+			L	2001.532877	10539.1
+			L	2001.530137	10479
+			L	2001.527397	10241
+			L	2001.524658	10175.6
+			L	2001.521918	10299.4
+			L	2001.513699	10252.7
+			L	2001.510959	10479.9
+			L	2001.505479	10571.1
+			L	2001.50274	10593.7
+
+V 8000 z" />
+	</g>
+		<!-- Text can't be scaled or it goes strange. Its location must be calculated directly. -->
+	<text x="120" y="60" transform="scale(2 1)" text-anchor="middle">DJIA during September 11, 2001</text>
+	<!-- Y-axis -->
+	<g id="percentage_numbers" transform="translate(-9 0) scale(1.6 1)" font-size="10" text-anchor="end">
+
+		<text x="0" y="293">8000</text>
+		<text x="0" y="223">9000</text>
+		<text x="0" y="153">10000</text>
+		<text x="0" y="83">11000</text>
+	</g>
+	<!-- X-axis -->
+	<g id="x_axis_numbers" transform="translate(0 55) scale(2 1)" font-size="10" text-anchor="middle">
+		<text x="0" y="250">Jul</text>
+		<text x="40.9" y="250">Aug</text>
+		<text x="81.8" y="250">Sep</text>
+		<text x="122.7" y="250">Oct</text>
+		<text x="163.6" y="250">Nov</text>
+		<text x="204.5" y="250">Dec</text>
+	</g>
+</g>
+</svg>
