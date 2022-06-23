@@ -1,0 +1,198 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+names(df_취업률)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자수 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+# trace의 공통 속성(Attribute) - symbol 관련 속성
+
+
+## symbol, symbols
+
+`symbol`은 점의 형태를 설정하는 속성이다. 앞서 `color`와 같이 `symbol`도 매핑할 변수를 설정하는 속성이고 `symbols`는 변수 카테고리에 따라 설정하는 점의 형태를 설정하는 속성이다. `color`와 다른 점은 연속형 변수에 매핑되는 `symbol`은 단 하나의 카테고리로 분류된다는 점이다. 그렇기 때문에 좌표에 표시되는 점의 형태는 다르게 보이지만 범례에 구분되어 표현되지는 않는다는 점이다. 다음의 예를 살펴보자.
+
+```{r}
+df_취업률_symbol <- df_취업률_2000 |> 
+  ## 심볼 설정을 위한 열 생성
+  mutate(symbol = case_when(
+    대계열 == '인문계열' ~ 1, 
+    대계열 == '사회계열' ~ 2,
+    대계열 == '교육계열' ~ 3,
+    대계열 == '자연계열' ~ 4,
+    대계열 == '공학계열' ~ 5,
+    대계열 == '의약계열' ~ 6,
+    대계열 == '예체능계열' ~ 7)
+    ) 
+```
+
+```{r eval = FALSE}
+## 심볼 설정을 위한 열이 추가된 데이터프레임에서
+df_취업률_symbol |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수, 
+          ## symbol을 연속형 수치 변수에 매핑
+          symbol = ~symbol) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+```
+
+```{r eval = FALSE}
+df_취업률_symbol |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수, 
+          ## symbol을 팩터형 변수에 매핑
+          symbol = ~factor(symbol)) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```
+
+앞의 예에서 'symbol' 열은 대계열을 수치로 표현한 열로 수치형 열이다. 수치형 열이기 때문에 연속형 변수로 취급되고 이 열을 변수로 바로 사용하면 왼쪽과 같이 점의 모형은 달리지지만 하나의 trace(trace 0)로 표현된다. 반면 오른쪽과 같이 'symbol' 열을 `factor()`를 사용하여 팩터로 전환하면 이산형 변수가 되기 때문에 각각의 카테고리를 trace로 구분하여 추가되기 때문에 색까지 구분해주며 범례에서 각각의 trace로 표현된다.
+
+`plotly`에서는 0번부터 52번까지 총 53개의 `symbol`을 제공한다. 이 기본 53개의 도형 번호에 100을 더하면 내부가 빈 'open'형 심볼, 200을 더하면 점이 찍힌 'dot'형 심볼, 300을 더하면 내부가 비고 점이 찍힌 'open-dot'형 심볼을 의미한다.
+
+```{r eval = FALSE}
+df_취업률_symbol |> 
+  plot_ly(x = ~졸업자수, y = ~취업자수, 
+          symbol = ~factor(symbol), 
+          ## symbols를 심볼 이름으로 설정
+          symbols = c('circle', 'circle-open', 'circle-dot', "circle-open-dot", 
+                      "square", "square-open", "square-dot")) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+```
+
+`symbol`에 변수를 매핑하지 않고 특정 심볼을 설정할 경우는 색의 설정과 같이 `I()`를 사용한다.
+
+```{r eval = FALSE}
+df_취업률_symbol |>
+  ## symbol을 심볼 이름으로 설정
+  plot_ly(x = ~졸업자수, y = ~취업자수, symbol = 'circle-open') |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+```
+
+```{r eval = FALSE}
+df_취업률_symbol |> 
+  ## symbol을 I()를 사용하여 심볼 이름으로 설정
+  plot_ly(x = ~졸업자수, y = ~취업자수, symbol = I('circle-open')) |>
+  layout(title = '졸업자 대비 취업자수', margin = margins)
+
+```

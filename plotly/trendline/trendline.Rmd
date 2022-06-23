@@ -108,9 +108,9 @@ df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고�
                      col_types = c(rep('text', 9), rep('numeric', 79)))
 
 ## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
-df_취업률 <- df_취업률 |> 
-  select(1:9, ends_with('계'), '입대자')
-names(df_취업률)[10:12] <- c('졸업자수', '취업률', '취업자수')
+#df_취업률 <- df_취업률 |> 
+#  select(1:9, ends_with('계'), '입대자')
+#names(df_취업률)[10:12] <- c('졸업자수', '취업률', '취업자수')
 
 ## 랜덤 샘플을 위한 시드 설정
 set.seed(123)
@@ -140,7 +140,7 @@ names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수'
 다음은 학과의 졸업자수 대비 취업률 산점도와 우리나라의 최근 200일간의 코로나 19 확진자에 대한 추세선을 `geom_smooth()`로 그려서 `ggplotly()`로 `plotly`객체로 변환하는 과정이다. 
 
 
-```{r eval = FALSE}
+```{r eval = TRUE}
 ggplot_trend_emp <- df_취업률_2000 |>
   ggplot(aes(x = 졸업자수, y = 취업자수)) + 
   geom_point() +
@@ -154,7 +154,7 @@ ggplotly(ggplot_trend_emp)
 
 
 
-```{r eval = FALSE}
+```{r eval = TRUE}
 ggplot_trend_covid <- df_covid19 |>
   filter(iso_code == 'KOR', !is.na(new_cases)) |>
   filter(date >= max(date) - 200) |>
@@ -183,7 +183,7 @@ ggplotly(ggplot_trend_covid)
 선형회귀 추세선을 `plotly`로 그리는 방법은 앞서 설명한 바와 같이 `lm()`을 사용하여 선형회귀 모델을 만들고 이를 `fitted()`를 사용하여 해당 모델에 대한 적합치를 Y축에 매핑함으로써 그려줄 수 있다. 
 
 
-```{r eval = FALSE}
+```{r eval = TRUE}
 lm_trend_emp <- lm(data = df_취업률_2000, 취업자수 ~ 졸업자수)
 
 df_취업률_2000 |>
@@ -191,7 +191,7 @@ df_취업률_2000 |>
   add_trace(x = ~졸업자수, y = ~취업자수, name = 'data') |>
   add_trace(mode = 'lines', x = ~졸업자수, y = ~fitted(lm_trend_emp), name = '선형 추세선')
 ```
-```{r eval = FALSE}
+```{r eval = TRUE}
 df_covid19_trend_kor <- 
   df_covid19 |>
   filter(iso_code == 'KOR', !is.na(new_cases)) |>
@@ -211,7 +211,7 @@ df_covid19_trend_kor |>
 
 국소회귀 추세선을 `plotly`로 그리는 방법은 앞서 설명한 바와 같이 `loess()`을 사용하여 선형회귀 모델을 만들고 이를 `fitted()`를 사용하여 해당 모델에 대한 적합치를 Y축에 매핑함으로써 그려줄 수 있다. 다만 이 과정에서 X축 변량의 순서대로 `fitted()`값을 그려야 정상적인 추세선이 나타나기 때문에 이 데이터를 정렬하기 위해 임시 데이터프레임을 생성하여 사용하였다. 
 
-```{r eval = FALSE}
+```{r eval = TRUE}
 loess_trend_emp <- loess(data = df_취업률_2000, 취업자수 ~ 졸업자수)
 
 df_loess_trend_emp <- data.frame(X = df_취업률_2000$졸업자수, Y = fitted(loess_trend_emp)) |>
@@ -225,7 +225,7 @@ df_취업률_2000 |>
 
 이번에는 95% 신뢰구간을 표시하는 방법을 알아보자. 95% 신뢰구간을 표현하기 위해서는 `predict()`를 사용하여 표준오차(Standard Error, se)를 산출하고 이 수치의 1.96을 곱한 값의 상한과 하한을 설정하고 이를 `add_ribbons()`를 사용하여 그려준다.  
 
-```{r eval = FALSE}
+```{r eval = TRUE}
 df_covid19_trend_kor <- 
   df_covid19 |>
   filter(iso_code == 'KOR', !is.na(new_cases)) |>

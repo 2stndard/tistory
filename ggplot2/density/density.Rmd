@@ -1,0 +1,203 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## 밀도 분포 플롯
+
+------------------------------------------------------------------------
+
+밀도 분포 플롯는 히스토그램의 또 다른 표현 방법이다. 히스토그램은 막대로 도수분포가 표현되기 때문에 다소 딱딱한 감이 있지만 밀도 분포 플롯은 전체 분포가 곡선으로 표현되어 히스토그램보다 부드럽게 표현된다는 장점이 있다. 또 도수분포에 대한 사례수를 직접적으로 사용하는 것이 아니고 확률 밀도 함수에 따른 확률값을 사용하기 때문에 0부터 1사이의 값으로 표현된다는 것이 히스토그램과의 차이다.
+
+`ggplot2`에서는 밀도 분포 그래프를 그리기 위해 `geom_density()`를 제공한다. `geom_density()`은 연속형 일변수 수치 데이터를 표현하는데 사용되는 기하 요소 함수이다. 일변수 수치 데이터의 분포를 확률분포함수로 계산하여 표현한다. 따라서 X값에 따라 계산된 연속 확률 분포값은 확률이기 때문에 1보다 작은 값들이고, 이 값들이 연결되어 표현된다. `geom_density()`는 연속 확률 분포를 산출하고 시각화한다. 따라서 앞선 두 함수와는 달리 통계 요소의 기본값이 'density'로 설정된다.
+
+```{r}
+##  df_취업통계를 ggplot 객체로 생성하고 p_density에 저장
+p_density <- df_취업률 |>
+  ggplot()
+
+```
+
+```{r}
+## p_density객체에 x축을 '취업률'열로 매핑한 geom_density 레이어를 생성
+p_density + 
+  geom_density(aes(x = 취업률_계))
+```
+
+```{r}
+## p_density객체에 x축을 '취업률'열로 매핑, 미적 요소 설정한 geom_density 레이어를 생성
+p_density + 
+  geom_density(aes(x = 취업률_계), color = 'blue', fill = 'skyblue', linetype = 2, size = 1, alpha = 0.5)
+
+```
+
+### 다중 밀도 분포 플롯
+
+다중 밀도 분포 플롯는 변수 변량에 따라 여러개의 밀도 분포 플롯을 그리는 방법을 말한다. 다중 밀도 분포 플롯은 다중화할 변수를 color나 fill에 매핑함으로써 생성할 수 있다.
+
+```{r}
+p_density <- df_취업률 |>
+  ggplot() + 
+  labs(x = '취업률', y = '분포 확률')
+
+p_density_multi1 <- p_density +
+  ## X축을 취업률_계, color, fill, linetype을 과정구분으로 매핑하고 미적요소를 설정한 geom_density 레이어 추가
+  geom_density(aes(x = 취업률_계, color = 과정구분, fill = 과정구분, linetype = 과정구분), alpha=0.4, position = 'identity') +
+  labs(title = '매핑을 사용한 다중 밀도 분포 플롯')
+
+p_density_multi1
+```
+
+앞의 다중 밀도 플롯은 color와 fill로 매핑하여 생성하였지만 `facet_wrap()`을 사용하여 각각의 밀도 플롯를 분리할 수도 있다.
+
+```{r}
+p_density +
+  ## X축을 취업률_계로 매핑하고 미적요소를 설정한 geom_density 레이어 추가
+  geom_density(aes(x = 취업률_계), alpha=0.4, position = 'identity') +  
+  ## 대계열별로 다중 밀도 플롯 생성
+  facet_wrap(~대계열) + 
+  labs(title = 'facet을 사용한 다중 밀도 분포 플롯')
+
+```
+
+앞의 두가지 다중 밀도 확률 플롯를 모두 사용하면 다음과 같다.
+
+```{r}
+p_density +
+  ## X축을 취업률_계, color, fill, linetype을 과정구분으로 매핑하고 미적요소를 설정한 geom_density 레이어 추가
+  geom_density(aes(x = 취업률_계, color = 과정구분, fill = 과정구분, linetype = 과정구분), alpha=0.4, position = 'identity') +
+  ## 대계열별로 다중 밀도 플롯 생성
+  facet_wrap(~대계열) + 
+  labs(title = '매핑과 facet을 사용한 다중 밀도 분포 플롯')
+
+```
+
+
+
+
+
+

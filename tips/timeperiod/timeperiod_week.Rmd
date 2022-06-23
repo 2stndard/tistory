@@ -1,0 +1,270 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+names(df_취업률)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자수 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+theme_set(theme(text = element_text(size = 20))) 
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## lubridate와 tsibble를 사용하는 기간별 합계값 구하기 - 주별 데이터
+
+이전 포스트에서는 `lubridate`와 `zoo`를 사용하여 일간 데이터를 월간 데이터로 변환하는 방법을 알아보았다. 앞서도 언급했지만 우리가 사용하는 데이터는 주로 숫자나 문자로 이루어져 있고 대량의 데이터가 저장되어 있는 DB나 다른 데이터 소스에서 데이터를 추출할 때는 csv 파일이나 엑셀 파일 등으로 추출하고 R에서 불러들이는 것이 일반적인데 이 경우 흔히 날짜 데이터를 문자열 형태로 불러 읽어들이는 경우도 많다. 앞선 포스트에서와 같이 월별 데이터로 변환할 때는  문자열 형태로 설정된 날짜 데이터도 이 문자열을 잘 다루면 연별, 월별로 그룹화하여 변환하는 것이 가능하다. 하지만 주별 데이터로 변환하는 것은 문자열 형태의 날짜 데이터에서는 매우 어렵다. 그렇다면 주별 데이터는 어떻게 변환할 것인가?
+
+주별 데이터도 앞선 월별 데이터와 거의 유사한 방식으로 전환이 가능하다. 
+
+주별 데이터의 변환에도 앞서 사용했던 코로나19의 일별 데이터인 'df_covid19'를 사용하는데 주별 데이터는 좀 많으니 다음과 같이 정제하여 사용하도록 하겠다.
+
+```{r}
+df_covid19_by_period <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= as.Date('2021-06-01')) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+head(df_covid19_by_period, 10) 
+
+
+```
+
+
+ 앞선 포스트에서는 월별 합계를 구했지만 이번에는 주단위로 평균값을 구해보도록 하겠다.
+
+### lubridate의 year(), week()를 사용
+
+'date'형의 열을 주별로 그룹화하기 위해서는 `lubridate`의  `week()`를 사용할 수 있다. `week()`는 매개변수로 지정된 벡터의 해당 년도 주차 수를 반환하는 함수이다. 하지만 `week()`만을 사용하면 매년 같은 주차 데이터들은 같은 주차 수를 반환하기 때문에 주차의 시계열적 변화를 보기 위해서는 반드시 년을 반환하는 `year()`를 같이 사용해주어야 한다. 'df_covid19_by_period'에서 연별, 주차별 한국의 신규확진자의 합은 다음과 같이 구할 수 있다.
+
+
+```{r}
+library(lubridate)
+
+df_covid19_by_period |>
+  group_by(년 = year(df_covid19_by_period$date), 주 = week(df_covid19_by_period$date), location) |>
+  summarise(신규확진자수 = mean(new_cases, na.rm = T)) |>
+  filter(location == '한국')
+
+```
+
+
+이 중에 한국의 월별 데이터를 선 그래프로 그린다면 다음과 같이 그릴 수 있겠다. 여기서 하나 주의할 것은 앞서 사용한 `year()`와 `week()`는 결과값이 문자열로 리턴된다는 것이다. 그래서 `paste0()`를 사용하면 앞서 언급한 대로 1주, 10주, 11주, 12주, 2주와 같이 나타난다. 
+```{r}
+df_covid19_by_period |>
+  group_by(년 = year(df_covid19_by_period$date), 주 = week(df_covid19_by_period$date), location) |>
+  summarise(신규확진자수 = mean(new_cases, na.rm = T)) |>
+  filter(location == '한국') |>
+  ggplot(aes(x = paste0(년, '-', 주), y = 신규확진자수)) +
+  geom_line(aes(group = location)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(x = '연월')
+```
+
+이러한 현상을 방지하기 위해서는 1~9주차에 해당하는 주차 수를 두 자리 정수 형태로 바꾸어 준다. 이를 위해서 `sprintf()`를 사용하는데 이 함수는 원래 C언어에서 사용되는 함수로 R에서도 지원된다. 이 방법은 앞선 월간 데이터에서도 사용될 수 있지만 월간 데이터에서는 'Date' 형으로 전환해서도 사용이 가능하다. 
+
+```{r}
+df_covid19_by_period |>
+  group_by(년 = year(df_covid19_by_period$date), 주 = week(df_covid19_by_period$date), location) |>
+  summarise(신규확진자수 = mean(new_cases, na.rm = T)) |>
+  filter(location == '한국') |>
+  mutate(주 = sprintf('%02d', 주)) |>
+  ggplot(aes(x = paste0(년, '-', 주), y = 신규확진자수)) +
+  geom_line(aes(group = location)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(x = '연월')
+```
+
+### lubridate의 floor_date()를 사용
+
+앞선 예에서 `year()`와 `week()`를 사용하면 문자열이 반환되고 이를 다시 적절히 변환하여 사용해야 한다는 불편함이 있다. 이보다는 앞서 사용했던 `floor_date()`를 사용해서 주간 단위로 그룹화하고 이에 대해 합계를 적용하면 앞의 예보다는 다소 코드가 쉬워질 수 있다. 
+
+`floor_date()`는 주어진 시간 주기에 맞는 마지막 날을 리턴하는 함수로 이 날짜를 기준으로 그룹화하면 주 단위로 연산이 가능하다. 앞서에서는 월 단위로 그룹화하기 위해 매월 말일 단위로 그룹화하기 위해 'month' 매개변수를 주었고 주 단위로 그룹화하기 위해서는 'week' 매개변수를 설정한다. 
+
+```{r}
+df_covid19_by_period |>
+  group_by(연월 = floor_date(date, 'week'), location) |>
+  summarise(신규확진자수 = mean(new_cases, na.rm = T))  |>
+  filter(location == '한국')
+ 
+```
+
+이 데이터를 사용하여 선 그래프를 다음과 같이 그릴 수 있다. 다음에서는 `date_labels`의 월 포맷을 '%W'로 설정함으로써 주차 수를 표기하였다. 
+
+```{r}
+df_covid19_by_period |>
+  group_by(연월 = floor_date(date, 'month'), location) |>
+  summarise(신규확진자수 = mean(new_cases, na.rm = T))  |>
+  filter(location == '한국') |>
+  ggplot(aes(x = 연월, y = 신규확진자수)) +
+  geom_line(aes(group = location)) + 
+  scale_x_date(date_breaks = '2 weeks', date_labels = '%y년 %W주') + 
+  scale_y_continuous(labels = scales::comma) +
+  theme(axis.text.x = element_text(angle = 90))
+
+```
+
+
+### tsibble의 yearmonth()를 사용
+
+앞의 두 예를 보면 주별 데이터를 만드는데 `lubridate` 패키지의 함수들을 사용하였다. `lubridate`는 R에서 시간 단위 연산에 매우 훌륭한 패키지임은 두말할 나위없지만 그 외에도 많이 사용되는 패키지들이 있다. 그중 최근 많이 사용되는 패키지가 `tsibble`이다. 이 `tsibble` 패키지에서 제공하는 `yearweek()`를 사용하면 연도와 주수를 반환하기 때문에 주단위로 연산하는데 매우 편리하게 사용할 수 있다. 또 `yearmonth()`를 사용하면 월간 데이터도 쉽게 산출이 가능하다. 
+
+```{r}
+if (!require(tsibble)) {
+  install.packages('tsibble')
+  library(tsibble)
+}
+
+df_covid19_by_period |>
+  group_by(연월 = yearweek(date), location) |>
+  summarise(신규확진자수 = mean(new_cases, na.rm = T))  |>
+  filter(location == '한국')
+
+```
+
+위의 데이터를 사용하여 선 그래프를 다음과 같이 그릴 수 있다. 다만 `yearweek()`의 결과는 'Date' 형이 아니기 때문에 `ggplot2`에서 제공하는 `scale_x_date()`를 사용할 수 없고 `tsibble` 패키지에서 제공하는 `scales_x_yearweek()`을 사용해야 한다.  
+
+```{r}
+df_covid19_by_period |>
+  group_by(연월 = yearweek(date), location) |>
+  summarise(신규확진자수 = mean(new_cases, na.rm = T))  |>
+  filter(location == '한국') |>
+  ggplot(aes(x = 연월, y = 신규확진자수)) +
+  geom_line(aes(group = location)) + 
+  scale_x_yearweek(date_breaks = '2 weeks', date_labels = '%y년 %W주') +
+  scale_y_continuous(labels = scales::comma) +
+  theme(axis.text.x = element_text(angle = 90))
+
+```

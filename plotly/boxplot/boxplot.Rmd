@@ -1,0 +1,229 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## plotly 박스 trace
+
+박스 trace는 박스 플롯을 생성하기 위해 사용되는 trace이다. 박스 플롯은 데이터의 전체적 분포를 4분위수(quantile)과 IQR(Inter Quartile Range)를 사용하여 표시하는 시각화로 연속형 변수와 이산형 변수의 시각화에 사용되는 방법이다. 박스 trace를 사용해 박스 플롯을 생성하기 위해서는 `add_trace(type = 'box')`를 사용하거나 `add_boxplot()`을 사용한다.
+
+::: {.comment}
+add_trace(p, type = 'box', ..., data = NULL, inherit = TRUE)\
+add_boxplot(p, x = NULL, y = NULL, ..., data = NULL, inherit = TRUE)\
+- p : plot_ly()로 생성한 plotly 객체\
+- type : trace 타입을 'box'로 설정\
+- ... : 박스 trace의 line 모드에 설정할 수 있는 속성 설정\
+- data : 시각화할 데이터프레임\
+- inherit : plot_ly()에 설정된 속성 type을 상속할지를 결정하는 논리값\
+- x : X축에 매핑할 변수를 \~로 설정\
+- y : Y축에 매핑할 변수를 \~로 설정\
+:::
+\
+
+
+```{r eval = FALSE}
+p_box <- 
+  ## 취업률 데이터를 사용하여 plotly 객체 생성
+  df_취업률_2000 |> 
+  plot_ly()
+
+p_box |> 
+  ## 박스 trace 추가
+  add_trace(type = 'box', 
+            ## X, Y축 변수 매핑
+            x = ~대계열, y = ~취업률) |>
+  ## 제목, 여백 설정
+  layout(title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+```
+
+
+### boxmean, boxpoints
+
+박스 trace에서 제공하는 요약 통계중에 가장 많이 사용되지만 제공되지 않는 요약통계가 바로 평균(mean)이다. `ggplot2`에서는 평균을 표현하기 위해 다소 어려운 과정을 거쳐야 했지만 `plotly`에서는 `boxmean` 속성의 설정만으로 간단하게 평균값을 표현할 수 있다. `boxmean`은 TRUE/FALSE의 논리값에 표준편차가 추가로 표시되는 'sd'를 제공한다.
+
+```{r eval = FALSE}
+p_box |> 
+  ## boxmean을 TRUE로 설정한 박스 trace 추가
+  add_trace(type = 'box', boxmean = TRUE, 
+            x = ~대계열, y = ~취업률) |>
+  layout(title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+```
+
+
+```{r eval = FALSE}
+p_box |> 
+  ## boxmean을 sd로 설정한 박스 trace 추가
+  add_trace(type = 'box', boxmean = 'sd', 
+            x = ~대계열, y = ~취업률) |>
+  layout(title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+```
+
+
+또 박스 trace에서 유용하게 사용되는 속성이 `boxpoints`이다. `boxpoints`는 이상치(outlier)로 표현되는 점의 표현을 제어할 수 있다. `boxpoints`로 설정 가능한 이상치 표시 설정은 'all', 'outliers', 'suspectedoutliers', 'FALSE'의 네 가지 방법이 제공된다. 'all'은 모든 이상치를 보여주지만 'outliers'는 수염 외부에 있는 이상치만 표시하고 'suspectedoutliers' 전체 이상치가 표시되지만 값의 범위가 IQR의 4배가 넘어가는 이상치는 다시 강조되는 방법이다. 'FALSE'는 이상치를 표시하지 않는다.
+
+```{r eval = FALSE}
+p_box |> 
+  ## boxpoint을 all로 설정한 박스 trace 추가
+  add_trace(type = 'box', boxpoints = 'all', 
+            x = ~대계열, y = ~취업률) |>
+  layout(title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+```
+
+
+```{r eval = FALSE}
+p_box |> 
+  ## boxpoint을 outliers로 설정한 박스 trace 추가
+  add_trace(type = 'box', boxpoints = 'outliers' 
+            , x = ~대계열, y = ~취업률) |>
+  layout(title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+```
+
+
+```{r eval = FALSE}
+p_box |> 
+  ## boxpoint을 suspectedoutliers로 설정한 박스 trace 추가
+  add_trace(type = 'box', boxpoints = 'suspectedoutliers', 
+            x = ~대계열, y = ~취업률) |>
+  layout(title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+```
+
+
+```{r eval = FALSE}
+p_box |> 
+  ## boxpoint을 FALSE로 설정한 박스 trace 추가
+  add_trace(type = 'box', boxpoints = FALSE, 
+            x = ~대계열, y = ~취업률) |>
+  layout(title = list(text = '대학 계열별 취업률 분포'), 
+         margin = margins)
+```
+

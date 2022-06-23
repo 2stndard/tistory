@@ -1,0 +1,213 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+names(df_취업률)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자수 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+사용데이터 : 
+
+```{r}
+df <- data.frame(col1 = c(1:3, NA, 3),
+                 col2 = c("this", NA,"is", "text", "is"), 
+                 col3 = c(TRUE, FALSE, TRUE, TRUE, TRUE), 
+                 col4 = c(2.5, 4.2, 3.2, NA, 3.2),
+                 stringsAsFactors = FALSE)
+```
+
+
+R을 사용하여 데이터를 전처리하기 위해서는 먼저 전체적으로 데이터의 형태를 살펴봐야 하는데 이 후 해야할 작업이 의미없는 데이터를 제거하는 과정이다. 보통 의미없는 데이터라고 함은 형태적인 의미와 내용적인 의미의 두 가지를 모두 말한다. 형태적 의미가 없음은 보통 NULL값이나 결측치(Missing)를 의미한다. 내용적 의미는 해당 값이 지나치게 작은 값이나 지나치게 큰 값을 가져서 전반적 데이터의 왜곡을 가져오게 하는 이상치(abnormal)이거나 데이터 분석에 사용하지 않는 변량 등을 말한다. 형태적으로 무의미한 데이터는 기계적으로 제거가 가능하지만 내용적 무의미한 데이터는 데이터에 대한 이해가 선행되어야 한다. 
+
+이렇게 형태적이든 내용적이든 데이터 분석에 적절치 않은 데이터를 제거하는 방법에 대해 알아보자. 
+
+### is.na()
+
+데이터를 정제하기 위해서는 먼저 데이터에 결측치가 포함되어 있는지를 체크해야 한다. 이때 사용하는 함수가 `is.na()`이다. 
+
+`is.na()`는 매개변수로 전달될 데이터프레임이나 벡터에 NA값이 포함되어 있는지를 체크해서 포함되어 있다면 TRUE, 포함되어 있지 않다면 FALSE를 리턴해준다. 
+
+```{r}
+is.na(df)
+
+sum(is.na(df))
+
+```
+
+### na.omit()
+
+`is.na()`의 결과로 df 데이터프레임에 총 3개의 NA가 포함되었다는 것을 알게 되었다. 그러면 이제 `na.omit()`를 사용하면 NA가 제거된 데이터프레임이 생성된다.  
+
+```{r}
+na.omit(df)
+
+```
+
+위의 결과에서도 보이듯이 df 데이터프레임에서 NA가 포함되어 있던 두 번째와 네 번쨰 행이 제거된 데이터프레임이 반환된다.
+
+
+### dplyr의 filter()와 is.na() 사용
+
+`na.omit()`를 사용하여 간단히 NA가 제거된 데이터를 얻을 수 있다. 하지만 R의 사용자들이 데이터 전처리에서 많이 사용하는 `tidyverse`, `dplyr`를 사용하게 되면 `na.omit()`를 사용하기가 애매할 때가 있다. 이런 경우에 `filter()`와 `is.na()`를 사용하여 na를 제거한다. 다만 이 경우에는 na를 제거할 열마다 `is.na()`를 적용해주어야 한다는 단점이 있다. 
+
+`is.na()`는 매개변수로 지정되는 벡터에 na가 있다면 TRUE를 리턴한다. 따라서 `is.na()`가 FALSE 조건을 사용하여 필터링 하거나 `is.na()`에 `!`를 붙여서 na가 없는 열에서 리턴되는 FALSE를 TRUE로 바꾸어서 TRUE인 행만 필터링하는 방법을 사용할 수 있다. 
+
+```{r}
+df |> filter(!is.na(col1), is.na(col2) == FALSE)
+
+```
+
+### 중복된 행의 제거
+
+데이터프레임에서 전체 열에 동일한 값을 가지는 열이 존재하는 경우 이를 제거해야 할지 그냥 사용해야할 지 결정해야 한다. 이 값이 내용적으로 의미가 있을수도 있고 의미가 없을 수도 있기 때문에 이는 데이터를 잘 아는 전문가의 의견들 들어야 할 것이다. 만약 중복된 데이터가 내용적으로 의미가  없다면 이를 제거해야 한다. 
+
+중복된 데이터를 제거하는 방법은 `distinct()`를 사용한다. `distinct()`는 유일한 데이터 조합을 리턴하는 함수이기 때문에 이 함수를 사용하여 리턴된 데이터는 중복이 제거된 결과값이 된다. `distinct()`는 `dplyr`에서 제공하는 함수이기 때문에 `%>%`, `|>`와 같은 파이프를 사용한 데이터 전처리에 사용될 수 있다. 
+
+```{r}
+distinct(df)
+
+```
+
+위의 결과에서 보면 df 데이터프레임은 총 5개의 행이지만 세 번째 행과 다섯 번째 행은 같은 값을 가지기 때문에 중복이 제거되어 총 4개의 행만 표시된다. 지금처럼 간단한 데이터프레임에서야 중복된 데이터를 간단히 찾을 수 있지만 대량의 데이터에서는 중복값을 제거하기란 쉽지않다. 
+
+### 행 인덱스나 row_number()를 이용한 행의 제거
+
+만약 제거해야할 행의 번호를 알고 있을 때는 이 번호를 사용하여 행을 제거할 수 있다. 이 경우도 `tidyverse`나 `dplyr`를 사용할 떄와 사용하지 않을 때로 나눌 수 있는데 `dplyr`를 사용한다면 `row_number()`를 사용하고 `dplyr`를 사용하지 않는 경우는 '[]'를 사용한 인텍싱을 통해 제거할 수 있다. 
+
+na가 포함되어 있는 2, 4행을 제거하는 두가지 방법은 다음과 같다. 
+
+```{r}
+df[-c(2, 4), ]
+
+df |> filter(!row_number() %in% c(2, 4))
+```
+
+### 조건을 이용한 행의 제거
+
+데이터 전처리에서 na를 포함한 행을 제거하는 형식적 제거 외에 내용적인 행의 제거에는 사실 특정 조건을 사용하는 경우가 일반적이다. 이 경우도 `dplyr`를 사용하는 것이 편리하다.  
+
+`dplyr`를 사용할 때는 `filter()`를 사용하여 제거해야 할 조건을 명시하는데 조건에 걸리는 행이 남는다. 그러나 조건에 해당하는 행을 제거하기 위해서는 `!`를 사용하여 남겨질 조건에 대한 역을 사용한다. 
+
+```{r}
+df |> filter(!(col2 == FALSE))
+
+```
