@@ -42,3 +42,10 @@ wilcox.test(data$before, data$after, conf.int = TRUE, conf.level = 0.95,  paired
 hl2_test(data$before, data$after, alternative = "two.sided", method = "asymptotic")
 
 hodges_lehmann_2sample(data$before, data$after)
+
+
+
+install.packages('itsadug')
+library(itsadug)
+
+bam
