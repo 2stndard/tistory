@@ -2,6 +2,7 @@
 output:
   html_document:
     css: D:/analysis/R/tistory/plotly/style.css
+    keep_md: yes
 ---
 
 ```{r setup, include=FALSE}

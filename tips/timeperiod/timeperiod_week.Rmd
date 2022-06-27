@@ -123,26 +123,30 @@ df_취업률_2000 <- df_취업률 |>
 ## 열 이름을 적절히 설정
 names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
 
-theme_set(theme(text = element_text(size = 20))) 
+##theme_set(theme(text = element_text(size = 20))) 
 
 ```
 
 사용데이터 : <https://2stndard.tistory.com/68>
 
-## lubridate와 tsibble를 사용하는 기간별 합계값 구하기 - 주별 데이터
+## cumsum()과 seq_along()을 사용한 누적합과 누적평균 구하기
 
-이전 포스트에서는 `lubridate`와 `zoo`를 사용하여 일간 데이터를 월간 데이터로 변환하는 방법을 알아보았다. 앞서도 언급했지만 우리가 사용하는 데이터는 주로 숫자나 문자로 이루어져 있고 대량의 데이터가 저장되어 있는 DB나 다른 데이터 소스에서 데이터를 추출할 때는 csv 파일이나 엑셀 파일 등으로 추출하고 R에서 불러들이는 것이 일반적인데 이 경우 흔히 날짜 데이터를 문자열 형태로 불러 읽어들이는 경우도 많다. 앞선 포스트에서와 같이 월별 데이터로 변환할 때는  문자열 형태로 설정된 날짜 데이터도 이 문자열을 잘 다루면 연별, 월별로 그룹화하여 변환하는 것이 가능하다. 하지만 주별 데이터로 변환하는 것은 문자열 형태의 날짜 데이터에서는 매우 어렵다. 그렇다면 주별 데이터는 어떻게 변환할 것인가?
+누적 합계는 데이터의 시간의 흐름에 따라 계속적으로 합산되는 데이터를 말한다. 따라서 누적 합계는 대부분 시간의 일정한 단위나 시간의 흐름에 따라 발생된 이벤트에 따라 발생되는 데이터의 합계이다. 이 누적 합계는 1954년에 캠브리지 대학에서 제안되었는데 통계적 프로세스 모니터링의 한 방법으로 광범위하게 사용되고 있다. 
 
-주별 데이터도 앞선 월별 데이터와 거의 유사한 방식으로 전환이 가능하다. 
+누적 평균은 지속적으로 발생되는 데이터들의 누적값에 대한 평균을 말한다. 평균을 구하는데에는 데이터의 합계에 대한 데이터의 빈도의 비율을 말하는데 누적 평균에서는 계속적으로 발생되는 누적합계를 지속적으로 증가되는 데이터 빈도로 나누어 산출된다. 이 누적 평균은 누적 이동 평균(Cumulative Moving Average)이라고도 하는데 시계열 예측(Forecasting)이 모델중 하나로 많이 사용되는 모델이다. 
 
-주별 데이터의 변환에도 앞서 사용했던 코로나19의 일별 데이터인 'df_covid19'를 사용하는데 주별 데이터는 좀 많으니 다음과 같이 정제하여 사용하도록 하겠다.
+R에서 누적 합계와 누적 평균은 `cumsum()`과 `seq_along()`을 사용하면 쉽게 구할 수 있다. 
+
+누적 합계와 누적 평균 산출에는 21년 이후의 코로나19 확진자의 주별 데이터를 사용하는데 다음과 같이 전처리 한다.  
 
 ```{r}
-df_covid19_by_period <- df_covid19 |> 
+library(lubridate)
+
+df_covid19_by_week <- df_covid19 |> 
   ## 한국 데이터와 각 대륙별 데이터만을 필터링
   filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
   ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
-  filter(date >= as.Date('2021-06-01')) |>
+  filter(date >= as.Date('2021-01-01')) |>
   ## 국가명을 한글로 변환
   mutate(location = case_when(
     location == 'South Korea' ~ '한국', 
@@ -155,116 +159,101 @@ df_covid19_by_period <- df_covid19 |>
   ## 국가 이름의 순서를 설정 
   mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
   ## 날짜로 정렬
-  arrange(date)
-
-head(df_covid19_by_period, 10) 
-
-
-```
-
-
- 앞선 포스트에서는 월별 합계를 구했지만 이번에는 주단위로 평균값을 구해보도록 하겠다.
-
-### lubridate의 year(), week()를 사용
-
-'date'형의 열을 주별로 그룹화하기 위해서는 `lubridate`의  `week()`를 사용할 수 있다. `week()`는 매개변수로 지정된 벡터의 해당 년도 주차 수를 반환하는 함수이다. 하지만 `week()`만을 사용하면 매년 같은 주차 데이터들은 같은 주차 수를 반환하기 때문에 주차의 시계열적 변화를 보기 위해서는 반드시 년을 반환하는 `year()`를 같이 사용해주어야 한다. 'df_covid19_by_period'에서 연별, 주차별 한국의 신규확진자의 합은 다음과 같이 구할 수 있다.
-
-
-```{r}
-library(lubridate)
-
-df_covid19_by_period |>
-  group_by(년 = year(df_covid19_by_period$date), 주 = week(df_covid19_by_period$date), location) |>
-  summarise(신규확진자수 = mean(new_cases, na.rm = T)) |>
-  filter(location == '한국')
-
-```
-
-
-이 중에 한국의 월별 데이터를 선 그래프로 그린다면 다음과 같이 그릴 수 있겠다. 여기서 하나 주의할 것은 앞서 사용한 `year()`와 `week()`는 결과값이 문자열로 리턴된다는 것이다. 그래서 `paste0()`를 사용하면 앞서 언급한 대로 1주, 10주, 11주, 12주, 2주와 같이 나타난다. 
-```{r}
-df_covid19_by_period |>
-  group_by(년 = year(df_covid19_by_period$date), 주 = week(df_covid19_by_period$date), location) |>
-  summarise(신규확진자수 = mean(new_cases, na.rm = T)) |>
+  arrange(date) |>
+  group_by(년 = year(date), 주 = week(date), location) |>
+  summarise(신규확진자수 = sum(new_cases, na.rm = T)) |>
   filter(location == '한국') |>
-  ggplot(aes(x = paste0(년, '-', 주), y = 신규확진자수)) +
-  geom_line(aes(group = location)) +
-  theme(axis.text.x = element_text(angle = 90)) +
-  labs(x = '연월')
+  ungroup()
+
+head(df_covid19_by_week, 10) 
+
+
 ```
 
-이러한 현상을 방지하기 위해서는 1~9주차에 해당하는 주차 수를 두 자리 정수 형태로 바꾸어 준다. 이를 위해서 `sprintf()`를 사용하는데 이 함수는 원래 C언어에서 사용되는 함수로 R에서도 지원된다. 이 방법은 앞선 월간 데이터에서도 사용될 수 있지만 월간 데이터에서는 'Date' 형으로 전환해서도 사용이 가능하다. 
+
+### cumsum()을 사용한 누적 합계 산출
+
+`cumsum()`은 누적 합계를 구하는데 사용되는 함수이다. `cumsum()`을 사용할 때 하나 주의해야 할 것은 누적 합계의 대상이 되는 벡터나 데이터 프레임 열의 순서에 따라 누적 합계가 구해진다는 것이다. 
 
 ```{r}
-df_covid19_by_period |>
-  group_by(년 = year(df_covid19_by_period$date), 주 = week(df_covid19_by_period$date), location) |>
-  summarise(신규확진자수 = mean(new_cases, na.rm = T)) |>
-  filter(location == '한국') |>
+df_covid19_by_week$누적확진자수 <- cumsum(df_covid19_by_week$신규확진자수)
+
+head(df_covid19_by_week, 10) 
+
+```
+
+`cumsum()`은 R base에서 제공하는 함수이기 떄문에 `dplyr`에서 사용하기 위해서는 `mutate()`와 함께 사용해야 한다. 
+
+```{r}
+df_covid19_by_week |>
+  mutate(누적확진자수_dplyr = cumsum(신규확진자수))
+
+```
+
+ `cumsum()`을 사용할때 주의해아 하는 것은 반드시 먼저 대상 데이터의 정렬 상태를 반드시 확인해야 한다는 것이다. 
+
+앞서 전처리한 코로나 19의 주별 데이터의 경우는 주차수만으로 정렬을 한다면 연도가 무시되어서 21년 1주차 다음에 22년 1주차가 나오게 되어 잘못된 누적 합계가 산출되게 된다.  
+
+```{r}
+df_covid19_by_week |>
+  arrange(주) |>
+  mutate(누적확진자수_dplyr = cumsum(신규확진자수))
+
+```
+
+이를 정상적으로 산출하기 위해서는 주차수와 더불어 연도별로도 정렬이 되어야 하며 연도별로 먼저 정렬되어야 한다. 
+
+```{r}
+df_covid19_by_week |>
+  arrange(년, 주) |>
+  mutate(누적확진자수_dplyr = cumsum(신규확진자수))
+
+```
+
+```{r}
+df_covid19_by_week |>
+  arrange(년, 주) |>
+  mutate(누적확진자수_dplyr = cumsum(신규확진자수)) |>
   mutate(주 = sprintf('%02d', 주)) |>
-  ggplot(aes(x = paste0(년, '-', 주), y = 신규확진자수)) +
-  geom_line(aes(group = location)) +
+  ggplot(aes(x = as.factor(paste0(년, '-', 주)), y = 누적확진자수_dplyr)) +
+  geom_line(aes(group = location)) + 
+  scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
   theme(axis.text.x = element_text(angle = 90)) +
   labs(x = '연월')
+
 ```
 
-### lubridate의 floor_date()를 사용
+### cumsum()과 seq_anlong()을 사용한 누적 평균 산출
 
-앞선 예에서 `year()`와 `week()`를 사용하면 문자열이 반환되고 이를 다시 적절히 변환하여 사용해야 한다는 불편함이 있다. 이보다는 앞서 사용했던 `floor_date()`를 사용해서 주간 단위로 그룹화하고 이에 대해 합계를 적용하면 앞의 예보다는 다소 코드가 쉬워질 수 있다. 
+누적 평균 산출을 위해서는 앞서 산출했던 `cumsum()`의 결과를 해당 `cumsum()`을 산출하는데 사용한 데이터의 빈도수를 나누어야 한다. 하지만 몇개의 데이터가 합쳐져서 누적 합계가 산출되었는지를 가르키는 변수는 설정되지 않았다. 데이터를 얼핏 보면 '주' 열을 사용하면 될 것같지만 '연'이 넘어가면 '주'도 1부터 다시 시작하기 때문에 이를 사용하기에는 어렵다. 그렇다면 열에 해당하는 시퀀스 넘버를 붙여주면 될 것이다. 이를 열로 만들어 놓으면 될수 있지만 이런 경우 사용되는 함수가 `seq_along()`이다. 
 
-`floor_date()`는 주어진 시간 주기에 맞는 마지막 날을 리턴하는 함수로 이 날짜를 기준으로 그룹화하면 주 단위로 연산이 가능하다. 앞서에서는 월 단위로 그룹화하기 위해 매월 말일 단위로 그룹화하기 위해 'month' 매개변수를 주었고 주 단위로 그룹화하기 위해서는 'week' 매개변수를 설정한다. 
+`seq_along()`은 일련의 연속된 수치를 생성하는 함수이다. 이렇게 사용하는 함수는 `seq()`가 가장 많이 사용되지만 `seq()`는 시작값인 `from`과 마지막 값인 `to`를 설정해 주어야 하는 반면 `seq_along()`은 매개변수로 설정된 벡터의 길이만큼 연속된 수치가 설정된다. 결국 `seq_along(x)`는 `seq(from = 1, to = length(x))`와 동일한 결과를 낸다. 
+
 
 ```{r}
-df_covid19_by_period |>
-  group_by(연월 = floor_date(date, 'week'), location) |>
-  summarise(신규확진자수 = mean(new_cases, na.rm = T))  |>
-  filter(location == '한국')
- 
+df_covid19_by_week$누적확진자수_평균 <- cumsum(df_covid19_by_week$신규확진자수)/seq_along(df_covid19_by_week$신규확진자수)
+
+head(df_covid19_by_week, 10) 
+
 ```
 
-이 데이터를 사용하여 선 그래프를 다음과 같이 그릴 수 있다. 다음에서는 `date_labels`의 월 포맷을 '%W'로 설정함으로써 주차 수를 표기하였다. 
+```{r}
+df_covid19_by_week |>
+  arrange(년, 주) |>
+  mutate(누적평균 = cumsum(신규확진자수)/seq_along(신규확진자수))
+
+```
 
 ```{r}
-df_covid19_by_period |>
-  group_by(연월 = floor_date(date, 'month'), location) |>
-  summarise(신규확진자수 = mean(new_cases, na.rm = T))  |>
-  filter(location == '한국') |>
-  ggplot(aes(x = 연월, y = 신규확진자수)) +
+df_covid19_by_week |>
+  arrange(년, 주) |>
+  mutate(누적평균 = cumsum(신규확진자수)/seq_along(신규확진자수)) |>
+  mutate(주 = sprintf('%02d', 주)) |>
+  ggplot(aes(x = as.factor(paste0(년, '-', 주)), y = 누적평균)) +
   geom_line(aes(group = location)) + 
-  scale_x_date(date_breaks = '2 weeks', date_labels = '%y년 %W주') + 
-  scale_y_continuous(labels = scales::comma) +
-  theme(axis.text.x = element_text(angle = 90))
+  scale_x_discrete(guide = guide_axis(check.overlap = TRUE)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(x = '연월')
 
 ```
 
-
-### tsibble의 yearmonth()를 사용
-
-앞의 두 예를 보면 주별 데이터를 만드는데 `lubridate` 패키지의 함수들을 사용하였다. `lubridate`는 R에서 시간 단위 연산에 매우 훌륭한 패키지임은 두말할 나위없지만 그 외에도 많이 사용되는 패키지들이 있다. 그중 최근 많이 사용되는 패키지가 `tsibble`이다. 이 `tsibble` 패키지에서 제공하는 `yearweek()`를 사용하면 연도와 주수를 반환하기 때문에 주단위로 연산하는데 매우 편리하게 사용할 수 있다. 또 `yearmonth()`를 사용하면 월간 데이터도 쉽게 산출이 가능하다. 
-
-```{r}
-if (!require(tsibble)) {
-  install.packages('tsibble')
-  library(tsibble)
-}
-
-df_covid19_by_period |>
-  group_by(연월 = yearweek(date), location) |>
-  summarise(신규확진자수 = mean(new_cases, na.rm = T))  |>
-  filter(location == '한국')
-
-```
-
-위의 데이터를 사용하여 선 그래프를 다음과 같이 그릴 수 있다. 다만 `yearweek()`의 결과는 'Date' 형이 아니기 때문에 `ggplot2`에서 제공하는 `scale_x_date()`를 사용할 수 없고 `tsibble` 패키지에서 제공하는 `scales_x_yearweek()`을 사용해야 한다.  
-
-```{r}
-df_covid19_by_period |>
-  group_by(연월 = yearweek(date), location) |>
-  summarise(신규확진자수 = mean(new_cases, na.rm = T))  |>
-  filter(location == '한국') |>
-  ggplot(aes(x = 연월, y = 신규확진자수)) +
-  geom_line(aes(group = location)) + 
-  scale_x_yearweek(date_breaks = '2 weeks', date_labels = '%y년 %W주') +
-  scale_y_continuous(labels = scales::comma) +
-  theme(axis.text.x = element_text(angle = 90))
-
-```
