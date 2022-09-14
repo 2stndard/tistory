@@ -1,0 +1,150 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(imputeTS)
+library(tsibble)
+library(fable)
+tsAirgap.tsibble <- as_tsibble(tsAirgap) |>
+  filter(!is.na(value))
+```
+
+
+이번 포스트에서는 `tsibble` 클래스의 결측치 처리 방법 중 특별한 방법을 살펴보도록 하겠다. 
+
+### tsibble : 그룹화된 결측치 처리
+
+앞선 `tsibble`의 결측치 처리 포스트(https://2stndard.tistory.com/130)에서 `fill_gaps()`의 결과를 보면 특정 값으로 결측치를 대체하거나 함수의 결과값으로 결측치를 처리할 수 있다. 그런데 이 방법은 전체 결측치에 대해 처리되기 때문에 특정값을 설정하면 처음부터 끝까지 결측치를 동일한 값으로 처리하고 함수의 경우도 전체 데이터 대상의 함수 적용 결과값을 사용하기 때문에 전체적으로 같은 값이 결측치에 반영된다.  앞 포스트의 그래프를 보면 `median()` 함수가 적용되는 구간이 전체 데이터를 대상으로 하기 때문에 전체 데이터에 대한 중간값이 결측치에 대체된다. 
+
+하지만 결측치를 그룹별로 각각 다른 값으로 대체하거나 그룹별로 적용되는 함수의 결과로 결측치를 대체해야 좀 더 효율적인 결측치 처리가 될 것이다. 예를 들어 앞 포스트의 `median()`을 연도별 중간값을 사용하고자 한다면 어떻게 할 것인가? 조금은 복잡하지만 다음과 같이 처리할 수 있다. 
+
+```{r}
+tsAirgap.tsibble |>
+  index_by(Year_Month = ~ lubridate::year(.)) |>
+  ungroup() |>
+  as_tsibble(index = index, key = Year_Month) |> 
+  group_by_key(Year_Month) |>
+  fill_gaps(value = median(value), .full = FALSE) |> 
+  as_data_frame() |>
+  select(-Year_Month) |>
+  as_tsibble(index = index)
+
+```
+
+처리된 결측치를 시각화하면 다음과 같다. 
+
+```{r}
+tsAirgap.tsibble |>
+  fill_gaps() |>
+  filter(is.na(value)) |>
+  mutate(date = as.Date(paste(index, '01'), '%Y %m %d')) -> missing_yearmon
+
+tsAirgap.tsibble |>
+  index_by(Year_Month = ~ lubridate::year(.)) |>
+  ungroup() |>
+  as_tsibble(index = index, key = Year_Month) |> 
+  group_by_key(Year_Month) |>
+  fill_gaps(value = median(value), .full = FALSE) |> 
+  as_data_frame() |>
+  mutate(date = as.Date(paste(index, '01'), '%Y %m %d')) |>
+  ggplot(aes(x = date, y = value)) +
+  geom_line(aes(group = 1)) +
+  geom_vline(data = missing_yearmon, aes(xintercept = date), color = 'red', linetype = 'dashed') +
+  scale_x_date(date_breaks = '1 year', date_labels = '%y %m')
+
+```
+
+결측치를 연도별 평균값으로 처리한다면 다음과 같이 처리한다. 
+
+```{r}
+tsAirgap.tsibble |>
+  index_by(Year_Month = ~ lubridate::year(.)) |>
+  ungroup() |>
+  as_tsibble(index = index, key = Year_Month) |> 
+  group_by_key(Year_Month) |>
+  fill_gaps(value = mean(value), .full = FALSE) |> 
+  as_data_frame() |>
+  select(-Year_Month) |>
+  as_tsibble(index = index)
+
+```
+
+### fable : tsibble 데이터의 선형 보간, 계절성 보간
+
+`fable` 패키지는  시계열 전용 패키지인 `forecast` 패키지를 tidy하게 재구축한 패키지이다. 시계열에 관련하여 Tidyverse 생태계를 준용한  모델링과 분석을 위한 다양한 기능을 제공한다. 
+
+```{r eval=FALSE}
+if (!require(fable)) {
+  install.packages('fable')
+  library(fable)
+}
+
+```
+
+#### 선형 회귀 모델을 사용한 보간
+
+앞서 `tsibble` 패키지의 `fill_gaps()`를 사용하면 결측치에 특정 값으로 메우거나 함수를 사용하여 계산된 값을 메울 수 있다. 하지만 선형 회귀를 통한 보간법은 제공하지 않는데 `fable` 패키지를 사용하면 `tsibble`의 선형 회귀를 통한 보간법을 사용할 수 있다. 선형 회귀 보간법외에도 ETS 등의 시계열 모델링을 사용한 보간도 가능하다. 
+
+선형 회귀 모델을 사용한 결측치 처리는 다음과 같다. 
+
+```{r}
+fill_gaps(tsAirgap.tsibble, .full = TRUE) %>% 
+  model(lm = TSLM(value ~ trend())) %>% 
+  interpolate(fill_gaps(tsAirgap.tsibble, .full = TRUE))
+
+fill_gaps(tsAirgap.tsibble, .full = TRUE) %>% 
+  model(lm = TSLM(value ~ trend())) %>% 
+  interpolate(fill_gaps(tsAirgap.tsibble, .full = TRUE)) |> 
+  as_data_frame() |>
+  mutate(date = as.Date(paste(index, '01'), '%Y %m %d')) |>
+  ggplot(aes(x = date, y = value)) +
+  geom_line(aes(group = 1)) +
+  geom_vline(data = missing_yearmon, aes(xintercept = date), color = 'red', linetype = 'dashed') +
+  scale_x_date(date_breaks = '1 year', date_labels = '%y %m')
+```  
+
+
+#### 선형 회귀와 계절성 모델을 사용한 보간
+
+이 선형 회귀 모델에는 계절성이 누락되어 있다. 계절성을 포함한 결측치의 처리는 다음과 같다. 
+
+```{r}  
+fill_gaps(tsAirgap.tsibble, .full = TRUE) %>% 
+  model(lm = TSLM(value ~ trend() + season())) %>% 
+  interpolate(fill_gaps(tsAirgap.tsibble, .full = TRUE))
+
+fill_gaps(tsAirgap.tsibble, .full = TRUE) %>% 
+  model(lm = TSLM(value ~ trend() + season())) %>% 
+  interpolate(fill_gaps(tsAirgap.tsibble, .full = TRUE)) |> 
+  as_data_frame() |>
+  mutate(date = as.Date(paste(index, '01'), '%Y %m %d')) |>
+  ggplot(aes(x = date, y = value)) +
+  geom_line(aes(group = 1)) +
+  geom_vline(data = missing_yearmon, aes(xintercept = date), color = 'red', linetype = 'dashed') +
+  scale_x_date(date_breaks = '1 year', date_labels = '%y %m')
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

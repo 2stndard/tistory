@@ -1,0 +1,150 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+library(tsibble)
+
+students.all <- read_excel("d:/R/data/students.xlsx", skip = 16, na = '-', sheet = 1, col_types = c('text', 'text', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'))
+
+students <- students.all %>% 
+  filter(지역규모 == '계') %>% select(-지역규모)
+
+students$연도 <- as.Date(paste0(students$연도, '-01-01'))
+
+students.ts <- ts(students, frequency = 1, start = 1999)
+
+employees <- read.csv('d:/R/data/산업별_취업자_20210206234505.csv', header = TRUE, na = '-', strip.white = TRUE, stringsAsFactors = TRUE)
+
+colnames(employees) <- c('time', 'total', 'employees.edu')
+
+employees$time <- as.Date(paste0(employees$time, '. 01'), format = '%Y. %m. %d')
+
+employees.ts <- ts(employees, start = c(2013, 01), frequency = 12)
+
+employees.tsibble <- as_tsibble(employees, index = time)
+```
+
+## 이상치 탐색
+
+이상치는 시계열 데이터 상의 추세나 계절성에 반하여 나타나는 특별한 데이터를 말하는데 영어로는 outlier 혹은 anomaly라고 한다. 이 이상치는 측정상의 오류나 데이터 자체의 오류일 수도 있지만 특정한 이유로 인해 일시적으로 발생된 데이터일 수도 있다. 시계열 데이터가 아닌 일반 관측치 데이터의 경우는 데이터의 분포에서 IQR 값이 1.5 IQR을 넘어가는 값을 이상치로 보기도 하고 회귀분석을 통해 이상치를 찾아낼 수 있다. 그러나 시계열 데이터는 추세와 계절성이라는 데이터 자체적인 특성이 있기 때문에 일반적 관측치 데이터에서는 측정되지 않는 이상치를 가진다. 
+
+이상치는 그 원인을 파악하지 않고 분석에서 제외하거나 다른 값으로 대체하는 것은 피해야한다. 이 이상치를 통해서 시계열 데이터의 숨겨진 특성이나 추가적 정보를 얻을 수 있다. 
+
+따라서 어떤 값이 이상치인지를 탐색하는 것이 매우 중요하다. 이 포스트에서는 이상치를 탐색하기 위해 사용하는 방법에 대해 알아본다. 
+
+이상치 데이터의 탐지를 위해 월별 취업자수를 사용한다. 
+
+```{r}
+library(forecast)
+
+employees.ts[,2] |> autoplot() +
+  labs(title = '취업자수 추이', y = '취업자수', x = '기간')
+
+```
+
+### forecast::tsoutlier(), forecast::tsclean()
+
+R에서 사용하는 대표적인 시계열 패키지인 `forecast` 패키지에는 이상치를 발견하기 위한 `tsoutlier()`와 이상치를 처리하는 `tsclean()`을 제공한다. 이 두개의 함수를 사용하기 위해서는 `ts` 클래스로 설정된 시계열 데이터가 필요하다.   
+
+`tsoutlier()`는 STL 분해를 통해 시계열 데이터를 계절성 데이터, 추세 데이터, 리마인더 데이터의 덧셈 모델로 분해하고 추세와 계절성을 일정 부분 벗어난 데이터를 이상치로 찾아내어 이 데이터의 인덱스와 보정값을 출력한다. 
+
+
+```{r}
+tsoutliers(employees.ts[,2])
+```
+
+`tsclean()`은 `tsoutlier()`에서 발견된 이상치가 보정된 시계열 데이터를 생성해준다. 
+
+
+```{r}
+tsclean(employees.ts[,2])
+
+```
+
+```{r}
+tsclean(employees.ts[,2]) |> autoplot()
+
+```
+
+### timetk::plot_anomaly_diagnostics(), timetk::tk_anomaly_diagnostics()
+
+`timetk` 패키지에서는 이상치를 발견해서 플롯으로 알려주는 `plot_anomaly_diagnostics()`와 이상치 분석에 사용된 데이터를 보여주는 `tk_anomaly_diagnostics()`를 제공한다. `timetk` 패키지를 사용하기 때문에 `tsibble` 클래스로 된 시계열 데이터를 사용해야 한다. 
+
+이 함수들도 `tsoutlier()`와 유사하게 STL 분해 알고리즘을 사용하여 추세, 계절성, 리마인더로 분해하고 이 중 나머지 값이 이상치에 해당하는지를 판단하여 해당 데이터를 이상치로 판단한다. 
+
+나머지 값의 이상치를 판단하는 기준은 나머지 값의 분포에서 IQR의 배수를 alpha 매개변수를 통해 찾아내는데 alpha가 기본값인 0.05로 설정되면 3*IQR로 계산되어 이상치를 판단한다. 따라서 이상치 발견을 보다 민감하게 하기 위해서는 alpha 값을 높인다.    
+
+```{r}
+library(tsibble)
+library(timetk)
+
+employees.tsibble %>%
+  plot_anomaly_diagnostics(time, total, .alpha = 0.05, .interactive = FALSE)
+```
+
+```{r}
+employees.tsibble %>%
+  plot_anomaly_diagnostics(time, total, .alpha = 0.1, .interactive = FALSE)
+```
+
+`tk_anomaly_diagnostics()`는 앞서 `plot_anomaly_diagnostics()`에서 이상치를 찾아내기 위한 기초 데이터를 보여준다. 아래의 데이터를 보면 reminder_l1과 reminder_l2의 값이 나오는데 reminder가 이 두 값의 범위를 벗어나면 이상치로 판단하게 된다. 
+
+```{r eval=TRUE}
+employees.tsibble |>
+  tk_anomaly_diagnostics(time, total) |>
+  filter(lubridate::year(time) >= 2020) 
+```
+
+```{r echo=FALSE}
+employees.tsibble |>
+  tk_anomaly_diagnostics(time, total) |> 
+  filter(lubridate::year(time) >= 2020) |>
+  kableExtra::kable(format = 'simple')
+```
+
+### anomalize 패키지
+
+`anomalize` 패키지는 시계열 이상치의 탐색, 플로팅, 전처리 등을 위한 다양한 함수를 제공한다. 이 패키지는 `timetk`의 확장판 패키지로 볼 수 있는기 때문에 사용하는 데이터도 `tsibble` 클래스 데이터이어야 한다. 
+
+이 패키지를 사용할 때는 보통 다음의 세 함수를 사용하는 형태로 사용한다. 
+
+1. time_decompose(): 시계열을 계절, 추세 및 나머지 구성 요소로 분해한다. 
+2. anomalize(): 나머지 구성요소에 이상 탐지 방법을 적용한다.
+3. time_recompose(): "정상" 데이터와 비정상 데이터를 구분하는 한계를 계산한다.
+
+
+```{r}
+if (!require(anomalize)) {
+  install.packages('anomalize')
+  library(anomalize)
+}
+
+employees.tsibble |> 
+   time_decompose(total, merge = TRUE) %>%
+    anomalize(remainder) %>% 
+    time_recompose()
+
+```
+
+이렇게 생성된 데이터는 `plot_anomalies()`를 통해 이상치를 플로팅 할 수 있다. 
+
+
+```{r}
+employees.tsibble |> 
+   time_decompose(total, merge = TRUE) %>%
+    anomalize(remainder) %>% 
+    time_recompose() |> 
+    plot_anomaly_decomposition()
+```

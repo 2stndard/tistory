@@ -1,0 +1,181 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(imputeTS)
+
+```
+
+## 결측치란?
+
+시계열 데이터는 일정한 시간적 간격으로 기록된 데이터를 말한다. 연도별 시계열 데이터나 분기별, 월별 시계열 데이터의 경우는 그 시간적 간격이 크기 때문에 측정치간의 결측치가 비교적 적지만 주별, 일별 데이터나 그보다 작은 시간간격의 시계열 데이터에는 중간 중간 측정값이 누락되어 있는 경우가 많다. 이렇게 일정한 간격으로 값이 있어야하는 시간 간격에 측정치가 누락된 것을 결측치(Missing Value)라고 한다.
+
+사실 이러한 결측치는 시계열 데이터가 아닌 어떤 데이터 셋에서도 존재한다. 하지만 시계열 데이터에는 시간이라는 일정한 선형 변수를 지니기 때문에 다른 데이터 셋의 결측치와는 다소 다르게 처리된다. 
+
+이러한 결측치는 시계열 데이터의 시각화나 모델링에 영향을 미치기 때문에 적절히 처리해줄 필요가 있다. 
+
+이번 포스트에서는 시계열 데이터의 결측치 처리 방법 중 `ts` 클래스에 따라 살펴보도록 하겠다. 
+
+## ts  
+
+`ts` 클래스의 결측치를 처리하는데에는 `imputeTS` 패키지를 사용하면 쉽게 처리된다. `imputeTS`에서 제공하는 주요 기능은 다음과 같다. 
+
+### 데이터 Import
+
+결측치 처리를 위해 사용하는 데이터는 `imputeTS` 패키지에서 제공하는 tsAirgap 데이터 셋을 사용하도록 하겠다. 
+
+```{r eval=FALSE}
+if (!require(imputeTS)) {
+  install.packages('imputeTS')
+  library(imputeTS)
+}
+
+```
+
+```{r}
+tsAirgap 
+```
+
+#### 시각화 함수
+
+`imputeTS` 패키지는 그 자체에서 `ggplot2` 기반의 시각화 함수를 제공한다. 다음은 `imputeTS` 패키지에서 제공하는 시각화 함수이다. 
+
+-    ggplot_na_distribution() : 시계열 데이터에서 결측치의 분포를 보여주는 시각화 함수
+
+```{r}
+tsAirgap |> ggplot_na_distribution()
+
+```
+
+-   ggplot_na_imputations() : 결측치가 보정된 시계열 데이터에 대한 시각화 함수. 원 시계열 데이터와 보정된 시계열 데이터를 매개변수로 전달하면 보정값을 표시함.
+
+```{r}
+imputation <- tsAirgap |> na_interpolation(option = 'linear')
+
+tsAirgap |> ggplot_na_imputations(imputation)
+
+```
+
+#### 결측치 대체 함수
+
+`ts` 클래스로 만들어진 시계열 데이터의 결측 부분에 값을 대체하는 기능으로 `imputeTS` 패키지에서 제공하는 함수는 다음과 같다. 
+
+
+-   na_interpolation() : 선형(linear), 스플라인(spline), 스틴만(stine) 보간법을 사용하여 결측치를 만들어 이 값을 채워 넣는 함수
+
+```{r}
+imputation <- tsAirgap |> na_interpolation(option = 'linear')
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+
+```
+
+```{r}
+imputation <- tsAirgap |> na_interpolation(option = 'spline')
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+
+```
+
+
+-   na_kalman() : 칼만 필터 방법을 사용하여 결측치를 채우는 값을 산정하는 함수
+
+```{r}
+imputation <- tsAirgap |> na_kalman()
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+
+```
+
+-   na_locf() : 바로 이전 값을 결측치에 채워넣는 함수
+
+```{r}
+imputation <- tsAirgap |> na_locf()
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+```
+
+-   na_ma() : 이동 평균을 결측치에 채워넣는 함수, 매개변수 k의 값으로 이동평균 범위(Moving Average Window)를 설정함. k가 2라면 왼쪽으로 2개, 오른쪽으로 2개의 관측치에 대한 이동평균을 사용
+
+```{r}
+imputation <- tsAirgap |> na_ma(k = 2)
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+```
+
+-   na_mean() : 전체 값의 평균(중간값, 조화평균, 기하평균)을 사용하여 결측치를 채워 넣는 함수
+
+
+```{r}
+imputation <- tsAirgap |> na_mean()
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+```
+
+```{r}
+imputation <- tsAirgap |> na_mean(option = 'median')
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+```
+
+-   na_remove() : 결측치를 모두 제거해주는 함수. 결과값은 ts 클래스가 아닌 vector로 반환
+
+```{r}
+imputation <- tsAirgap |> na_remove()
+
+imputation
+
+
+```
+
+-   na_seadec() : 시계열에서 계절성을 제거하여 결측치를 만들고 이후 계절성을 다시 추가하여 결측치를 보정.
+
+
+```{r}
+imputation <- tsAirgap |> na_seadec()
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+
+```
+
+-   na_seasplit() : 시계열을 계절성에 따라 분할한 후 분할된 시계열 데이터 세트 개별적으로 결측치를 채워 넣음.
+
+
+```{r}
+imputation <- tsAirgap |> na_seasplit()
+
+imputation
+
+ggplot_na_imputations(tsAirgap, imputation)
+
+```
+
+
+
+
