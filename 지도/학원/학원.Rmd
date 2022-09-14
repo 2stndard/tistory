@@ -1,0 +1,201 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+library(sf)
+
+theme_set(theme_bw() +
+  theme(text = element_text(size = 25))
+)
+
+```
+
+## 단계 구분도(Choropleth map)
+
+앞서 그려본 지도는 결국 R에서 분석한 데이터를 지도위에 표기하기 위해 그리는 것이다. 그렇다면 지도 위에 데이터를 표현하는 방법은 무엇인가? 지도위에 데이터를 표현하는 방법중에 먼저 단계 구분도(choropleth map)을 그리는 방법을 알아본다.
+
+단계 구분도는 주로 색을 사용하여 지도의 지역별 차이를 표현하는 방법이다. 지역을 표현하는 경계선의 내부를 표현하고자 하는 데이터의 크기에 따라 색의 단계 차이를 사용하여 표현하는 방법이다.
+
+여기서는 우리나라의 17개 시도의 2021년 사설 학원수를 단계 구분도를 사용하여 표현해 보겠다.
+
+### 데이터 import
+
+우리나라의 17개 시도 지도를 그리기 위해서는 Shape 데이터와 geojson 데이터를 사용한 지도의 시각화<https://2stndard.tistory.com/107>에서 사용한 데이터 중 'shape' 파일을 사용한 데이터를 사용한다.
+
+```{r echo = FALSE}
+spdf_shp <- st_read('C:/R/git/datavisualization/chap10/TL_SCCO_CTPRVN.shp', options = 'ENCODING=CP949')
+
+```
+
+```{r eval = FALSE}
+spdf_shp <- st_read('shape 데이터 저장경로/TL_SCCO_CTPRVN.shp', options = 'ENCODING=CP949')
+
+```
+
+지도위에 표현할 데이터는 사설학원 데이터인데 이 데이터는 교육통계 서비스 홈페이지의 시도별 행정구별 사설학원 현황(2013-2021)<https://kess.kedi.re.kr/post/6670390?code=&words=&since=&until=&page=1&itemCode=04&menuId=m_02_04_03_01>의 데이터를 다운로드하여 사용한다.
+
+```{r eval = FALSE}
+df_hakwon <- read_xlsx('데이터 저장경로/주요-10 (유초)사설학원 현황_시도별_행정구별(2013-2021).xlsx', sheet = '시도별', 
+                       skip = 3, col_names = T, col_type = c(rep('text', 4), rep('numeric', 8)))
+
+```
+
+```{r echo = FALSE}
+df_hakwon <- read_xlsx('D:/R/data/주요-10 (유초)사설학원 현황_시도별_행정구별(2013-2021).xlsx', sheet = '시도별', 
+                       skip = 3, col_names = T, col_type = c(rep('text', 4), rep('numeric', 8)))
+
+```
+
+### 데이터 전처리
+
+앞서 가져온 사설학원 데이터는 학원의 종류를 '학교교과학원'과 '평생직업학원'으로 나뉘어 있는데 이중 '학교교과학원'만 사용한다. 또 이 데이터에는 시도별 합계 데이터와 학원 종류별 소계 데이터가 들어 있다. 따라서 '분야'가 '소계'인 행을 그대로 사용할 수 있고과 시도가 '전국'인 행은 제거하여야 한다. 또 지도의 시도 데이터와 조인하기 위한 키로 'CTPRN_CD' 코드를 만들어야 한다. 또 2013년부터 2021년까지의 데이터가 들어있기 때문에 2021년 데이터만 필터링한다. 이를 위해 다음과 같이 전처리한다.
+
+```{r}
+df_hakwon_summary <- df_hakwon |> filter(분야 == '소계', 종류 == '학교교과교습학원', 시도 != '전국', 조사연도 == '2021')
+
+df_hakwon_summary <- df_hakwon_summary |>
+  mutate(CTPRVN_CD = case_when(
+    시도 == '강원' ~ '42', 
+    시도 == '경기' ~ '41', 
+    시도 == '경남' ~ '48', 
+    시도 == '경북' ~ '47', 
+    시도 == '광주' ~ '29', 
+    시도 == '대구' ~ '27', 
+    시도 == '대전' ~ '30', 
+    시도 == '부산' ~ '26', 
+    시도 == '서울' ~ '11', 
+    시도 == '세종' ~ '36', 
+    시도 == '울산' ~ '31', 
+    시도 == '인천' ~ '28', 
+    시도 == '전남' ~ '46', 
+    시도 == '전북' ~ '45', 
+    시도 == '제주' ~ '50', 
+    시도 == '충남' ~ '44', 
+    시도 == '충북' ~ '43'
+  ))
+
+df_hakwon_summary |> head()
+
+```
+
+이제 지도에 표기해야할 데이터를 가지고 있는 'df_hakwon_summary'와 지도 데이터를 가지고 있는 'spdf_shp'를 조인해서 하나로 만들어야 한다. 이 두 데이터프레임을 조인하기 위해 `left_join()`을 사용하고 조인하는 키로 'CTPRVN_CD'를 사용한다.
+
+```{r}
+df_joined <- left_join(spdf_shp,df_hakwon_summary, by = 'CTPRVN_CD')
+
+glimpse(df_joined)
+```
+
+위의 데이터 구조를 보면 두개의 데이터 프레임이 잘 조인된 것으로 보인다. 이 데이터를 다음과 같이 시각화한다. 조인된 데이터가 `sf` 클래스이기 때문에 `geom_sf()`를 사용하면 되는데 `fill`로 매핑되는 데이터를 '학원수'를 매핑해주면 학원수에 따라 내부 색이 설정된 단계 구분도가 만들어진다.
+
+```{r eval = FALSE}
+library(ggspatial)
+
+result_map <- df_joined |>
+  ggplot() + 
+  geom_sf(aes(fill = 학원수), color = 'gray80') +
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  theme_bw()
+
+result_map
+```
+
+```{r echo = FALSE}
+library(ggspatial)
+
+result_map <- df_joined |>
+  ggplot() + 
+  geom_sf(aes(fill = 학원수), color = 'gray80') +
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical)
+
+result_map
+```
+
+
+위의 단계 구분도를 보면 서울과 경기 지역의 색과 타 지역의 색이 매우 차이가 큰 것으로 보인다. 하지만 일반적으로 학원수가 많다는 것은 상대적으로 학원의 밀도가 높다는 것이고 밀도가 높다는 것은 사람의 색상 인식 상으로 짙은 색으로 밀도가 낮다는 것은 옅은 색으로 표현되는 것이 좋다. 따라서 내부 색의 단계를 다음과 같이 반전 시킬수 있다.
+
+```{r}
+result_map + 
+  scale_fill_continuous(trans = 'reverse')
+
+```
+
+이 단계 구분도는 지역간의 차이를 보기에는 좋지만 정확한 수치를 확인하기는 어렵다. 따라서 정확한 수치를 표기하기 위해서는 `geom_text()`를 사용하여 표기할 수 있다. 다만 표기하기 위해서는 문자가 표기될 위치를 매핑해야하는데 이 위치를 지역의 중간으로 잡아주기 위해서 `st_centroid()`를 사용한다. 이와 관련해서는 [지도에 지역 이름 넣기 in R](https://2stndard.tistory.com/109)를 참조하라.
+
+```{r eval=FALSE}
+df_central <- as.data.frame(cbind(st_centroid(spdf_shp), st_coordinates(st_centroid(spdf_shp)))) |> select(1, 4, 5) |> left_join(df_hakwon_summary, by = 'CTPRVN_CD')
+
+df_joined |>
+  ggplot() + 
+  geom_sf(aes(fill = 학원수), color = 'gray80') +
+  geom_text(data = df_central, aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'white', lineheight = 0.5) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location ='br') +
+  annotation_north_arrow(location = 'br', pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_continuous(trans = 'reverse') +
+  theme_bw()
+
+```  
+  
+```{r echo=FALSE}
+df_central <- as.data.frame(cbind(st_centroid(spdf_shp), st_coordinates(st_centroid(spdf_shp)))) |> select(1, 4, 5) |> left_join(df_hakwon_summary, by = 'CTPRVN_CD')
+
+df_joined |>
+  ggplot() + 
+  geom_sf(aes(fill = 학원수), color = 'gray80') +
+  geom_text(data = df_central, aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'white', lineheight = 0.5, size = 6) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location ='br') +
+  annotation_north_arrow(location = 'br', pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_continuous(trans = 'reverse')
+
+```
+
+위의 단계 구분도를 보면 수도권 지역의 텍스트가 겹쳐서 잘 보이지 않는다. 또 인천의 경우는 바탕색이 흰색인데 글자색도 흰색이라 눈에 띄지 않는다. 따라서 경기지역의 텍스트의 위치를 현재보다 우측 하단으로 옮겨준다. 이를 위해 x축 매핑과 y축 매핑에 20000씩을 더해주었는데 이는 2만 미터를 의미한다. 또 인천의 경우는 `color`를 'black'으로 설정하였다. 
+  
+```{r eval = FALSE}
+df_joined |> 
+  ggplot() + 
+  geom_sf(aes(fill = 학원수), color = 'gray80') +
+  geom_text(data = df_central |> filter(!(시도 %in% c('경기', '인천', '부산', '울산'))), aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'white', lineheight = 0.5) + 
+  geom_text(data = df_central |> filter(시도 == '경기'), aes(x = X+20000, y = Y-20000, label = paste0(시도, '\n', scales::comma(학원수))), color = 'white', lineheight = 0.5) + 
+  geom_text(data = df_central |> filter(시도 %in% c('인천', '부산', '울산')), aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'black', lineheight = 0.5) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_continuous(trans = 'reverse') +
+  theme_bw()
+```
+```{r echo = FALSE}
+df_joined |> 
+  ggplot() + 
+  geom_sf(aes(fill = 학원수), color = 'gray80') +
+  geom_text(data = df_central |> filter(!(시도 %in% c('경기', '인천', '부산', '울산'))), aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'white', lineheight = 0.5, size = 6) + 
+  geom_text(data = df_central |> filter(시도 == '경기'), aes(x = X+20000, y = Y-25000, label = paste0(시도, '\n', scales::comma(학원수))), color = 'white', lineheight = 0.5, size = 6) + 
+  geom_text(data = df_central |> filter(시도  %in% c('인천', '부산', '울산')), aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'black', lineheight = 0.5, size = 6) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_continuous(trans = 'reverse')
+```

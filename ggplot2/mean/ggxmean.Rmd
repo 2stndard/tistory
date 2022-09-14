@@ -1,0 +1,80 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(ggxmean)
+```
+
+
+### 선형 회귀 시각화
+
+`ggxmean` 패키지에서 제공하는 여러 기능 중에 유용하게 사용될 수 있는 기능이 선형 회귀의 시각화이다. 선형 회귀선의 시각화부터 선형회귀 적합값(fitted value), 잔차(residuals), 선형 회귀 방정식 등을 간단히 시각화 할 수 있다. 
+
+#### 선형 회귀선 시각화 
+
+`ggxmean` 패키지에서는 선형 회귀선을 시각화하기 위해 `geom_lm()`을 제공한다. 사실 이 결과는 `geom_smooth(method = 'lm')`의 결과와 동일하다. 
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_lm()
+
+```
+
+#### 적합값의 시각화
+
+`ggxmean` 패키지에서는 선형 회귀 모델에 적합한 결과를 선형 회귀선을 시각화하기 위해 `geom_lm_fitted()`을 제공한다. 산점도에 표시된 X축 값들의 선형 회귀 모델에 따라 적합된 값이 시각화된다. 
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_lm() +
+  geom_lm_fitted(color = 'red')
+
+```
+
+
+#### 잔차의 시각화
+
+`ggxmean` 패키지에서는 선형 회귀 모델에 적합한 결과와 실제 값의 차이를 시각화하기 위해 `geom_lm_residual()`을 제공한다. 산점도에 표시된 X축 값들의 선형 회귀 모델에 따라 적합된 값과 실제 값의 거리가 시각화된다. 
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_lm() +
+  geom_lm_fitted(color = 'red') +
+  geom_lm_residuals(color = 'dark red')
+
+```
+
+#### 방정식의 시각화
+
+`ggxmean` 패키지에서는 선형 회귀 모델에 따라 산출된 회귀 방정식을 시각화하기 위해 `geom_lm_fomula()`을 제공한다. 
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_lm() +
+  geom_lm_fitted(color = 'red') +
+  geom_lm_residuals(color = 'dark red') +
+  geom_lm_formula()
+
+```

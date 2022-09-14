@@ -1,0 +1,65 @@
+{
+  "visdat": {
+    "12b019a01e3d": ["function () ", "plotlyVisDat"]
+  },
+  "cur_data": "12b019a01e3d",
+  "attrs": {
+    "12b019a01e3d": {
+      "alpha_stroke": 1,
+      "sizes": [10, 100],
+      "spans": [1, 20],
+      "type": "indicator",
+      "mode": "gauge+number",
+      "gauge": {
+        "shape": "bullet",
+        "bar": {
+          "color": "darkblue"
+        }
+      },
+      "value": 3.5,
+      "inherit": true
+    }
+  },
+  "layout": {
+    "margin": {
+      "b": 40,
+      "l": 60,
+      "t": 25,
+      "r": 10
+    },
+    "hovermode": "closest",
+    "showlegend": false
+  },
+  "source": "A",
+  "config": {
+    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "showSendToCloud": false
+  },
+  "data": [
+    {
+      "type": "indicator",
+      "mode": "gauge+number",
+      "gauge": {
+        "shape": "bullet",
+        "bar": {
+          "color": "darkblue"
+        }
+      },
+      "value": 3.5,
+      "frame": null
+    }
+  ],
+  "highlight": {
+    "on": "plotly_click",
+    "persistent": false,
+    "dynamic": false,
+    "selectize": false,
+    "opacityDim": 0.2,
+    "selected": {
+      "opacity": 1
+    },
+    "debounce": 0
+  },
+  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "base_url": "https://plot.ly"
+}

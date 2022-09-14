@@ -1,0 +1,238 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+if(!require(readxl)) {
+  install.packages('readxl')
+  library(readxl)
+}
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+theme_set(theme(text = element_text(size = 20))) 
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## geom_rug()
+
+------------------------------------------------------------------------
+
+사실 산점도는 아무리 오버플로팅을 제거하려고 노력해도 산점도 자체가 가진 한계로 인해 완전히 제거하기란 매우 힘들다. 그래서 앞서 언급한 바와 같이 샘플수를 조절한다던지 투명도를 조절한다던지 하는 방법이 사용되지만 이로 충분치는 않다. 결국 중첩되어 표현된 부분에 얼마나 많은 데이터가 중첩되는지를 알아내는 방법이 필요한데 이를 위해 몇 가지 방법이 제시되고 있다. 
+
+이 중 하나가 러그 산점도이다. 
+
+러그(rug)는 '바닥에 까는 발판'으로 X축과 Y축의 바닥에 막대를 표현함으로써 데이터의 밀도를 표현하는 방법이다. 안타깝게도 `plotly`에서는 러그를 사용해 데이터의 밀도를 표시하는 방법을 제공하지 않는다. 따라서 `ggplot2`의 `geom_rug()`를 사용하여 러그 산점도를 만들고 변환하는 방법을 사용할 수 있다.
+
+일단 'df_취업률_2000' 데이터프레임에서 산점도를 다음과 같이 그려보겠다. 
+
+```{r}
+df_취업률_2000 |>
+  ggplot() +
+  ## X축을 졸업자_계, Y축을 취업자_합계_계, color를 대계열로 매핑한 geom_point로 산점도 레이어 생성
+  geom_point(aes(x = 졸업자수, y = 취업자수)) 
+```
+
+
+위의 산점도를 보면 좌측 하단에 데이터들이 모여있다보니 이 부분에 데이터들이 얼마나 분포되어 있는지 인지하기가 어렵다. 이를 해결하는 방법으로 앞서 설명한 러그 산점도를 사용하면 데이터 밀집 지역의 데이터 분포를 간접적으로 확인해 볼 수 있다. 
+
+러그 산점도는 X, Y축에 보조 플롯을 생성함으로써 X, Y축의 2차원 데카르트 좌표에 표현된 데이터를 보완하도록 설계된 보조 시각화 도구이다. 러그 산점도는 개별 사례를 표시하기 떄문에 비교적 적은 데이터 셋에 효과적으로 사용된다.
+
+러그 산점도는 `ggplot2`의 `geom_rug()`를 통해 X, Y 축상에 러그 레이어를 추가하여 만든다. 다음은 X축에 러그 레이어를 추가하는 방법이다. 
+
+```{r}
+df_취업률_2000 |>
+  ggplot() +
+  ## X축을 졸업자_계, Y축을 취업자_합계_계, color를 대계열로 매핑한 geom_point로 산점도 레이어 생성
+  geom_point(aes(x = 졸업자수, y = 취업자수)) + 
+  ## X축을 졸업자_계, Y축을 취업자_합계_계, color를 대계열로 매핑한 geom_reg 레이처 추가
+  geom_rug(aes(x = 졸업자수), col= "steelblue") +
+  labs(title = '러그가 포함된 산점도')
+
+```
+
+위의 산점도를 보면 산점도로 표시되는 모든 데이터에 대해 X축에 매핑되는 졸업자수의 위치에 세로 막대를 포현함으로써 어느 부분에 데이터가 밀집하는 지를  알 수 있다. 
+
+이번에는 Y축에 대한 러그 레이어를 다음과 같이 그려볼 수 있다. 
+
+```{r}
+df_취업률_2000 |>
+  ggplot() +
+  ## X축을 졸업자_계, Y축을 취업자_합계_계, color를 대계열로 매핑한 geom_point로 산점도 레이어 생성
+  geom_point(aes(x = 졸업자수, y = 취업자수)) + 
+  ## X축을 졸업자_계, Y축을 취업자_합계_계, color를 대계열로 매핑한 geom_reg 레이처 추가
+  geom_rug(aes(y = 취업자수), col= "steelblue") +
+  labs(title = '러그가 포함된 산점도')
+
+```
+
+X, Y 축에 모두 러그 레이어가 포함된 산점도는 다음과 같다. 
+
+```{r}
+df_취업률_2000 |>
+  ggplot() +
+  ## X축을 졸업자_계, Y축을 취업자_합계_계, color를 대계열로 매핑한 geom_point로 산점도 레이어 생성
+  geom_point(aes(x = 졸업자수, y = 취업자수)) + 
+  ## X축을 졸업자_계, Y축을 취업자_합계_계, color를 대계열로 매핑한 geom_reg 레이처 추가
+  geom_rug(aes(x = 졸업자수, y = 취업자수), col= "steelblue") +
+  labs(title = '러그가 포함된 산점도')
+
+```
+
+## geom_marginal()
+
+위에서 언급한 바와 같이 `geom_rug()`는 비교적 사례 수가 적은 경우 효과적으로 활용된다. 하지만 앞서와 같이 데이터가 많은 경우는  그 효과성이 매우 떨어진다. 이러한 경우 많이 밀도함수 그래프나 박스 플롯으로 표현하면 `geom_rug()`보다 효율적으로 데이터의 밀집도를 표현할 수 있다. 
+
+이렇게 데이터가 밀집된 구간을 밀도함수 그래프라 박스 플롯을 사용하여 확인할 수 있는 또 하나의 방법이 가장자리(Marginal) 플롯이다. 가장자리 플롯은 X축과 Y축의 가장자리에 히스토그램, 밀도 분포 플롯, 다음 절에서 설명할 박스플롯 등을 표현함으로서 전체 분포를 상관과 같이 보여준다.
+
+이 가장자리 플롯은 `ggplot2`에서 직접적으로 사용하지는 못하고 `ggExtra` 패키지를 통해 사용할 수 있다. `ggExtra` 패키지는 `ggplot2`의 기능적 향상을 위해 개발된 패키지로 이 패키지의 가장 주된 기능은 `ggMarginal`이다. `ggMarginal`은 `ggplot2` 산점도의 X축과 Y축의 가장자리에 히스토그램, 박스플롯, 밀도 플롯을 추가시키는 함수이다.
+
+다음은 `ggExtra` 패키지의 `ggMarginal()`을 사용할 떄 조심해야 하는 것이 `ggMarginal()`은 `geom_*()`과 같이 `+` 기호를 사용하여 레이어를 추가하는 방식이 아닌 독립적 함수로 사용된다. 따라서 `ggMarginal()`를 사용하기 위해서는 먼저 가장자리 플롯을 만들어야 할 `ggplot2` 객체를 특정 변수에 저장해야한다. 이 `ggplot2` 객체를 매개변수로 사용하여 `ggMarginal()`의 첫 번째 매개변수로 주고 x, y 축에 매핑할 변수를 지정하고, type으로 해당 변수의 밀도를 표현할 방식을 지정하면 가장자리 플롯이 생성된다. 
+
+```{r}
+### ggExtra 패키지 설치
+if(!require('ggExtra')) {
+  install.packages('ggExtra')
+  library(ggExtra)
+}
+
+## 산점도 생성
+p_marginal <- df_취업률_2000 |>
+  ggplot() +
+  geom_point(aes(x = 졸업자수, y = 취업자수)) + 
+  labs(x = '졸업자', y = '취업자')
+
+##  가장자리 플롯으로 히스토그램을 추가
+ggMarginal(p_marginal, x = 졸업자수, y = 취업자수, type = 'histogram')
+```
+
+```{r}
+##  가장자리 플롯으로 밀도함수 플롯을 추가
+ggMarginal(p_marginal, x = 졸업자수, y = 취업자수, type = 'density')
+```
+
+```{r}
+##  가장자리 플롯으로 박스 플롯을 추가
+ggMarginal(p_marginal, x = 졸업자수, y = 취업자수, type = 'boxplot')
+
+```

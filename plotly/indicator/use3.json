@@ -1,0 +1,185 @@
+{
+  "visdat": {
+    "12b045263fa9": ["function () ", "plotlyVisDat"]
+  },
+  "cur_data": "12b045263fa9",
+  "attrs": {
+    "12b045263fa9": {
+      "alpha_stroke": 1,
+      "sizes": [10, 100],
+      "spans": [1, 20],
+      "type": "indicator",
+      "mode": "gauge+number",
+      "title": {
+        "text": "조사 만족도",
+        "font": {
+          "size": 15
+        },
+        "align": "right"
+      },
+      "gauge": {
+        "shape": "bullet",
+        "bar": {
+          "color": "darkblue"
+        },
+        "axis": {
+          "range": [0, 5]
+        },
+        "steps": [
+          {
+            "range": [0, 1],
+            "color": "#EFF3FF",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [1, 2],
+            "color": "#BDD7E7",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [2, 3],
+            "color": "#6BAED6",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [3, 4],
+            "color": "#3182BD",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [4, 5],
+            "color": "#08519C",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          }
+        ],
+        "threshold": {
+          "line": {
+            "color": "white",
+            "width": 3
+          },
+          "value": 4.5
+        }
+      },
+      "value": 3.5,
+      "inherit": true
+    }
+  },
+  "layout": {
+    "width": 800,
+    "height": 100,
+    "margin": {
+      "b": 40,
+      "l": 120,
+      "t": 25,
+      "r": 10
+    },
+    "hovermode": "closest",
+    "showlegend": false
+  },
+  "source": "A",
+  "config": {
+    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "showSendToCloud": false
+  },
+  "data": [
+    {
+      "type": "indicator",
+      "mode": "gauge+number",
+      "title": {
+        "text": "조사 만족도",
+        "font": {
+          "size": 15
+        },
+        "align": "right"
+      },
+      "gauge": {
+        "shape": "bullet",
+        "bar": {
+          "color": "darkblue"
+        },
+        "axis": {
+          "range": [0, 5]
+        },
+        "steps": [
+          {
+            "range": [0, 1],
+            "color": "#EFF3FF",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [1, 2],
+            "color": "#BDD7E7",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [2, 3],
+            "color": "#6BAED6",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [3, 4],
+            "color": "#3182BD",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [4, 5],
+            "color": "#08519C",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          }
+        ],
+        "threshold": {
+          "line": {
+            "color": "white",
+            "width": 3
+          },
+          "value": 4.5
+        }
+      },
+      "value": 3.5,
+      "frame": null
+    }
+  ],
+  "highlight": {
+    "on": "plotly_click",
+    "persistent": false,
+    "dynamic": false,
+    "selectize": false,
+    "opacityDim": 0.2,
+    "selected": {
+      "opacity": 1
+    },
+    "debounce": 0
+  },
+  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "base_url": "https://plot.ly"
+}

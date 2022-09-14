@@ -1,0 +1,227 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+```
+
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## 데이터프레임 열 이름 변경
+
+R에서 데이터를 담아 사용하는 데이터프레임은 R에서 데이터프레임과 데이터를 직접 입력하여 만들수 있지만 보통은 외부에서 생성된  데이터를 불러들여와 사용하는 것이 일반적이다. 이렇게 생성되는 데이터프레임의 가장 처음 만나는 어려움은 열 이름의 설정이 썩 마음에 들지 않는다는 것이다. 엑셀이나 csv에서 열 이름을 잘 설정한 후에 데이터프레임을 만드는 것이 가장 좋은 방법이지만 보통은 일단 불러들여와서 수정하는 경우가 더 많았을 것이다. 또 데이터프레임을 사용하다 보면 열 이름이 마음에 들지 않아 변경하기를 원할 때가 있을 것이다. 이런 경우에 어떠한 방법이 있는지 살펴본다. 
+
+샘플 데이터로 사용하는 데이터프레임 중에 학과별 취업 정보가 담긴 'df_취업률'의 데이터를 사용하여 열 이름을 변경해 본다. 'df_취업률' 데이터 프레임은 열의 수가 총 34개로 너무 많기 떄문에 이 중 일부만 다음과 같이 선택하여 사용하도록 하겠다. 
+
+```{r}
+rename_df_취업률 <- df_취업률[, c(1:3, 7:12)]
+
+str(rename_df_취업률)
+```
+
+### 전체 열 이름의 변경
+
+데이터프레임을 불러들어온 이후 전체 열이름을 재설정하고자 하는 경우에는 `colnames()`를 사용한다. `colnames()`의 매개변수에 데이터프레임을 넣어주고 `c()`를 사용하여 열의 첫번째 이름부터 마지막 이름까지 벡터를 만들어 대입해 주면 열 이름이 설정된다. 만약 문자열 벡터를 설정해주지 않는다면 해당 데이터프레임의 전체 열 이름을 반환해준다.  
+
+```{r}
+colnames_origin <- colnames(rename_df_취업률)
+
+colnames_origin
+
+colnames(rename_df_취업률) <- c('조사일', '학교급', '대학과정', '학과코드', '학과이름', '학위구분', '졸업자수', '취업률', '취업자수')
+
+colnames(rename_df_취업률)
+```
+만약 열의 개수와 문자열 벡터의 길이가 다르다면 앞에서부터 열의 이름이 바뀌고 뒤에 설정값이 없는 열 이름은 'NA'로 채워진다. 
+
+```{r}
+colnames(rename_df_취업률) <- c('조사일', '학교급', '대학과정')
+
+colnames(rename_df_취업률)
+
+```
+
+### 일부 열 이름의 변경
+
+위와 같이 전체 열 이름을 변경하는 것이 아니고 일부 열의 이름을 변경하고자 한다면 사용할 수 있는 몇가지 방법이 있다. 
+
+#### 1. 열 번호를 사용하는 경우 : colnames(), names()의 사용
+
+`colnames()`는 전체 열 이름에 대한 연산에 대해 사용하지만 일부 열을 인덱싱 한 다음 사용하면 해당 열에 대해서만 열 이름을 바꿀 수 있다. 
+
+다음은 4, 5, 6 번째 열의 이름을 바꾸는 방법이다. 
+
+```{r}
+colnames(rename_df_취업률)[c(4, 5, 6)]
+
+colnames(rename_df_취업률)[c(4, 5, 6)] <- c('학과코드', '학과이름', '학위구분') 
+
+colnames(rename_df_취업률)
+```
+
+이와 같은 방법으로 `names()`를 사용할 수 있는데 `colnames()`는 열 이름에 한해 사용하지만 `names()`는 R에서 사용되는 다양한 객체에 사용할 수 있다. 
+
+다음은 7, 8, 9 번째 열의 이름을 바꾸는 방법이다. 
+
+```{r}
+names(rename_df_취업률)[c(7, 8, 9)]
+
+names(rename_df_취업률)[c(7, 8, 9)] <- c('졸업자수', '취업률', '취업자수') 
+
+names(rename_df_취업률)
+```
+
+#### 2. dplyr에서 사용하는 경우 : rename(), setNames()의 사용
+
+앞서 설명한 `colnames()`와 `names()`는 `dplyr`에서는 사용하기가 어렵다. 이렇게 열 이름을 바꾸기 위해 `dplyr`는 `rename()`을 제공한다. `rename()`은 'new_name = old_name'의 형태로 바뀔 열 이름과 바꿀 열 이름을 설정함으로써 열 이름을 변경할 수 있다. 
+
+`rename()`은 열 이름을 바꾸지만 1)열에는 영향이 없고 2)열 순서에 영향이 없고 3)데이터프레임 특성에 영향이 없고 4) 그룹화된 데이터프레임에도 새 이름이 반영된다. 
+
+```{r}
+rename_df_취업률 <- rename_df_취업률 |>
+  rename('조사기준일' = '조사일', '학교종류' = '학교급', '학위과정' = '대학과정')
+
+colnames(rename_df_취업률)
+```
+
+`rename()`을 사용할 때는 바뀔 열 이름과 바꿀 열 이름을 모두 사용해야 하기 떄문에 열의 일부를 바꿀때 효과적으로 사용된다. 하지만 열 전체의 이름을 바꾸어야 한다면 입력해야하는 코드가 길어져서 사용이 힘들다. 이런 경우 사용되는 것이 `setNames()`이다. `setNames()`는 `colnames()`와 같이 처음부터 마지막까지의 열 이름을 설정함으로써 사용한다.  
+
+```{r}
+colnames_origin
+
+rename_df_취업률 <- rename_df_취업률 |>
+  setNames(colnames_origin)
+
+colnames(rename_df_취업률)
+```
+
+`dplyr`를 사용하는 경우 또 하나 열 이름을 바꿀수 있는 방법이 있는데 `mutate()`를 사용하는 방법이다. 사실 이 방법은 열 이름을 바꾼다기 보다는 열을 복사하면서 열 이름을 바꾸는 방식이다. 데이터프레임의 열을 조작해야 하는데 조작 전의 데이터와 비교해야한다면 이 방법을 사용할 수 있다. 
+
+```{r}
+rename_df_취업률 <- rename_df_취업률 |>
+  mutate(졸업자수_origin = 졸업자_계, 취업률_origin = 취업률_계, 취업자수_origin = 취업자_합계_계)
+
+colnames(rename_df_취업률)
+```
+

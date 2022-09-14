@@ -1,0 +1,159 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+library(sf)
+
+theme_set( theme_bw() +
+  theme(text = element_text(size = 25))
+)
+
+```
+
+## 막대 그래프 안에 막대 그래프 넣기
+
+이번 포스트에서는 막대 그래프의 표현 방법으로 막대 그래프의 막대 안에 세부 막대를 표현하는 방법을 알아보고자 한다. 이 방법은 전체 중에 강조하고자 하는 일부 데이터의 비율을 표현할 때 활용이 가능한 시각화 방법이다. 
+
+여기서 사용할 데이터는 21년 우리나라 대학의 7대 대계열별 입학정원 중에 수도권 입학정원 데이터이다. 이 데이터는 한국교육개발원 교육통계 서비스 홈페이지의 '학교/학과별 데이터 셋' 메뉴 중 대학의 '학교별 학과별(상반기)'의 <https://kess.kedi.re.kr/contents/dataset?itemCode=04&menuId=m_02_04_03_02&tabId=m2> '2021' 데이터 파일(2021년 고등 학교별 학과별 입학정원 입학 지원 재적 재학 휴학 유학생 졸업 교원_220603y.xlsx)을 사용하였다.  
+
+### 데이터 읽기
+
+일단 데이터를 불러들여 온다. 
+
+```{r}
+df_univ <- read_xlsx('D:/R/data/2021년 고등 학교별 학과별 입학정원 입학 지원 재적 재학 휴학 유학생 졸업 교원_220603y.xlsx', 
+          sheet= '학교별 학과별 주요 현황', 
+          skip = 13, col_names = T) 
+
+df_univ$대계열 <- fct_relevel(df_univ$대계열, '인문계열', '사회계열', '교육계열', '자연계열', '공학계열', '의약계열', '예체능계열')
+
+```
+
+
+### 데이터 전처리
+
+
+목표하는 막대 그래프의 시각화를 위해서는 대학 전체의 계열별 입학정원과 수도권 입학정원의 두 개의 데이터가 필요하다. 
+
+첫번째 데이터프레임은 다음과 같이 전처리한다. 
+
+```{r}
+quota_sum <- df_univ |> 
+  filter(학제 == '대학교') |> 
+  group_by(대계열) |>
+  summarise(입학정원 = sum(입학정원)) |>
+  drop_na()
+
+quota_sum
+
+```
+
+두 번째 데이터프레임인 수도권 지역 입학정원은 다음과 같이 전처리한다. 
+
+```{r}
+quota_central <- df_univ |> 
+  filter(학제 == '대학교', 시도 %in% c('서울', '인천', '경기')) |> 
+  group_by(대계열) |>
+  summarise(입학정원 = sum(입학정원)) |>
+  drop_na()
+
+quota_central
+```
+
+두 번쨰 데이터프레임에는 전체 입학정원 중에 수도권 입학정원의 비율을 더해준다. 
+
+```{r}
+quota_central$rate <- quota_central$입학정원 / quota_sum$입학정원
+
+```
+
+
+### 데이터 시각화
+
+이제 데이터 전처리가 끝났으니 막대그래프를 그려보겠다. 막대 그래프안에 막대 그래프를 넣는 방법은 같은 X축에 매핑되는 두개의 `geom_col()`을 그리는데 전체 입학정원에 해당하는 막대의 너비보다 수도권 입학정원에 해당하는 막대의 너비를 작게해주고 `fill`의 색상을 조금 옅게 해줌으로써 완성할 수 있다. 
+우선 전체 입학정원 막대그래프와 수도권 지역 입학정원 막대그래프를 그려본다. 
+
+```{r eval = FALSE}
+quota_sum |>
+  ggplot(aes(x = 대계열, y = 입학정원)) +
+  geom_col(fill = '#b40059', width = 0.85) + 
+  geom_col(data = quota_central, fill = '#da80ac', width = 0.5) + 
+  theme_bw()
+
+```
+
+```{r echo = FALSE}
+quota_sum |>
+  ggplot(aes(x = 대계열, y = 입학정원)) +
+  geom_col(fill = '#b40059', width = 0.85) + 
+  geom_col(data = quota_central, fill = '#da80ac', width = 0.5)
+
+```
+
+이 시각화를 보다 효율적으로 그리기 위해 각각의 막대에 해당 계열의 입학정원을 표기하고 수도권의 경우에는 전체 대비 비율을 표기하도록 하겠다. 
+
+```{r eval = FALSE}
+quota_sum |>
+  ggplot(aes(x = 대계열, y = 입학정원)) +
+  geom_col(fill = '#b40059', width = 0.85) + 
+  geom_text(aes(x = 대계열, y = 입학정원, label = 입학정원), color = 'black', vjust = -0.5) +
+  geom_col(data = quota_central, fill = '#da80ac', width = 0.5) + 
+  geom_text(data = quota_central, aes(x = 대계열, y = 입학정원, 
+                                      label = paste0(입학정원, '\n', rate)), 
+            color = 'white', vjust = -0.5) +
+  theme_bw()
+
+```
+
+```{r echo = FALSE}
+quota_sum |>
+  ggplot(aes(x = 대계열, y = 입학정원)) +
+  geom_col(fill = '#b40059', width = 0.85) + 
+  geom_text(aes(x = 대계열, y = 입학정원, label = 입학정원), color = 'black', vjust = -0.5) +
+  geom_col(data = quota_central, fill = '#da80ac', width = 0.5) + 
+  geom_text(data = quota_central, aes(x = 대계열, y = 입학정원, 
+                                      label = paste0(입학정원, '\n', rate)), 
+            color = 'white', vjust = -0.5)
+
+```
+
+위의 시각화에는 몇 가지 문제가 보인다. 첫 번째 문제는 천단위 콤마가 없다는 것, 두 번째 문제는 전체 비율 표기에 소수점이 너무 많다는 점과 '%' 기호가 없다는 것, 세 번째는 `paste0()`로 묶어준 문자열의 라인 간격이 너무 넓어 교육계열의 데이터가 잘 표시되지 않는다는 것, 네 번쨰는 범례가 없다는 것이다. 첫 번째 문제와 두 번째 문제는 `scales` 패키지의 `comma()`와 `percent()`를 사용하면 해결되고, 세 번째 라인 간격은 `geom_text()`의 `linehight` 매개변수를 사용하면 해결된다. 마지막 범례의 문제는 `aes()`로 매핑된 'fill' 값이 없기 때문에 발생한 문제이기 떄문에 `geom_col()`의 `fill`을 각각 매핑 변수로 할당하고 `scale_fill_manual()`에 해당 매핑 변수를 색상으로 대체해주면 해결된다. 
+
+```{r eval=FALSE}
+quota_sum |>
+  ggplot(aes(x = 대계열, y = 입학정원)) +
+  geom_col(aes(fill = '전체'), width = 0.85) + 
+  geom_text(aes(label = scales::comma(입학정원)), color = 'black', vjust = -0.5) +
+  geom_col(data = quota_central, aes(fill = '수도권'), width = 0.5) +
+  geom_text(data = quota_central, aes(label = paste0(scales::comma(입학정원), '\n', scales::percent(rate))), 
+            color = 'white', vjust = -0.5, lineheight = 0.5) +
+  scale_fill_manual(name = '', values = c('전체' = '#b40059', '수도권' = '#da80ac')) +
+  theme_bw()
+
+```
+
+```{r echo=FALSE}
+quota_sum |>
+  ggplot(aes(x = 대계열, y = 입학정원)) +
+  geom_col(aes(fill = '전체'), width = 0.85) + 
+  geom_text(aes(label = scales::comma(입학정원)), color = 'black', vjust = -0.5, size = 5) +
+  geom_col(data = quota_central, aes(fill = '수도권'), width = 0.5) +
+  geom_text(data = quota_central, aes(label = paste0(scales::comma(입학정원), '\n', scales::percent(rate))), 
+            color = 'white', vjust = -0.5, lineheight = 0.5, size = 5) +
+  scale_fill_manual(name = '', values = c('전체' = '#b40059', '수도권' = '#da80ac'))
+
+```
+
+
+

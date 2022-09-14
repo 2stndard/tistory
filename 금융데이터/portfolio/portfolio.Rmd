@@ -1,0 +1,125 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Building and Testing Stock Portfolios in R
+
+In this article, we’ll examine how to get stock data, analyze it to make investment decisions, and visualize the results.
+
+With the recent surge in retail investors entering the market, it’s more important than ever that new traders are armed with the tools they need to compare stocks by analyzing their performance over time. In this post, we’ll use the stock data of three familiar companies — Starbucks, Carnival, and Apple — to construct a portfolio, examine its historical performance, and compare it to the S&P 500.
+
+### Installing the libraries
+Three very useful packages for financial analysis in R are quantmod , to pull stock data from Yahoo Finance; PerformanceAnalytics , to construct and test portfolios; and dygraphs , to produce interactive and informative visualizations of our data. If you don’t have these packages installed, you can install and load them into your R environment using the code below.
+
+```{r}
+install.packages("quantmod")
+install.packages("PerformanceAnalytics")
+install.packages("dygraphs")
+
+library(quantmod)
+library(PerformanceAnalytics)
+library(dygraphs)
+```
+
+### Writing a function to calculate stock returns
+Once we have the packages installed and loaded, we can write a function to get monthly return data for our individual stocks. Our function takes two arguments: ticker , the stock’s symbol, and base_year , the year that we want to start analyzing the data.
+
+```{r}
+monthly_returns <- function(ticker, base_year)
+{
+  # Obtain stock price data from Yahoo! Finance
+  stock <- getSymbols(ticker, src = "yahoo", auto.assign = FALSE) 
+  # Remove missing values
+  stock <- na.omit(stock)
+  # Keep only adjusted closing stock prices
+  stock <- stock[, 6]
+  
+  # Confine our observations to begin at the base year and end at the last available trading day
+  horizon <- paste0(as.character(base_year), "/", as.character(Sys.Date()))
+  stock <- stock[horizon]
+  
+  # Calculate monthly arithmetic returns
+  data <- periodReturn(stock, period = "monthly", type = "arithmetic")
+  
+  # Assign to the global environment to be accessible
+  assign(ticker, data, envir = .GlobalEnv)
+}
+```
+
+This function can appear a bit complicated if you are unfamiliar with R and its packages. Here’s an explanation of each line:
+
+Line 4: Passes our ticker symbol to the getSymbols() function to get our stock data from Yahoo Finance
+Lines 5–8: Removes any missing values from the data and isolates the “Adjusted Price” column (the sixth column), which accounts for stock splits, dividends, and other corporate actions (more on that here)
+Lines 10–12: Uses R’s built-in paste0() and Sys.Date()functions to create a string we can pass between brackets so that only observations between our base year and today’s date are selected
+Line 15: Calculates monthly arithmetic returns for our adjusted closing stock price data
+Line 18: Assigns our monthly return data to R’s global environment to ensure that we can access it by its ticker symbol later
+
+### Using our function and visualizing returns
+After writing our function, it’s now available for us to calculate monthly returns for our three stocks. We need to call our function four times — once for each stock we want to analyze and once for the S&P 500 — so that we have a benchmark against which to judge each stock’s monthly performance. We can then merge all our monthly returns into one time series object and look at the last several years’ performance for each using the dygraphs package (check out the interactive version here). The last line prints the last five months of return data and its output is reproduced below.
+
+
+```{r}
+# Call our function for each stock
+monthly_returns("SBUX", 2015)
+monthly_returns("CCL", 2015)
+monthly_returns("AAPL", 2015)
+
+# Get S&P 500 Data
+monthly_returns("SPY", 2015)
+
+# Merge all the data and rename columns
+returns <- merge.xts(SBUX, CCL, AAPL, SPY)
+colnames(returns) <- c("SBUX", "CCL", "AAPL", "SP500")
+
+# Produce interactive chart of stock returns
+dygraph(returns, main = "Starbucks vs. Carnival vs. Apple vs. S&P 500") %>%
+  dyAxis("y", label = "Return", valueRange = c(-1,0.5)) %>%
+  dyRangeSelector(dateWindow = c("2015-01-01", "2020-07-01")) %>%
+  dyOptions(colors = RColorBrewer::brewer.pal(4, "Set2")) 
+
+# Print last 5 rows of the data, rounded to 4 decimal places
+round(tail(returns, n = 5), 4)
+```
+
+
+### Analyzing portfolio composition
+From our returns data set, we can get a sense of how well each stock has performed relative to the S&P 500 over the last several years. For example, when news of the spread of COVID-19 was roiling financial markets in March 2020, the S&P 500 recorded a loss of about 12.5% while Carnival lost more than 60% of its value for that month. Apple, by contrast, experienced a loss of only about 7%. Using corrplot::corrplot(cor(returns), method = number) generates a correlation matrix to indicate how these stocks’ returns are related to each other.
+
+A fundamental principle of portfolio management is that you should select stocks with low correlations to each other. You wouldn’t want all the stocks in your portfolio to always rise and fall together — that could expose you to excess volatility that you may want to avoid, especially if this is a retirement account where preservation of principle is your main concern. A portfolio made up of highly correlated stocks is subject to unsystematic risk stemming from the firm-specific risks inherent to each stock.
+
+From our correlation matrix, we observe that all of our stocks are positively correlated, albeit in varying degrees. Apple is only weakly correlated with Starbucks (0.27), but Carnival and the S&P 500 have a high correlation (0.71) with each other. Importantly, all of our stocks have a fairly high positive correlation with the market, meaning they tend to move with the market most months.
+
+### Building our portfolio and assessing performance
+We can use the PerformanceAnalytics package to assign weights to our stocks and build a hypothetical portfolio from them. In the following code, we assume that we are investing one-third of our money in Starbucks, one-third in Carnival, and one-third in Apple, excluding the S&P 500 for the moment. The Return.portfolio() function allows us to pass in our individual stock data from the returns object along with their weights. We can set the wealth.index argument equal to TRUE to show how $1 invested in our portfolio in 2015 would have grown over time. Then, we can follow the same process for the S&P 500, excluding the weights argument. After merging our data into one xts object, we can contrast our portfolio with the S&P 500 using another graph (interactive version here):
+
+```{r}
+# Assign weights
+wts <- c(1/3, 1/3, 1/3)
+
+# Construct a portfolio using our returns object and weights
+# Only select first three columns to isolate our individual stock data
+portfolio_returns <- Return.portfolio(R = returns[,1:3], weights = wts, wealth.index = TRUE)
+
+# Then isolate our S&P 500 data
+benchmark_returns <- Return.portfolio(R = returns[,4], wealth.index = TRUE)
+
+# Merge the two
+comp <- merge.xts(portfolio_returns, benchmark_returns)
+colnames(comp) <- c("Portfolio", "Benchmark")
+
+# Build an interactive graph to compare performance
+dygraph(comp, main = "Portfolio Performance vs. Benchmark") %>%
+  dyAxis("y", label = "Amount ($)")
+```
+
+If we had invested $1 into our Starbucks-Carnival-Apple portfolio at the beginning of 2015 and didn’t touch it (i.e., no re-balancing), our portfolio’s value would have almost doubled (92.31%). This beat the performance of the S&P 500, which still yielded an impressive return of about 73% over the same time horizon. Of course, we could make some minor tweaks to our code to change portfolio weights, add additional stocks (or other assets like government bonds and precious metals), and experiment with re-balancing. With R and its libraries, our ability to construct and test portfolios is virtually unlimited.
+
+### Conclusion
+I hope I’ve made the process of getting and analyzing stock data a little less intimidating. With the code above, we were able to import a large amount of financial information, construct a portfolio, examine its composition, and analyze historical performance relative to a benchmark. In future posts, I’ll explore some other ways we can use R and its libraries to analyze financial data.
+
+Thanks for reading!

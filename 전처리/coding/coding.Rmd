@@ -1,0 +1,110 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## factor를 이용해 식별값을 코드화하기
+
+대량의 데이터를 사용할 때 가끔 개별 행(레코드)의 고유한 이름이 기록되어 있는 경우가 있을 것이다. 예를 들어 고객 이름이라던지 특정 지역명, 특정 지점명등과 같이 개별 이름이 코드화 되어 있지 않고 사람이 인식할 수 있는 문자 형태로 기록된 데이터를 사용하여 분석을 할 때는 이 이름들을 드러내지 않도록 처리해야 할 것이다.
+
+필자는 교육통계 데이터를 주로 다루는데, 이 데이터에는 대부분 학교명이 들어 있는 경우가 많다. 하지만 이 학교명을 그대로 사용하여 분석하면 특정 학교가 드러나게 되므로 학교 이름을 보통 코드화하여 분석해야 한다. 따라서 분석을 시작하기 전에 데이터를 전체적으로 확인하여 데이터의 식별이 가능한 데이터가 포함되어 있는지 먼저 확인해야 하고 식별가능한 변수가 있다면 이를 식별이 불가능하도록 가명화, 익명화 방법을 사용해 비식별화 처리를 해야 한다. 하지만 바꿀 데이터가 한두개 정도라면 금방 바꿀 수 있겠지만 수백, 수천개의 데이터라면 어떻게 바꿀수 있겠는가?
+
+본 포스트에서는 factor를 사용한 데이터 비식별화 처리 방법에 대해 알아보겠다.
+
+이 포스트에서 사용하는 데이터는 '[연도별, 지역별, 학교급별, 학생수, 학급수, 학교수 Plot - 변수에 따른 배경색 변화 in R](https://2stndard.tistory.com/44)'에서 사용한 [한국교육개발원 교육통계 홈페이지](https://kess.kedi.re.kr)의 [시도별 교육통계 주제별 자료 연도별 모음(1999-2021)](https://kess.kedi.re.kr/userfile/6733224)를 사용하였다.
+
+```{r data_import, message=FALSE, warning=FALSE}
+library(readxl)
+library(tidyverse)
+
+df <- read_excel('./주요-01 유초 연도별 시도별 교육통계 모음(1999-2021)_210901.xlsx', skip = 3, na = '-', sheet = '01 개황', col_types = c('numeric', 'text', 'text', rep('numeric', 48)), col_names = F)
+
+df_adj <- df |>
+  select(1:3, 5, 11, 17, 21) |>
+  rename('year' = '...1', 'province' = '...2', 'sch_class' = '...3', 'class_total' = '...5', 'stu_total' = '...11', 'teach_total' = '...17', 'teach_tmp_total' = '...21') |>
+  filter(province != '전국', sch_class == c('유치원', '초등학교', '중학교', '고등학교'))
+
+glimpse(df_adj)
+
+head(df_adj)
+```
+
+이 데이터 중에 만약 지역명을 드러내지 않고 지역1, 지역2와 같이 코딩하려면 어떻게 해야할까?
+
+factor를 사용하여 지역명을 코드로 만들어본다.
+
+우선 `df_adj` 데이터프레임의 지역명이 저장된 `province` 열을 `factor`로 변환한다.
+
+```{r factor}
+df_adj$province <- as.factor(df_adj$province)
+
+glimpse(df_adj)
+```
+
+위와 같이 `province` 열이 character 타입에서 factor 타입으로 변경되었다. 그럼 factor 타입을 정수형으로 바꿔보자.
+
+```{r factor1}
+df_adj$province <- as.integer(df_adj$province)
+
+glimpse(df_adj)
+```
+
+위와 같이 `province`열이 문자에서 숫자로 코딩이 되었다. 그런데 너무 숫자만 있으면 보기가 어려우니 '지역+숫자'의 형태를 가지도록 코드를 만드는게 좋을 듯 하고 지역명은 총 17개이기 때문에 숫자는 두자리로 표현하는 게 좋겠다.
+
+다음과 코드를 만들어 줄 수 있다.
+
+```{r coding}
+df_adj$province <- paste0('지역', sprintf('%02d', df_adj$province))
+
+head(df_adj, 10)
+```
+
+`sprintf()`는 원래 C에서 사용되던 함수이다. 자세한 함수의 사용방법은 [sprintf 사용설명서](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/sprintf)를 참조하라.
+
+
+## 비식별화 패키지(`anonymizer`)를 이용해 식별값을 코드화하기
+
+최근 빅데이터 활용에는 개인정보의 비식별화 기법이 매우 중요한 기법이다. 따라서 R에서도 개별 식별값을 비식별화하는 몇 개의 패키지를 제공한다. 
+
+`anonymizer` 패키지에서 제공하는 `anonymizer()`는 암호화 방법 중 하나인 솔트(salt) 기법과 해시 기법을 사용하여 데이터를 익명화(anonymization)하는 함수이다. `anonymizer`패키지는 cran에 등록되어 있지 않아 다음과 같이 설치할 수 있다. 
+
+```{r install_anony, eval=FALSE}
+if (packageVersion("devtools") < 1.6) {
+  install.packages("devtools")
+}
+devtools::install_github("paulhendricks/anonymizer")
+```
+
+`anonymizer()`를 사용하여 비식별화하는 방법은 다음과 같다. 
+
+```{r anony, warning=FALSE}
+library(anonymizer)
+df_adj$province.암호화 <- anonymize(df_adj$province,  .algo = "crc32")
+
+df_adj |>
+  select(2, 8) |>
+  head(10)
+```
+
+## 다른 값으로 대체하는 패키지
+
+또 하나의 비식별화 처리는 허위(fake) 값으로 대체하는 것이다. R에서는 이와 같이 허위 값으로 개인 데이터를 대체하는 `generator` 패키지를 제공한다. 
+`generator`패키지에서는 개인 식별자의 형태에 따라 허위 값을 생성하는 다음과 같은 몇 개의 함수를 제공한다. 
+
+- `r_full_names()` : 허위 이름을 생성하는 함수
+- `r_date_of_births()` : 허위 생년월일을 생성하는 함수
+- `r_national_identification_numbers()` : 허위 국가 인식 번호를 생성하는 함수
+- `r_phone_numbers()` : 허위 전화번호를 생성하는 함수
+
+위의 함수외에도 몇가지 함수를 더 제공하는데 이는 [패키지의 설명서](https://github.com/paulhendricks/generator)를 참조하라.
+
+```{r generator, warning=FALSE}
+library(generator)
+
+r_full_names(10)
+
+r_phone_numbers(10)
+```

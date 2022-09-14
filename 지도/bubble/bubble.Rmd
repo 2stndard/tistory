@@ -1,0 +1,293 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+library(sf)
+
+theme_set(theme_bw() +
+  theme(text = element_text(size = 25))
+)
+
+
+df_provinfo_21 <- read_excel('D:/R/data/유초 주요-03 시도별 교육통계 현황_방통포함(1999-2021)_20220523y.xlsx', 
+                               sheet = '2021', skip = 11,
+                               col_types = c(rep('text', 3), rep('numeric', 170)), 
+                               col_names = FALSE)
+
+df_provinfo_21 <- df_provinfo_21 |> select(1, 2, 3, 15, 25, 73, 112, 115)
+
+colnames(df_provinfo_21) <- c('연도', '시도', '학제', '학급수', '학생수', '전체교원수', '기간제교원수', '시간강사수')
+
+df_provinfo_21 <- df_provinfo_21 |> 
+  mutate(비정규교원당학생수 = 학생수 / (기간제교원수 + 시간강사수))
+
+df_비정규교원당학생수_21 <- df_provinfo_21 |> 
+  filter(학제 %in% c('초등학교', '중학교', '고등학교'))
+
+if(!require(sf)) {
+  install.packages('sf')
+  library(sf)
+}
+
+## read_sf()을 사용하여 TL_SCCO_CTPRVN.shp 파일을 읽어옴
+spdf_shp <- st_read('C:/R/git/datavisualization/chap10/TL_SCCO_CTPRVN.shp', options = 'ENCODING=CP949')
+
+```
+
+## 지도상에 표현되는 거품 차트(bubble chart)
+
+데이터를 분석하는 분석가나 분석가가 되기를 원하는 사람들에게 필독서인 '팩트풀니스'(한스 로슬링, 김영사, 2019)에서는 데이터를 분석하는데 가장 유용하게 사용하는 시각화로 거품형 차트를 제시하고 있다. 거품형 차트는 X, Y축에 매핑되는 데카르트 좌표계에 원의 크기로 데이터의 크기를 표현하는 차트로 최소 3개의 변수를 표현할 수 있는 방법이다. 이에 원의 색을 추가하면 4개의 변수를 하나의 시각화에 표현한다는 점에서 매우 활용성이 높은 시각화 방법이다.
+
+사실 이 거품 차트는 산점도와 종이 한 장 차이라고 볼 수 있다. 산점도를 `ggplot2` 패키지로 만드려면 `geom_point()` 하나의 레이어로 간단히 만들 수 있는데 X, Y 매핑에 size를 거품의 크기로 나타내고자 하는 변수에 매핑해주면 간단히 생성된다. 여기에 `color`를 변수에 매핑시켜 주면 4개의 변수가 표현되는 거품 차트가 만들어 진다.
+
+그런데 이 거품 차트를 X, Y 축의 데카르트 2차원 좌표계가 아닌 지도상에 위치시키려면 어떻게 해아할까?
+
+이 포스트에서는 각 시도별 정규 교원 1인당 학생수를 거품 차트로 지도위에 표현해보도록 하겠다.
+
+### 데이터 import
+
+지도위에 표현되는 거품 차트를 생성하기 위해 앞서 [연도별 시도별 비정규 교원 1인당 학생수 in R - rank()](https://2stndard.tistory.com/114)에서 사용했던 'df_provinfo_21' 데이터프레임을 사용한다.
+
+지도를 표현하기 위해서는 [Shape 데이터와 geojson 데이터를 사용한 지도의 시각화](https://2stndard.tistory.com/107)에서 shape 파일에서 읽어들인 'spdf_shp' 데이터를 사용한다. 
+
+### 교원 1인당 학생수 처리
+
+거품 차트를 그리기 위해서는 먼저 원 크기로 표현할 데이터를 생성해야 한다. 여기서는 각 시도별 교원 1인당 학생수를 원의 크기로 표현하는데 이를 위해 먼저 'df_provinfo_21' 데이터프레임의 구조를 살펴본다. 
+
+```{r}
+library(tidyverse)
+
+glimpse(df_provinfo_21)
+```
+위의 결과를 보면 행의 수는 239개, 열은 '연도', '시도' 등 총 9개로 구성되어 있다. 이 중 교원 1인당 학생수를 구하기 위해서는 각 지역의 학생수를 교원수로 나누어주어야 한다. 이미 비정규 교원당 학생수는 산출되었으므로 이번에는 전체 교원당 학생수와 정규 교원당 학생수를 산출하겠다. 
+
+```{r}
+df_provinfo_21 |>
+  mutate(`전체교원당학생수` = 학생수 / 전체교원수, 
+         `정규교원당학생수` = 학생수 / (전체교원수 - 기간제교원수 - 시간강사수))
+
+```
+
+이 중 시도가 '전체'인 데이터를 제외하여야 하기 떄문에 최종 데이터는 다음과 같이 산출한다. 
+
+```{r}
+df_stu_per_tech <- df_provinfo_21 |>
+  mutate(`전체교원당학생수` = 학생수 / 전체교원수, 
+         `정규교원당학생수` = 학생수 / (전체교원수 - 기간제교원수 - 시간강사수)) |>
+  filter(시도 != '전국')
+
+
+```
+
+### 교원 1인당 학생와 지리 데이터의 조인
+
+기초 데이터가 완성되었으니 이제 지리 데이터와 조인을 해야한다. 우선 지리 데이터에서 사용하는 시도 코드를 행정안전부의 행정표준코드를 사용하여 생성해준다. 
+
+``` {r}
+df_stu_per_tech <- df_stu_per_tech |>
+  mutate(CTPRVN_CD = case_when(
+    시도 == '강원' ~ '42', 
+    시도 == '경기' ~ '41', 
+    시도 == '경남' ~ '48', 
+    시도 == '경북' ~ '47', 
+    시도 == '광주' ~ '29', 
+    시도 == '대구' ~ '27', 
+    시도 == '대전' ~ '30', 
+    시도 == '부산' ~ '26', 
+    시도 == '서울' ~ '11', 
+    시도 == '세종' ~ '36', 
+    시도 == '울산' ~ '31', 
+    시도 == '인천' ~ '28', 
+    시도 == '전남' ~ '46', 
+    시도 == '전북' ~ '45', 
+    시도 == '제주' ~ '50', 
+    시도 == '충남' ~ '44', 
+    시도 == '충북' ~ '43'
+  ))
+
+```
+
+이제 shape 파일에서 생성한 sf 객체인 'spdf_shp'와 'df_stu_per_tech'를 'CTPRVN_CD'을 사용하여 다음과 같이 조인한다. 
+
+```{r}
+df_joined <- left_join(spdf_shp, df_stu_per_tech, by = 'CTPRVN_CD')
+
+```
+
+
+### 지형 데이터의 시각화
+
+이제 조인된 데이터를 사용하여 지형 데이터를 시각화한다. 
+
+```{r eval = FALSE}
+library(ggspatial)
+
+df_joined |> 
+  ggplot() + 
+  geom_sf(color = 'gray80') +
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  theme_bw()
+
+```
+```{r echo = FALSE}
+library(ggspatial)
+
+df_joined |> 
+  ggplot() + 
+  geom_sf(color = 'gray80') +
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical)
+
+```
+
+이 데이터를 사용하여 앞서 살펴본 단계 구분도를 그리면 다음과 같다. 전체 학교급 중 초등학교에 대해 정규교원 1인당 학생수에 대한 단계구분도는 다음과 같이 그릴 수 있다. 
+
+```{r eval=FALSE}
+df_joined |> 
+  filter(학제 == '초등학교') |>
+  ggplot() + 
+  geom_sf(aes(fill = 정규교원당학생수), color = 'gray80') +
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  theme_bw()
+
+```
+```{r echo=FALSE}
+df_joined |> 
+  filter(학제 == '초등학교') |>
+  ggplot() + 
+  geom_sf(aes(fill = 정규교원당학생수), color = 'gray80') +
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical)
+
+```
+
+### 지형 데이터의 거품 차트 시각화
+
+이번에는 이 단계구분도를 거품 차트로 변경한다. 우선 거품 차트에 사용해야 할 원의 위치를 각 시도별로 설정해야 한다. 이를 위해서 `st_centroid()`를 사용하여 각 지역별 중심점을 계산한다. 이와 관련해서는 [지도에 지역 이름 넣기 in R](https://2stndard.tistory.com/109)를 참조하라.
+
+
+```{r}
+centroid_shp <- as.data.frame(st_centroid(spdf_shp))
+
+centroid_shp |> head()
+```
+
+이 데이터를 거품의 중심점으로 사용해야하기 떄문에 이 중심점 데이터도 'CTPRVN_CD'를 사용하여 'df_stu_per_tech'와 조인한다. 
+
+```{r}
+df_joined_centroid <- left_join(df_stu_per_tech, centroid_shp, by = 'CTPRVN_CD')
+
+glimpse(df_joined_centroid)
+```
+
+조인된 데이터를 확인하면 중심점을 표현하는 열이 geometry로 POINT 타입의 데이터로 조인되어 있다. 이 데이터를 바로 `geom_point()`의 X, Y 매핑으로 사용할수 없으니 이를 X, Y 형태의 데이터프레임으로 바꾸어야 한다. 이를 위한 함수가 `st_coordinates()`이다. 이 결과로 생성된 데이터는 matrix 형태이므로 이를 데이터프레임으로 변경하고 열로 붙여주기 위해 `cbind()`를 사용하였다. 
+
+```{r}
+df_joined_centroid <- cbind(df_joined_centroid, data.frame(st_coordinates(df_joined_centroid$geometry)))
+
+```
+
+이렇게 생성된 데이터는 다음과 같다. 
+
+```{r eval = FALSE}
+df_joined_centroid |>
+  filter(학제 == '초등학교') |>
+  select(시도, 정규교원당학생수, X, Y)
+
+```
+
+```{r echo = FALSE}
+df_joined_centroid |>
+  filter(학제 == '초등학교') |>
+  select(시도, 정규교원당학생수, X, Y) |>
+  knitr::kable()
+
+```
+
+이제 조인된 두개의 데이터를 사용하여 정규교원 1인당 학생수에 대한 지형 거품 차트를 그려보겠다. 우선 'df_joined'를 사용하여 지도를 그려주고 중심점이 계산된 'df_joined_centroid'의 X, Y 열과 정규교원당학생수 열을  `geom_point()` 에 사용하여 거품 차트를 그려준다.   
+
+```{r eval = FALSE}
+df_joined |> 
+  filter(학제 == '초등학교') |>
+  ggplot() + 
+  geom_sf(color = 'gray80') +
+  geom_point(data = df_joined_centroid |> filter(학제 == '초등학교'), aes(x = X, y = Y, size = `정규교원당학생수`), color = 'steelblue', alpha = 0.5) +
+#  scale_size(range = c(.1, 10)) +
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  theme_bw()
+
+```
+
+```{r echo = FALSE}
+df_joined |> 
+  filter(학제 == '초등학교') |>
+  ggplot() + 
+  geom_sf(color = 'gray80') +
+  geom_point(data = df_joined_centroid |> filter(학제 == '초등학교'), aes(x = X, y = Y, size = `정규교원당학생수`), color = 'steelblue', alpha = 0.5) +
+#  scale_size(range = c(.1, 10)) +
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical)
+
+```
+
+
+만약 고등학교의 세부 분류인 일반고, 특목고, 특성화고, 자율고를 비교하고자 한다면 다음과 같이 `facet_wrap()`을 사용할 수 있다. 
+
+```{r eval = FALSE}
+df_joined |> 
+  filter(학제 %in% c('(일반고)', '(특목고)', '(특성화고)', '(자율고)')) |>
+  ggplot() + 
+  geom_sf(color = 'gray80') +
+  geom_point(data = df_joined_centroid |> filter(학제 %in% c('(일반고)', '(특목고)', '(특성화고)', '(자율고)')), aes(x = X, y = Y, size = `정규교원당학생수`), color = 'steelblue', alpha = 0.5) +
+#  scale_size(range = c(.1, 10)) +
+  labs(x = '위도', y = '경도') +
+  facet_wrap(~학제) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  theme_bw() 
+
+```
+
+```{r echo = FALSE}
+df_joined |> 
+  filter(학제 %in% c('(일반고)', '(특목고)', '(특성화고)', '(자율고)')) |>
+  ggplot() + 
+  geom_sf(color = 'gray80') +
+  geom_point(data = df_joined_centroid |> filter(학제 %in% c('(일반고)', '(특목고)', '(특성화고)', '(자율고)')), aes(x = X, y = Y, size = `정규교원당학생수`), color = 'steelblue', alpha = 0.5) +
+#  scale_size(range = c(.1, 10)) +
+  labs(x = '위도', y = '경도') +
+  facet_wrap(~학제) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical)
+
+```

@@ -1,0 +1,158 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+
+```
+
+## shape 파일을 사용한 지도 그리기
+
+
+Shape 파일은 대부분의 GIS(Geographical Information System)에서 사용되는 지형 벡터 데이터 파일 포맷이다. 확장자를 \*.shp로 설정하는데 선, 점, 다각형(Polygon)으로 지형을 벡터의 형태로 표현하는 텍스트 파일이다. 하지만 Shape 파일은 보통 \*.shp, \*.shx, \*.dbf, \*.kml, \*.prj 등의 파일이 한 세트처럼 제공되는 것이 일반적이다. 그렇다고 이 네개의 파일을 모두 쓰는 것은 아니고 사용하는 응용에 따라 선택하여 사용할 수 있다.\
+우리나라 지도의 Shape 파일은 인터넷에서 다운로드 받을 수 있다.[^1] 다운로드 받은 파일은 2021년 1월 업데이트된 시도 파일이다. 이 두 파일은 각각 \*.shp, \*.shx, \*.dbf, \*.prj의 네 개의 파일로 구성된 압축파일이고 이중 \*.shp만을 사용하도록 하겠다.
+
+여기서 사용하는 우리나라 지형의 Shape 파일은 <http://www.gisdeveloper.co.kr/?p=2332> 에서 다운로드 받았다.
+
+Shape 형태의 지도 데이터를 불러 들이는데는 여러가지 방법이 있지만 여기서는 `sf`패키지의 `st_read()`를 사용하여 `sf` 객체로 읽어온다. `sf` 패키지는 Simple Feature라고 불리는 점, 선, 다각형, 멀티 포인트, 멀티 라인 등 2차원 기하요소로 구성된 지형의 저장 및 처리 방법을 지원하는 패키지이다. Simple Feature는 OGC(Open Geospatial Consortium)와 ISO( International Organization for Standardization )에서 표준화 포맷으로 채택되어 널리 사용되고 있다. 이 Simple Feature로 표현된 객체를 `ggplot` 레이어로 생성하기 위해서는 `ggplot2`패키지의 `geom_sf()`를 사용한다.
+
+Shape 파일을 읽어 `sf` 객체로 저장하는 코드는 다음과 같다.
+
+```{r eval = FALSE}
+## sf 패키지 설치
+if(!require(sf)) {
+  install.packages('sf')
+  library(sf)
+}
+
+## read_sf()을 사용하여 TL_SCCO_CTPRVN.shp 파일을 읽어옴(옵션은 한글깨짐을 방지하기 위한 인코딩값, 띄어쓰기 주의)
+spdf_shp <- st_read('파일 저장 경로/TL_SCCO_CTPRVN.shp'), options = 'ENCODING=CP949')
+
+```
+
+```{r echo = FALSE}
+## sf 패키지 설치
+if(!require(sf)) {
+  install.packages('sf')
+  library(sf)
+}
+
+## read_sf()을 사용하여 TL_SCCO_CTPRVN.shp 파일을 읽어옴
+spdf_shp <- st_read('C:/R/git/datavisualization/chap10/TL_SCCO_CTPRVN.shp', options = 'ENCODING=CP949')
+
+```
+
+```{r}
+## spdf_shp 클래스 확인
+class(spdf_shp)
+
+## spdf_shp 열 이름 확인
+names(spdf_shp)
+
+## spdf_shp 데이터 구조
+glimpse(spdf_shp)
+
+```
+
+
+이제 불러들인 지도 객체를 `ggplot2`를 사용하여 그려보도록 하겠다.
+
+```{r fig.cap='Shape 파일 지도의 시각화'}
+## sf 객체(Simple Feature)는 별다른 X, Y축의 매핑 없이 geom_sf() 레이어를 생성할 수 있다. 
+spdf_shp |> ggplot() + 
+  ## X축을 long(경도), Y축을 lat(위도), group을 group, color를 id로 매핑하고 fill을 white로 설정한 geom_polygon 레이어 생성 
+  ## simple feature 객체를 사용하여 geom_sf 레이어를 생성
+  geom_sf(fill = "dodgerblue", color = 'white', show.legend = F) +
+  theme_bw()
+```
+
+
+## geojson 파일
+
+GeoJSON은 위치정보를 갖는 점을 기반으로 체계적으로 지형을 표현하기 위해 설계된 개방형 공개 표준 형식이다. 지형 정보를 자바스그립트 오브젝트 노테이션(JAVA Script Object Notation, JSON)을 활용하여 사용하는 파일 포맷으로 OpenLayers, Leaflet, MapServer, Geoforge 소프트웨어, GeoServer, GeoDjango, GDAL, Safe Software FME 등 많은 매핑 및 GIS 소프트웨어 패키지에서 지원하고있다.<https://ko.wikipedia.org/wiki/GeoJSON>
+
+geojson 파일의 확장자는 json으로 붙는다. geojson 파일은 앞서 설명한 Shape 파일에서부터 변환하여 생성할 수 있지만 여기서는 인터넷에 게시된 우리나라 시도, 시군구 geojson 파일을 다운로드하여 사용했다.<https://neurowhai.tistory.com/350>
+
+geojson 파일은 Shape의 \*.shp 파일에 비해 파일 사이즈가 작고 처리속도도 Shape 파일보다 매우 빠르다는 장점이 있다.
+
+geojson 파일의 지도 데이터를 읽어오기 위해서는 `geojsonio`패키지의 `geojson_read()`를 사용하면 가능하다. `geojson_read()`로 읽어온 데이터는 Shape 파일을 읽어들인 클래스와 동일한 'SpatialPolygonsDataFrame' 객체로 생성할 수 있다. 가급적이면 'SpatialPolygonsDataFrame' 객체로 불러들이는 것이 Shape 파일로 불러읽은 객체의 코드를 공유할 수 있어 권장한다. 다음은 `geojson_read()`로 geojson 파일을 읽어들이는 코드이다.
+
+```{r eval = FALSE}
+## geojsonio 패키지 설치
+if(!require(geojsonio)) {
+  install.packages('geojsonio')
+  library(geojsonio)
+}
+
+## geojson_read()을 사용하여 TL_SCCO_SIG.json 파일(시군구 행정구분)을 읽어오는데 SpatialPolygonsDataFrame 형태로 읽어옴(what = "sp")
+spdf_geojson <- geojson_read('Shape 파일 경로/TL_SCCO_CTPRVN.json',  what = "sp")
+
+```
+
+```{r echo = FALSE}
+## geojsonio 패키지 설치
+if(!require(geojsonio)) {
+  install.packages('geojsonio')
+  library(geojsonio)
+}
+
+## geojson_read()을 사용하여 TL_SCCO_CTPRVN.json 파일을 읽어옴
+spdf_geojson <- geojson_read('D:/R/data/map/TL_SCCO_CTPRVN.json',  what = "sp")
+
+```
+
+
+```{r}
+## spdf_geojson 클래스 확인
+class(spdf_geojson)
+
+## spdf_geojson 열 이름 확인
+names(spdf_geojson)
+
+## spdf_geojson 슬롯 이름 확인
+slotNames(spdf_geojson)
+
+## spdf_geojson 데이터 구조
+glimpse(spdf_geojson)
+
+```
+
+
+위의 코드의 결과와 같이 Shape 파일을 불러들인 결과가 저장되는 클래스는 'SpatialPolygonDataFrame' 이고 "CTPRVN_CD", "CTP_ENG_NM", "CTP_KOR_NM"의 세개의 열이 포함되어 있다. 또 다섯개의 슬롯이 있는 것이 보인다. 
+
+위에서 보이는 것과 같이 geojson은 기본적으로 Polygon형태의 데이터이기 떄문에 `ggplot2`의 `geom_polygon()`을 사용하여 시각화 할 수 있다. 
+
+```{r}
+ggplot() +
+  geom_polygon(data = spdf_geojson, aes( x = long, y = lat, group = group), fill="dodgerblue", color="white") +
+  theme_bw() +
+  coord_map()
+
+```
+
+만약 geojson으로 불러들인 지도 객체를 앞서 사용한 `geom_sf()`를 사용하기 위해서는 먼저 'sf' 데이터로 변환하야 한다. 이를 위해서는   `sf` 패키지의 `st_as_sf()`를 사용하여 변환할 수 있다. 이렇게 변환된 데이터를 `geom_sf()`를 사용하여 지도를 그릴 수 있다. 
+
+```{r}
+## spdf_geojson을 st_as_sf()을 사용하여 simple feature 객체로 저장
+sf_spdf <- st_as_sf(spdf_geojson)
+```
+
+```{r}
+ggplot() + 
+  ## simple feature 객체를 사용하여 geom_sf 레이어를 생성
+  geom_sf(data = sf_spdf, fill = "dodgerblue", color = 'white', show.legend = F) +
+  theme_bw()
+
+```
+
+

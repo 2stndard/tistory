@@ -1,0 +1,217 @@
+{
+  "visdat": {
+    "12b02c8a4d54": ["function () ", "plotlyVisDat"]
+  },
+  "cur_data": "12b02c8a4d54",
+  "attrs": {
+    "12b02c8a4d54": {
+      "alpha_stroke": 1,
+      "sizes": [10, 100],
+      "spans": [1, 20],
+      "type": "indicator",
+      "mode": "gauge+delta+number",
+      "title": {
+        "text": "<b>조사 만족도<\/b>",
+        "font": {
+          "size": 30
+        }
+      },
+      "gauge": {
+        "shape": "angular",
+        "bar": {
+          "color": "darkblue"
+        },
+        "steps": [
+          {
+            "range": [0, 1],
+            "color": "#EFF3FF",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [1, 2],
+            "color": "#BDD7E7",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [2, 3],
+            "color": "#6BAED6",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [3, 4],
+            "color": "#3182BD",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [4, 5],
+            "color": "#08519C",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          }
+        ],
+        "threshold": {
+          "line": {
+            "color": "white",
+            "width": 3
+          },
+          "value": 4.5
+        }
+      },
+      "value": 3.5,
+      "delta": {
+        "reference": 4,
+        "position": "top",
+        "increasing": {
+          "color": "darkred",
+          "symbol": "+"
+        },
+        "decreasing": {
+          "color": "darkblue",
+          "symbol": ""
+        },
+        "font": {
+          "size": 35
+        }
+      },
+      "number": {
+        "prefix": "만족도 :",
+        "font": {
+          "size": 40
+        }
+      },
+      "inherit": true
+    }
+  },
+  "layout": {
+    "margin": {
+      "b": 25,
+      "l": 25,
+      "t": 50,
+      "r": 25
+    },
+    "hovermode": "closest",
+    "showlegend": false
+  },
+  "source": "A",
+  "config": {
+    "modeBarButtonsToAdd": ["hoverclosest", "hovercompare"],
+    "showSendToCloud": false
+  },
+  "data": [
+    {
+      "type": "indicator",
+      "mode": "gauge+delta+number",
+      "title": {
+        "text": "<b>조사 만족도<\/b>",
+        "font": {
+          "size": 30
+        }
+      },
+      "gauge": {
+        "shape": "angular",
+        "bar": {
+          "color": "darkblue"
+        },
+        "steps": [
+          {
+            "range": [0, 1],
+            "color": "#EFF3FF",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [1, 2],
+            "color": "#BDD7E7",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [2, 3],
+            "color": "#6BAED6",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [3, 4],
+            "color": "#3182BD",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          },
+          {
+            "range": [4, 5],
+            "color": "#08519C",
+            "line": {
+              "color": "white",
+              "width": 5
+            }
+          }
+        ],
+        "threshold": {
+          "line": {
+            "color": "white",
+            "width": 3
+          },
+          "value": 4.5
+        }
+      },
+      "value": 3.5,
+      "delta": {
+        "reference": 4,
+        "position": "top",
+        "increasing": {
+          "color": "darkred",
+          "symbol": "+"
+        },
+        "decreasing": {
+          "color": "darkblue",
+          "symbol": ""
+        },
+        "font": {
+          "size": 35
+        }
+      },
+      "number": {
+        "prefix": "만족도 :",
+        "font": {
+          "size": 40
+        }
+      },
+      "frame": null
+    }
+  ],
+  "highlight": {
+    "on": "plotly_click",
+    "persistent": false,
+    "dynamic": false,
+    "selectize": false,
+    "opacityDim": 0.2,
+    "selected": {
+      "opacity": 1
+    },
+    "debounce": 0
+  },
+  "shinyEvents": ["plotly_hover", "plotly_click", "plotly_selected", "plotly_relayout", "plotly_brushed", "plotly_brushing", "plotly_clickannotation", "plotly_doubleclick", "plotly_deselect", "plotly_afterplot", "plotly_sunburstclick"],
+  "base_url": "https://plot.ly"
+}

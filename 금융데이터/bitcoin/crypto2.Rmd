@@ -1,0 +1,173 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+
+```
+
+## 암호화폐 정보를 위한 crypto2
+
+최근 암호 화폐의 인기가 높아짐에 따라 암호 화폐 데이터에 대한 정보의 분석도 금융권 데이터 분석에 큰 화두가 되고 있다. 그러다보니 당연히 R에서도 암호 화폐를 전문적으로 다루는 패키지가 개발되었다. `crypto2`가 바로 그것인데 `crypto2`는 지금은 제공되고 있지 않는 `crypto` 패키지의 개선판이다. `crypto2`에서 제공하는 정보는 암호화폐 정보를 전문적으로 다루는 <https://coinmarketcap.com/>의 정보를 기반으로 제공하는데 이 사이트에서 제공하는 API를 기반으로 제작되었다. 패키지 자체에서 모든 API 접속이 이루어지기 때문에 사용자는 API 접속 키를 따로 받지 않아도 사용할 수 있는 장점이 있지만 이 사이트에서 제공하는 정보에 한정된다는 단점도 있다. 
+
+`crypto2` 패키지에서는 총 7개의 함수를 제공하는데 이 함수들 중 주요한 함수를 살펴보겠다. 
+
+### 설치
+
+`crypto2` 패키지는 현재(2020-08-20) CRAN에 정식 등록되어 있기 때문에 `install.packages()`를 사용하여 간단히 설치가 가능하다. 
+
+```{r}
+if (!require(crypto2)) {
+  install.packages('crypto2')
+  library(crypto2)
+}
+
+```
+
+
+### 암호 화페 리스트 가져오기
+
+앞서 설명했듯이 `crypto2`는 <https://coinmarketcap.com/>의 정보를 가져온다. 이 정보중에 가장 기본적인 것이 이 사이트에서 제공하는 암호화폐의 리스트를 알아보는 것일 것이다. CMC에서 제공하는 암호화폐의 종류는 `crypto_list()`를 사용하여 가져올 수 있다. `crypto_list()`로 가져올수 있는 정보는 id, name, symbol 등 8개의 정보이고 이들은 `tibble` 형태로 반환된다. 
+
+```{r}
+list_crypto <- crypto_list(only_active=TRUE)
+
+glimpse(list_crypto)
+
+```
+
+위의 결과에서 보이는 바와 같이 현재 CMC에서 제공하는 암호화폐 정보 중 현재 거래되고 있는 암호화폐 총 9,660개의 정보를 가져온다. 
+
+이중 'Bitcoin'과 'Dogecoin'의 정보는 다음과 같다. 
+
+```{r eval=FALSE}
+list_crypto |> filter(name %in% c('Bitcoin', 'Dogecoin'))
+
+```
+
+```{r echo=FALSE}
+list_crypto |> filter(name %in% c('Bitcoin', 'Dogecoin')) |> kableExtra::kable(format = 'simple')
+
+
+```
+
+### 암호 화페 세부 정보 가져오기
+
+CMC에서 제공하는 암호화폐의 종류를 가져왔으니 이제 분석 대상 암호 화폐의 세부 정보를 가져와야 한다. 특정 암호 화폐의 세부 정보를 가져오기 위해서는  `crypto_info()`를 사용한다. `crypto_info()`는 `crypto_list()`에서 가져온 데이터 중 분석 대상인 데이터에 대한 리스트를 매개변수로 전달하면 해당하는 암호 화폐에 대한 정보를 가져온다. 
+
+```{r}
+info_crypto <- crypto_info(list_crypto |> filter(name %in% c('Bitcoin', 'Dogecoin')), finalWait=FALSE)
+
+glimpse(info_crypto)
+
+```
+
+`crypto_info()`의 결과로 가져오는 정보는 총 19개의 열을 가진 `tibble` 객체이다. 이 객체의 열 중 2개는 중첩된 `tibble`을 포함한다. 
+
+중첩된 `tibble`은 다음과 같이 `unnest()`를 사용하면 정보를 확인할 수 있다. 
+
+```{r eval = FALSE}
+info_crypto |> select(name, tags) |> unnest(tags) |> head()
+
+```
+
+```{r echo = FALSE}
+info_crypto |> select(name, tags) |> unnest(tags) |> head() |> kableExtra::kable(format = 'simple')
+
+```
+
+```{r eval = FALSE}
+info_crypto |> select(slug, urls) |> unnest(urls) |> head()
+
+```
+
+```{r echo = FALSE}
+info_crypto |> select(slug, urls) |> unnest(urls) |> head() |> kableExtra::kable(format = 'simple')
+
+```
+
+
+### 암호 화페 가격 가져오기
+
+암호 화폐를 분석하기 위해서 가장 필요한 것이 암호 화폐의 가격일 것이다. 이 데이터는 당연히 시계열 데이터로 다운로드 될 것이다. 
+
+암호 화폐 가격 데이터를 가져오기 위해서는 `crypto_history()`를 사용한다. 여기서 가져오는 가격 정보는 주식 정보와 유사한 시가(Open), 고가(High), 저가(Low), 종가(Close)와 이 가격에 사용된 화폐, 거래량 등이다. 주식과 달리 암호 화폐는 장의 시작과 종료가 없기 때문에 CMC에서 측정하는 OHLC는 매일의 시작(0시 0분 0초)과 매일의 끝(23시 59분 59초)을 기준으로 산출된다. 
+
+```{r}
+hist_crypto <- crypto_history(list_crypto, limit=3, start_date="20220101", end_date="20220820", finalWait=FALSE)
+```
+
+```{r echo = FALSE}
+hist_crypto |> head() |> kableExtra::kable(format = 'simple')
+```
+
+`crypto_history()`로 가져오는 가격 데이터의 간격은 매 1일 간격으로 가져온다. 만약 이 간격을 조절하기 위해서는 'interval' 매개변수를 사용한다. 다음은 주 단위로 가격정보를 가져오는 코드이다.
+
+
+```{r}
+hist_crypto_weekly <- crypto_history(list_crypto, limit=3, start_date="20220101", end_date="20220820", finalWait=FALSE, interval ="weekly")
+```
+
+```{r echo = FALSE}
+hist_crypto_weekly |> head() |> kableExtra::kable(format = 'simple')
+
+```
+
+`crypto_history()`에서의 암호 화폐 가격은 기본적으로 미국 달러(USD)로 설정되어 있다. 만약 이 통화를 다른 통화로 바꾸려면 'convert' 매개변수를 사용한다. 'convert'에서 하나 이상의 통화로 변환하기 위해서는 콤마(,)를 사용하여 통화의 이름을 명기해주면 각각의 통화로 변환된 행들이 추가되어 변환된다. 
+
+```{r}
+hist_crypto <- crypto_history(list_crypto, convert = 'EUR, KRW', limit=3, start_date="20220101", end_date="20220820", finalWait=FALSE)
+```
+
+```{r echo = FALSE}
+hist_crypto |>  group_by(ref_cur) |> slice(1, n()) |> kableExtra::kable(format = 'simple')
+
+```
+
+### 거래소 리스트와 정보
+
+`crypto2`에서는 암호 화폐 자체의 정보외에 거래소에 대한 정보를 제공한다. `exchange_list()`를 사용하면 암호 화폐를 거래하는 거래소 리스트를 가져오고 `exchange_info()`는 거래소의 수수료나 거래량 등의 상세 정보를 가져올 수 있다. 
+
+
+```{r}
+list_exchanges <- exchange_list(only_active=TRUE)
+```
+
+```{r eval = FALSE}
+list_exchanges |> head()
+```
+
+```{r echo = FALSE}
+list_exchanges |> head() |> kableExtra::kable(format = 'simple')
+```
+
+```{r}
+info_exchange <- exchange_info(list_exchanges |> filter(name %in% c('Upbit', 'Bithumb', 'Korbit', 'Coinone')), finalWait=FALSE)
+```
+
+```{r echo = FALSE}
+
+info_exchange |> kableExtra::kable(format = 'simple')
+```
+
+각각 거래소의 수수료와 거래량은 다음과 같이 알아볼 수 있다. 
+
+
+```{r eval = FALSE}
+info_exchange |> select(name, contains("fee"), contains("spot"))
+
+```
+
+```{r echo = FALSE}
+info_exchange |> select(name, contains("fee"), contains("spot")) |> kableExtra::kable(format = 'simple')
+
+```

@@ -1,0 +1,115 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+## priceR 패키지를 사용한 환율 가져오기
+
+금융 데이터 중에 주식 가격만큼 우리 주위에서 많이 사용되는 데이터가 환율 데이터이다. 환율 데이터는 `priceR` 패키지를 사용하면 가져올 수 있다. 
+
+`priceR` 패키지는 경제와 금융에서 필요한 각종 가격 정보를 가져오는 함수들과 가격정보를 분석하는데 필요한 함수들을 제공한다. `priceR`은 다음의 네가지 기능을 제공한다. 
+
+-   환율 : 즉각 활용이 가능한 환율 정보 검색
+-   인플레이션 : 과거 가격 정보와 현재 가격 정보의 비교를 통한 인플레이션 정보 검색
+-   정규식 : 텍스트에서 일반적인 가격 패턴을 쉽게 추출
+-   서식 지정 : 보고서 작업(Rmarkdown 문서를 포함)에서 통화를 쉽게 처리
+
+우선 `priceR`을 설치한다. 
+
+```{r}
+if(!require(priceR)) {
+  install.packages('priceR')
+  library(priceR)
+}
+
+```
+
+### 현재 환율 데이터 가져오기
+
+`priceR` 패키지에서 현재의 환율 데이터를 가져오는데 사용하는 함수는 `exchange_rate_latest()`이다. 이 함수는 약 170개 국가의 환율을 가져올 수 있다. 매개변수로 가져오고자 하는 환율 코드를 전달하면 현재의 170여개의 환율를 검색해준다. 매개변수로 사용되는 환율 코드는 `currencies()`로 검색할 수 있다.  
+
+
+```{r}
+currencies() |> head(10)
+
+exchange_rate_latest('KRW') |> head(10)
+
+exchange_rate_latest('USD') |> filter(currency == 'KRW')
+```
+
+### 과거 환율 데이터 가져오기
+
+앞에서는 170여개의 통화에 대한 현재 환율 데이터를 가져오는 방법이었다. 하지만 특정 통화에 대한 과거 환율의 변화를 보고자 한다면 `historical_exchange_rates()`를 사용할 수 있다. 
+
+```{r}
+historical_exchange_rates(from = 'USD', to = 'KRW', start_date = '2022-01-01', end_date =  '2022-06-30') |> tail(10)
+
+```
+만약 두 개이상의 환율표를 만들고자 한다면 어떻게 해야할까? 각각의 환율표를 만들고 날짜를 기준으로 조인해주면 만들수 있다. 다음은 원화에 대한 달러와 유로의 환율표를 만드는 방법이다. 
+
+
+```{r}
+USD_KRW <- historical_exchange_rates(from = 'USD', to = 'KRW', start_date = '2022-01-01', end_date =  '2022-06-30')
+
+EUR_KRW <- historical_exchange_rates(from = 'EUR', to = 'KRW', start_date = '2022-01-01', end_date =  '2022-06-30')
+
+left_join(USD_KRW, EUR_KRW, by = 'date') |> tail(10)
+
+```
+
+### 환율 정보 그래프 그리기
+
+앞서 얻어낸 원화에 대한 달러와 유로에 대한 환율 변화를 그래프로 그리면 다음과 같이 그릴 수 있다. 
+
+우선 `ggplot2`로 그려보겠다. 
+
+```{r}
+library(ggplot2)
+library(lubridate)
+
+left_join(USD_KRW, EUR_KRW, by = 'date') |>
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = one_USD_equivalent_to_x_KRW, group = 1, color = 'USD')) +
+  geom_line(aes(y = one_EUR_equivalent_to_x_KRW, group = 1, color = 'EUR')) + 
+  geom_text(data = USD_KRW |> filter(date == max(date)), 
+            aes(x = date, y = one_USD_equivalent_to_x_KRW, label = round(one_USD_equivalent_to_x_KRW, 0)), 
+            hjust = 0, size = 8) +
+  geom_text(data = EUR_KRW |> filter(date == max(date)), 
+            aes(x = date, y = one_EUR_equivalent_to_x_KRW, label = round(one_EUR_equivalent_to_x_KRW, 0)), 
+            hjust = 0, size = 8) +
+  scale_x_date(limits = c(min(USD_KRW$date), max(USD_KRW$date+5)), date_breaks = '1 month', date_labels = '%y %B') + 
+  scale_color_manual(name = '환율', values = c('USD' = 'red', 'EUR' = 'blue')) +
+  labs(title = '2022년 원화의 달러와 유로 환율', x = '날짜', y = '원') + 
+  theme(text = element_text(size = 25))
+  
+
+```
+
+이를 `plotly`로 그리면 다음과 같이 그릴 수 있다. 
+
+```{r eval = FALSE}
+library(plotly)
+
+left_join(USD_KRW, EUR_KRW, by = 'date') |>
+  plot_ly() |>
+  add_lines(x = ~date, y = ~one_USD_equivalent_to_x_KRW, name = 'USD') |>
+  add_lines(x = ~date, y = ~one_EUR_equivalent_to_x_KRW, name = 'EUR') |>
+  layout(title = '2022년 원화의 달러와 유로 환율', 
+         xaxis = list(title = '날짜'), 
+         yaxis = list(title = '원'), 
+         margin =  list(t = 50, b = 25, l = 25, r = 25))
+
+
+```

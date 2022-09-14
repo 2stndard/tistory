@@ -1,0 +1,75 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+library(sf)
+
+theme_set( theme_bw() +
+  theme(text = element_text(size = 25))
+)
+
+spdf_shp <- st_read('C:/R/git/datavisualization/chap10/TL_SCCO_CTPRVN.shp', options = 'ENCODING=CP949')
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/107>
+
+## sf을 사용한 지도 꾸미기
+
+지역이 포함된 데이터를 지도 위에 표현하는 것은 데이터 시각화에서 매우 중요한 시각화중에 하나이다. 하지만 데이터를 표현하는데 몇가지 제약사항이 있어 그 사용에 부담이 있는 것이 사실이다. 그 중에 하나가 지도의 위치에 해당하는 지역을 사용자가 인식하게 만드는 것이다. 우리나라는 17개의 시도로 구분되어 있는데 지도상의 위치를 보면 대략 해당 지역이 어딘지 대부분 알 수 있을 것이다. 하지만 260여개의 시군구 단위로 표현할 떄는 그 위치에 따른 지역을 즉각 알기가 어렵다. 그래서 지도위에 해당 지역 이름을 표시하면 좋겠지만 이를 어떻게 해야할지가 언듯 떠오르는가? 이를 쉽게 표기하는 방법에 대해 알아본다. 
+
+지도에 해당 지역 이름을 표기하기 위해서는 해당 지역의 가장 가운데 표기해주는 것이 가장 좋을 것이다. 그렇다면 해당 지역의 가운데 점을 먼저 찾아야 할 것이다. 이를 위해서 `sf` 패키지의 `st_centriod()`를 사용할 수 있다. `st_centroid()`의 결과는 'sf' 클래스의 데이터가 반환되는데 'geometry' 열에 중심점이 sfc_POINT 클래스포 저장된다. 하지만 `geom_text()`의 X, Y에 매핑하기 위해서는 'sfc_POINT' 클래스의 'geometry'열의 데이터를 X, Y에 매핑할 수 있는 데이터로 추출해야한다. 이때 사용하는 함수가 `st_coordinates()`이다. 
+
+```{r}
+if (!require(sf)) {
+  install.packages('sf')
+  library(sf)
+}
+
+centroid_shp <- st_centroid(spdf_shp)
+
+centroid_shp |> head()
+
+st_coordinates(centroid_shp)
+```
+
+`geom_text()`의 X, Y에 매핑하기 위해 `st_coordinates()`를 사용해 추출한 값은 단순 좌표만 있기 떄문에 해당 지역의 중심점 정보가 들어있는 `st_centroid()`의 결과값에 붙여주면 `geom_text()`를 사용하여 다음과 같이 지역 중앙에 지역 이름을 표기해 줄 수 있다 .
+
+
+```{r eval = FALSE}
+library(ggspatial)
+
+spdf_shp |> ggplot() + 
+  geom_sf(fill = "dodgerblue", color = 'white', show.legend = F) +
+  geom_text(data = cbind(centroid_shp, st_coordinates(centroid_shp)), aes(x = X, y = Y, label = CTP_KOR_NM)) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical)
+  theme_bw()
+```
+```{r echo = FALSE}
+library(ggspatial)
+
+spdf_shp |> ggplot() + 
+  geom_sf(fill = "dodgerblue", color = 'white', show.legend = F) +
+  geom_text(data = cbind(centroid_shp, st_coordinates(centroid_shp)), aes(x = X, y = Y, label = CTP_KOR_NM)) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical)
+```
+
+
+

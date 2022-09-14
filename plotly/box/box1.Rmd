@@ -2,6 +2,7 @@
 output:
   html_document:
     css: D:/analysis/R/tistory/plotly/style.css
+    self_contained: false
 ---
 
 ```{r setup, include=FALSE}
@@ -146,7 +147,7 @@ add_trace(p, type = 'violin', ..., data = NULL, inherit = TRUE)\
 - inherit : plot_ly()에 설정된 속성 type을 상속할지를 결정하는 논리값\
 :::
 
-```{r eval = FALSE}
+```{r}
 p_violin <- 
   df_취업률_2000 |> plot_ly()
 
@@ -189,7 +190,7 @@ p_violin |>
 
 두 개의 그룹을 비교해볼 수 있도록 반반씩 붙여주는 바이올린 플롯은 `add_trace()`의 `side`속성과 `layout()`의 `violinmode` 속성으로 설정할 수 있다. `side`에 'positive'와 'negative'로 오른쪽과 왼쪽의 위치를 설정하고 겹쳐 그릴수 있도록 `violinmode`를 'overlay'로 설정하면 바이올린 플롯과 박스플롯이 겹쳐져서 그려진다. 
 
-```{r eval = FALSE}
+```{r}
 p_violin |> 
   add_trace(data = df_취업률_2000 |> filter(과정구분 == '대학과정'),
             type = 'violin', x = ~대계열, y = ~취업률, name = '대학', 

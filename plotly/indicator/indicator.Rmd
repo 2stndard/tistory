@@ -1,0 +1,251 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130, eval = FALSE)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## 인디케이터(indicator) trace : 지수 차트
+
+인디케이터는 단일 수치에 대한 시각화 방법이다. `plotly`에서 단일 수치를 표현하는 방법으로 수치 표시, 증감치 표시, 게이지 사용의 세 가지 시각적 방법을 제공하고 이들을 서로 조합하여 사용할 수 있다. 이들을 사용하여 '단계', '임계값' 등의 컨텍스트 정보를 포함하는 수치를 시각화할 수 있다.
+
+인디케이터 trace를 사용하기 위해서는 `add_trace()`의 속성을 'indicator'로 설정함으로써 사용할 수 있다.
+
+### mode, value
+
+인디케이터 trace에서 제공하는 표시 방법은 수치 표시, 증감량 표시, 게이지 표시의 세가지 방법을 제공한다. 이들을 설정하는 속성이 `mode`이다. 이 `mode`는 수치를 표현하는 'number', 증감을 표현하는 'delta', 게이지를 사용하는 'gauge'의 세 가지를 설정할 수 있고 각각은 `+`를 사용하여 조합할 수 있다.
+
+인디케이터에서 표시해야 할 수치는 `value`로 설정하고 단일 수치를 설정한다.
+
+```{r eval = FALSE}
+plot_ly() |>
+  add_trace(type = 'indicator', mode = "gauge+number", value = 200)
+```
+
+### gauge
+
+`gauge`는 게이지 형태의 시각화를 통해서 단일 수치를 표현한다. 게이지의 형태는 둥근 반원 형태의 게이지를 사용하는 'angler'와 막대 형태의 게이지를 사용하는 'bullet'의 두가지가 제공된다. 이는 `shape` 속성을 사용하여 설정이 가능하다.
+
+```{r eval = FALSE}
+plot_ly() |>
+  add_trace(type = 'indicator', mode = "gauge+number", 
+            ## gauge의 shape를 angular로 설정
+            gauge = list(shape = 'angular', 
+                         bar = list(color = 'darkblue')), 
+            value = 3.5)
+```
+
+```{r eval = FALSE}
+plot_ly() |>
+  add_trace(type = 'indicator', mode = "gauge+number", 
+            ## gauge의 shape를 angular로 설정
+            gauge = list(shape = 'bullet', 
+                         bar = list(color = 'darkblue')), 
+            value = 3.5)
+
+```
+
+
+인디케이터 trace의 게이지 모드에서 하나 중요하게 사용되는 속성이 `steps` 속성이다. `steps` 속성은 전체 게이지를 단계별로 구간을 설정하는 데 사용되는 속성이다. `steps`는 `range`, `color`, `line` 등의 세부 속성으로 구성된 리스트로 설정할 수 있다. 각 단계는 `range`로 시작점과 끝점이 포함된 벡터로 구분되며 이 구간들의 `color`, `line` 등의 속성을 설정할 수 있다.
+
+```{r eval = FALSE}
+step_colors <- RColorBrewer::brewer.pal(5, 'Blues')
+
+plot_ly() |>
+  add_trace(type = 'indicator', mode = "gauge+number",
+            ## 인디케이터 제목 설정
+            title = list(text = '조사 만족도', 
+                         font = list(size = 15), 
+                         align = 'right'), 
+            ## gauge의 세부 속성 설정
+            gauge = list(shape = 'bullet', 
+                         bar = list(color = 'darkblue'), 
+                         ## 전체 범위는 0~5로 설정
+                         axis = list(range = c(0, 5)),
+                         ## 각 단계별로 range, color, line의 속성 설정
+                         steps = list(
+                           list(range = c(0,1), color = step_colors[1], 
+                                line = list(color = 'white', width = 5)),
+                           list(range = c(1,2), color = step_colors[2], 
+                                line = list(color = 'white', width = 5)),
+                           list(range = c(2,3), color = step_colors[3], 
+                                line = list(color = 'white', width = 5)),
+                           list(range = c(3,4), color = step_colors[4], 
+                                line = list(color = 'white', width = 5)),
+                           list(range = c(4,5), color = step_colors[5], 
+                                line = list(color = 'white', width = 5))
+                           ),
+                         ## threshhold(임계치) 세부 속성 설정
+                         threshold = list(line = list(color = 'white', width = 3),
+                                          value = 4.5)
+                         ), 
+            value = 3.5) |>
+  ## 가로로 길게 시각화 크기 설정
+  layout(height = 100, width = 800, margin = list(l= 120, r= 10))
+```
+
+### delta
+
+`delta`는 데이터의 증감량을 나타내는 인디케이터를 표시한다. 가장 흔히 보이는 곳이 주식관련 시각화인데 전일 대비 주가를 파란색, 빨간색 삼각형과 같이 나타내는 것이 `delta`이다. 증감량을 표시해야 하기 때문에 증감의 기준이 되는 수치인 `reference`가 설정되어야 하고 `increasing`과 `decreasing`을 통해 증감의 표시를 설정할 수 있다.
+
+```{r eval = FALSE}
+plot_ly() |>
+  add_trace(type = 'indicator', mode = "gauge+delta+number", 
+            ## 인디케이터의 제목 설정
+            title = list(text = '<b>조사 만족도</b>', font = list(size = 30)), 
+            ## angular 형태의 gauge 세부 속성 설정 
+            gauge = list(shape = 'angular',
+                         bar = list(color = 'darkblue'), 
+                         ## steps 세부 속성 설정
+                         steps = list(
+                           list(range = c(0,1), color = step_colors[1], 
+                                line = list(color = 'white', width = 5)),
+                           list(range = c(1,2), color = step_colors[2], 
+                                line = list(color = 'white', width = 5)),
+                           list(range = c(2,3), color = step_colors[3], 
+                                line = list(color = 'white', width = 5)),
+                           list(range = c(3,4), color = step_colors[4], 
+                                line = list(color = 'white', width = 5)),
+                           list(range = c(4,5), color = step_colors[5], 
+                                line = list(color = 'white', width = 5))
+                           ),
+                         ## threshold 세부 속성 설정
+                         threshold = list(line = list(color = 'white', 
+                                                      width = 3),
+                                          value = 4.5)
+                         ), 
+            value = 3.5, 
+            ## delta의 세부 속성 설정
+            delta = list(reference = 4, position = "top", 
+                         ## 증가치 표현을 위한 increasing 세부 속성 설정
+                         increasing = list(color = 'darkred', symbol = '+'), 
+                         ## 감소치 표현을 위한 decreasing 세부 속성 설정
+                         decreasing = list(color = 'darkblue', symbol = ''), 
+                         font = list(size = 35)
+                         ), 
+            ## 수치 표현을 위한 number 세부 속성 설정
+            number = list(prefix = '만족도 :', font = list(size = 40))
+  ) |> layout(margin = margins)
+
+```

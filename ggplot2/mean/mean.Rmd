@@ -1,0 +1,204 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(ggxmean)
+```
+
+산점도는 데이터 시각화에 흔히 사용되는 방법이다. 산점도에는 많은 데이터가 점으로 표현되기 때문에 데이터의 분포나 통계값을 같이 시각화하여야 하는 경우가 있다. 가장 많이 사용되는 통계값이 평균이나 중간값이다. 이렇게 산점도에 평균이나 중간값과 같은 데이터 특성을 나타내는 통계값을 표기하는 방법을 알아보고자 한다. 
+
+데이터 산점도를 그리기 위해 교육통계 서비스 홈페이지(https://kess.kedi.re.kr)에서 제공하는 '지역규모별 (대도시/중소도시/읍면지역/도서지역) 학교수 학생수 교원수'(https://kess.kedi.re.kr/post/6731898?itemCode=04&menuId=m_02_04_03_01) 데이터를 사용하겠다. 이 데이터 중 전체학생수 대비 학업중단자에 대한 데이터를 활용하여 평균값을 표시해보겠다. 이를 위해 다음과 같이 데이터를 전처리한다. 
+
+```{r eval=FALSE}
+df_dropout <- read_excel('데이터저장폴더/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+```{r echo=FALSE}
+df_dropout <- read_excel('D:/R/data/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+## geom_vline()과 geom_hline()을 이용한 평균값 표현
+
+`ggplot2`로 시각화한 산점도에 x 변량과 y 변량에 대한 평균값을 표현하는데 가장 흔히 사용되는 방법은 `geom_vline()`과 `geom_hline()`을 사용하는 방법이다. 
+
+아래 코드는 전국 시군구의 고등학교 학생수를 y축에 고등학교의 학업중단자를 x축에 표기하는 산점도이다.
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point()
+
+```
+
+이 산점도에 x축의 평균과 y축의 평균을 선으로 그리면 다음과 같다. 
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() + 
+  geom_vline(aes(xintercept = mean(학업중단자)), color = 'blue') +
+  geom_hline(aes(yintercept = mean(전체학생수)), color = 'red') +
+  geom_text(aes(x = (max(학업중단자) + min(학업중단자)) / 2, y = mean(전체학생수), label = round(mean(학업중단자), 2)), vjust = -0.5, color = 'red') +
+  geom_text(aes(x = mean(학업중단자) , y = (max(전체학생수) + min(전체학생수)) / 2, label = round(mean(전체학생수), 2)), vjust = -0.5, angle = 90, color = 'blue')
+
+
+```
+
+
+만약 중간값을 표기한다면 다음과 같이 표시할 수 있다. 
+
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() + 
+  geom_vline(aes(xintercept = median(학업중단자)), color = 'blue') +
+  geom_hline(aes(yintercept = median(전체학생수)), color = 'red') +
+  geom_text(aes(x = (max(학업중단자) + min(학업중단자)) / 2, y = median(전체학생수), label = round(median(학업중단자), 2)), vjust = -0.5, color = 'red') +
+  geom_text(aes(x = median(학업중단자) , y = (max(전체학생수) + min(전체학생수)) / 2, label = round(median(전체학생수), 2)), vjust = -0.5, angle = 90, color = 'blue')
+
+
+```
+
+
+## ggxmean 패키지 사용
+
+최근 평균값과 같은 통계값을 `ggplot2`에 시각화하기 위한 패키지인 `ggxmean` 패키지가 발표되었다. 이 패키지는 아직 CRAN에 등록되지 않아 Github을 통해 설치할 수 있는데 R-Studio의 블로그에 소개되면서 알게되었다.(https://www.rstudio.com/blog/new-statistical-geoms-in-ggxmean/) 하지만 이 패키지는 아직 매뉴얼이 충실치 않아 사용에 한계가 있다. 
+
+`ggxmean` 패키지는 다음과 같이 설치할 수 있다. 
+
+```{r eval=FALSE}
+remotes::install_github("EvaMaeRey/ggxmean")
+library(ggxmean)
+
+```
+
+
+
+`ggxmean` 패키지에는 꽤 유용한 함수들이 있지만 여기서는 주로 평균값과 중간값의 시각화를 위한 함수와 백분률, 4분위의 시각화를 위주로 소개하겠다. 
+
+### 평균값 시각화
+
+`ggxmean` 패키지에는 평균값을 시각화해주는 `geom_x_mean()`과 `geom_y_mean()` 함수를 제공한다. 
+
+`ggxmean` 패키지를 사용하여 앞서 그려본 산점도에 평균을 표시하는 시각화는 다음과 같다. 
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_x_mean(color = 'blue') +
+  geom_x_mean_label(color = 'blue') +
+  geom_y_mean(color = 'red') +
+  geom_y_mean_label(color = 'red')
+
+```
+
+### 중간값 시각화
+
+`ggxmean` 패키지에는 중간값을 시각화해주는 `geom_x_median()`과 `geom_y_median()` 함수를 제공한다. 
+
+`ggxmean` 패키지를 사용하여 앞서 그려본 산점도에 중간값을 표시하는 시각화는 다음과 같다.
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_x_median(color = 'blue') +
+  geom_y_median(color = 'red')
+
+```
+
+위의 산점도에서 `geom_y_median()`이 정상적으로 작동되지 않는데 이는 패키지상의 오류로 보인다. 게다가 중간값을 표시하는 함수도 아직 제공하지 않는다. 
+
+### 표준편차 지점의 시각화
+
+`ggxmean` 패키지에는 표준편차 지점을 시각화해주는 `geom_x1sd()`와 `geom_y1sd()` 함수를 제공한다. 
+
+`ggxmean` 패키지를 사용하여 앞서 그려본 산점도에 95% 백분위값을 표시하는 시각화는 다음과 같다.
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_x_mean(color = 'blue') +
+  geom_y_mean(color = 'red') +
+  ggxmean:::geom_x1sd(linetype = "dashed") +
+  ggxmean:::geom_y1sd(linetype = "dashed")
+
+```
+
+### 백분위(percentile) 지점의 시각화
+
+`ggxmean` 패키지에는 백분위(percentile) 지점을 시각화해주는 `geom_x_percentile()` 함수를 제공한다. 아쉽게도 y축의 백분위 지점을 시각화하는 함수는 제공하지 않는다.  
+
+`ggxmean` 패키지를 사용하여 앞서 그려본 산점도에 95% 백분위값을 표시하는 시각화는 다음과 같다.
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_x_mean(color = 'blue') +
+  geom_y_mean(color = 'red') +
+  geom_x_percentile(percentile = 95, linetype = 'dashed')
+
+```
+
+### 사분위(quantile) 지점의 시각화
+
+`ggxmean` 패키지에는 사분위(quantile) 지점을 시각화해주는 `geom_x_quantile()` 함수를 제공한다. 아쉽게도 y축의 사분위 지점을 시각화하는 함수는 제공하지 않는다.  
+
+`ggxmean` 패키지를 사용하여 앞서 그려본 산점도에 1사분위, 3사분위 백분위값을 표시하는 시각화는 다음과 같다.
+
+```{r}
+df_dropout |>
+  filter(학교급 == '고등학교', 시군 != '소계')|>
+  ggplot(aes(x = 학업중단자, y = 전체학생수)) +
+  geom_point() +
+  geom_x_mean(color = 'blue') +
+  geom_y_mean(color = 'red') +
+  geom_x_quantile(quantile = c(0.25, 0.75), linetype = 'dashed')
+
+```
+
+
+
+
+
+
+

@@ -1,0 +1,193 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+
+library(tqk)
+
+code <- code_get()
+
+## 삼성전자 코드값을 가져온다. 
+sse_code <- code |> filter(name == '삼성전자') |>
+  select(code) |> 
+  pull()
+
+samsung <- tqk_get(sse_code, from='2022-01-01', to='2022-06-30')
+```
+
+## tidyquant와 quantmod를 사용한 주가 그래프 그리기
+
+주식의 평가를 위해서는 가장 먼저해야할 일이 주가를 가져와야 하는 일일 것이다. 앞선 포스트에서 주가를 가져왔는데(<https://2stndard.tistory.com/104>) 주가를 가져왔으면 흔히 가장 먼저 하는 일이 그래프를 통해 주가가 어떻게 움직였는지를 확인하는 것일 것이다.
+
+주가를 표현하는 그래프를 그리기 위해 많이 사용하는 패키지가 `quantmod`와 `tidyquant`이다. 사실 `quantmod`패키지는 R에서 가장 많이 사용되는 금융 전문 패키지인데 `tidyquant`도 이 `quantmod` 패키지의 함수들을 `tidyverse` 생태계에서 사용할 수 있게 구현한 패키지이다.
+
+여기서는 R에서 그래프 작성에 가장 많이 사용되는 `ggplot2`와 금융 전용 패키지인 `quantmod`, `tidyquant`를 사용하여 앞서 가져온 삼성전자의 주가 그래프를 그려보도록 하겠다.
+
+### ggplot2 사용
+
+앞서 가져온 삼성전자의 시계열 그래프를 `ggplot2`로 그려보면 다음과 같다.
+
+먼저 주가의 종가에 대한 선 그래프를 그려보겠다.
+
+```{r}
+fig1 <- samsung |> ggplot() +
+  geom_line(aes(x = date, y = close, group = 1)) +
+  scale_x_date(date_labels = "%y년 %W주", date_breaks = 'week') + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  labs(x = '주차', y = '종가', title = '22년 삼성전자 주가')
+  
+fig1
+```
+
+보통 주식 그래프는 위와 같은 종가 그래프의 밑에 주식 거래량 막대 그래프가 붙는다. 다음은 주식 거래량에 대한 막대 그래프이다.
+
+```{r}
+fig2 <- samsung |> ggplot() +
+  geom_col(aes(x = date, y = volume)) +
+  scale_x_date(date_labels = "%y년 %W주", date_breaks = 'week') + 
+  scale_y_continuous(label = scales::label_number(suffix = " M", scale = 1e-6)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) + 
+  labs(x = '주차', y = '거래량', title = '22년 삼성전자 주식 거래량')
+
+fig2
+```
+
+`patchwork`패키지[^1]를 사용하여 이 두 그래프를 붙여준다.
+
+[^1]: patchwork 패키지의 사용법은 [https://2stndard.tistory.com/23?category=875356](https://2stndard.tistory.com/23?category=875356) 을 참조하라.
+
+```{r}
+library(patchwork)
+
+(fig1 + 
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank()) +
+  labs(x = NA, y = '종가', title = '2022년 삼성전자 주가')
+) /
+(fig2 + 
+   theme(plot.title = element_blank())
+ ) +
+   plot_layout(heights = c(5, 1))
+
+
+```
+
+그런데 위의 그래프를 보면 특히 아래 거래량 그래프에서 이가 빠진듯 중간중간 빈 곳이 있다. 이 곳은 주말과 휴일로 인해 거래가 되지 않는 날이다. 주말과 휴일을 제거하기 위해서는 `bdscale` 패키지의 `scale_x_bd()`를 사용할 수 있다. 
+
+```{r}
+if (!require(bdscale)) {
+  install.packages('bdscale')
+  library(bdscale)
+}
+
+(samsung |> ggplot() +
+  geom_line(aes(x = date, y = close, group = 1)) +
+  scale_x_bd(business.dates=samsung$date, max.major.breaks = 26, labels=scales::date_format("%y년 %W주")) +
+  scale_y_continuous(label = scales::comma) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(), 
+        axis.title.x = element_blank()) +
+  labs(x = NA, y = '종가', title = '2022년 삼성전자 주가')) /
+(samsung |> ggplot() +
+  geom_col(aes(x= date, y = volume)) +
+  scale_x_bd(business.dates=samsung$date, max.major.breaks = 26, labels=scales::date_format("%y년 %W주")) +
+  scale_y_continuous(label = scales::label_number(suffix = " M", scale = 1e-6)) +
+  labs(y = '거래량') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) ) +
+   plot_layout(heights = c(5, 1))
+
+```
+
+### tidyquant 패키지를 사용한 주가 그래프
+
+`ggplot2` 패키지를 사용해서 최대한 주가 그래프를 그려보았다. 하지만 뭔가가 좀 허전하다. 일단 주가 그래프에서는 보통 시가(Open), 저가(Low), 고가(High), 종가(Close)를 한꺼번에 표시하는 그래프를 사용한다. 이 그래프를 'candlestick' 그래프라고 한다. 또 주가 그래프에서 5일 이동 평균, 10일 이동 평균과 같은 이동 평균(Moving Average)가 같이 표기되는 경우가 많다. 물론 `ggplot2`를 사용해서 이를 표현할 수도 있지만 굉장히 복잡한 과정을 거쳐야 한다.   
+
+앞서 설명한 금융 전용 패키지인 `tidyquant` 패키지의 `geom_candlestick()`과 `geom_ma()`를 사용하면 이를 쉽게 그릴 수 있다. 
+
+```{r}
+if (!require(tidyquant)) {
+  install.packages('tidyquant')
+  library(tidyquant)
+}
+
+(samsung |>
+  ggplot(aes(x = date, y = close)) +
+  geom_candlestick(aes(open = open, high = high, low = low, close = close)) +
+  geom_ma(color = "darkgreen", n = 5) +
+  geom_ma(color = "darkred", n = 10) + 
+  scale_x_date(date_breaks = '1 week', date_labels = '%y년-%W주') +
+  scale_y_continuous(label = scales::comma) +
+  theme_bw() +
+  theme(axis.text.x = element_blank(), 
+        axis.title = element_blank()) + 
+  labs(xy = '종가', title = '2022년 삼성전자 주가'))  /
+(samsung |> ggplot() +
+  geom_col(aes(x= date, y = volume)) +
+  scale_x_bd(business.dates=samsung$date, max.major.breaks = 26, labels=scales::date_format("%y년 %W주")) +
+  scale_y_continuous(label = scales::label_number(suffix = " M", scale = 1e-6)) +
+  labs(y = '거래량') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) ) +
+   plot_layout(heights = c(5, 1))
+
+```
+
+### quantmod 패키지를 사용한 주가 그래프
+
+`quantmod` 패키지는 R에서 금융 분석을 위해 가장 많이 사용되는 패키지이다. 앞서 사용한 `tidyquant`도 `quantmod` 패키지 함수들을 재조합해 만들어진 패키지이다. 따라서 `quantmod` 패키지의 사용법도 잘 알아두는 것이 좋다. 다만 `quantmod` 패키지는 `xts` 타입의 시계열 데이터 타입을  사용하기 때문에 앞서 `tqk`로 불러들인 데이터를 `xts` 데이터 타입으로 바꾸는 과정이 필수적이다. 
+
+```{r}
+if (!require(xts)) {
+  install.packages('xts')
+  library(xts)
+}
+
+samsung_xts <- samsung
+
+rownames(samsung_xts) = samsung_xts$date
+samsung_xts <-as.xts(samsung_xts[, -1], order.by = samsung_xts$date)
+
+```
+
+변환된 `xts` 객체는 `chartSeries()`를 사용하면 간단히 주가 챠트가 그려진다.  
+
+```{r}
+chartSeries(samsung_xts)
+
+```
+
+위의 주가 그래프를 다음과 같이 조금 수정해보자.
+
+-   name : 그래프 제목의 수정
+-   TA : 추가적인 인디케이터 설정
+-   theme : 그래프의 전체 테마 설정
+-   up.col, dn.col : 상승과 하락 막대의 색 설정
+
+```{r}
+chartSeries(samsung_xts, 
+            type="candlestick",
+            name = '삼성전자 주가',
+            TA="addSMA(5,col='orange');addSMA(10,col='red');addVo()", 
+            theme = chartTheme('white'), 
+            up.col = 'red', dn.col = 'blue')
+```
+
+
+
+
+
+

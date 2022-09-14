@@ -1,0 +1,329 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dpi = 130)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+names(df_취업률)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자수 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## 조건에 맞는 행의 데이터 변경하기
+
+대량의 데이터 분석에 사용되는 툴은 여러 가지가 있다. 사실 빅데이터 시대가 도래하기 전인 2010년대 초반까지는 데이터의 요약값이나 기초 통계 값을 산출하고 간단한 그래프를 그리는데 가장 많이 사용된 툴은 MS-Excel일 것이다. MS-Excel은 그 시대 뿐아니라 지금까지도 기초적인 데이터 분석에 여전히 많이 사용되고 있는 툴이다. 스프레드 시트 프로그램의 대표적인 프로램인 MS-Excel은 위지윅(WYSIWYG: What You See Is What You Get) 형태로 데이터를 직접 눈으로 보면서 다룰 수 있기 때문에 데이터 분석에 익숙치 않은 사용자들도 비교적 손쉽게 사용할 수 있다는 장점이 있지만 반복적 작업을 할 경우 이 작업을 매번 실행해야 한다는 단점이 있다. 하지만 MS-Excel을 사용해서 데이터 분석을 해본 경험이 있다면 반복 작업에 대한 단점보다 더 크게 다가오는 치명적 단점은 데이터가 커지면 Excel이 먹통이 되어버린다는 것이다. 
+
+하지마 R을 사용하면 데이터를 확인하면서 데이터 분석을 하는 것은 다소 힘들수는 있지만 통계적 계산이나 머신러닝 계산등에는 매우 빠른 속도를 낸다. 그렇기 때문에 빅데이터 분석에 R이 많이 사용되고 있다. 하지만 R에도 단점이 따른다. 당연히 위지윅 환경으로 작업이 불가하다는 단점이 있겠다. 그 위지윅 환경이 지원되지 않음에 따라 어려운 작업 중에 하나가 특정 조건에 맞는 데이터를 변경하는 작업이다. 코로나19 데이터의 예를 들자면 특정 나라의 신규 확진자가 NA로 기재되어 있다면 해당 행을 제거할 수도 있겠지만 신규 확진자 열이 NA인 행의 신규 확진자 열 데이터를 0으로 바꿔야 할 수도 있다. 이런 경우 다른 데이터를 유지하면서 해당 데이터만 NA를 0으로 바꿀수 있을까? 그리고 또 만약 특정 국가의 데이터만 2배 해야한다거나 100을 더해야 한다면 어떻게 해야할 것인가? 열 데이터를 만들기 위해 가장 많이 사용하는 `mutate()`를 사용하면 가능할까? 
+
+이처럼 특정 조건에 맞는 행의 특정 열 데이터만 바꾸는 방법 세 가지를 알아보자.
+
+### 1. 행 인덱스를 사용하는 방법
+
+R을 배울때 기초적으로 배우는 것중에 하나가 바로 벡터나 데이터프레임의 데이터 접근시에 인덱싱을 사용하여 접근하는 방법이다. 인덱싱을 사용하여 데이터를 엑세스하는 방법은 `[]`에 행, 열 번호를 넣거나 조건을 넣어서 특정 조건에 맞는 행을 선택하고 접근해야하는 열을 지정함으로서 해당 데이터를 액세스할 수 있다. 이렇게 지정된 데이터에 특정 값을 지정함으로써 해당 데이터를 일괄적으로 바꿀수 있다. 
+
+다음의 예는 코로나19 샘플 데이터인 df_covid19의 신규 확진자열인 'new_cases'열에 NA가 존재한다면 해당 데이터를 0으로  인덱스를 사용하여 바꾸는 방법이다. 
+
+```{r}
+df_covid19_temp <- df_covid19
+
+df_covid19_temp |> count()
+## df_covid19의 new_cases열에 na가 있는 행의 개수
+df_covid19_temp |> filter(is.na(new_cases)) |> count()
+
+
+## df_covid19의 new_cases열에 na를 0으로 바꿈
+df_covid19_temp[is.na(df_covid19_temp$new_cases) == TRUE, 'new_cases'] <- 0
+
+df_covid19_temp |> count()
+## df_covid19의 new_cases열에 na를 0으로 바꾼후 na가 있는 행의 개수
+df_covid19_temp |> filter(is.na(new_cases)) |> count()
+
+```
+
+인덱싱에 사용할 수 있는 `which()`를 사용해서 만약 확진자가 100인 데이터를 모두 두배로 증가시킨다면 다음과 같이 변경시킬수 있다. 
+
+`which()`는 해당 조건에 맞는 행의 인덱스 벡터를 반환하는 함수이다. 
+
+```{r}
+df_covid19_temp <- df_covid19
+
+df_covid19_temp |> count()
+## df_covid19의 new_cases열이 200인 행의 개수
+df_covid19_temp |> filter(new_cases == 200) |> count()
+
+## df_covid19의 new_cases열이 100인 행의 new_cases열을 2배로 변경 
+df_covid19_temp[which(df_covid19_temp$new_cases == 100), 'new_cases'] <- df_covid19_temp[which(df_covid19_temp$new_cases == 100), 'new_cases'] * 2
+
+df_covid19_temp |> count()
+## df_covid19의 new_cases열이 200인 행의 개수
+df_covid19_temp |> filter(new_cases == 200) |> count()
+
+```
+
+만약 하나 이상의 열의 데이터를 변경하고자 할 경우 바꾸고자 하는 열 이름을 `c()`로 묶어 선택하고 바꿀 데이터도 `c()`로 묶어 할당하면 바꿀수 있다. 다음은 df_covid19의 일본(location == 'Japan') 데이터의 'total_cases', 'new_cases', 'total_deaths', 'new_deaths'를 모두 100씩 증가시킨 값으로 변경하는 코드이다. 
+
+```{r}
+df_covid19_temp <- df_covid19
+
+df_covid19_temp |> count()
+
+df_covid19_temp[which(df_covid19_temp$location == 'Japan'), c('total_cases', 'new_cases', 'total_deaths', 'new_deaths')]
+
+df_covid19_temp[which(df_covid19_temp$location == 'Japan'), c('total_cases', 'new_cases', 'total_deaths', 'new_deaths')] <- 
+  c(
+    df_covid19_temp[which(df_covid19_temp$location == 'Japan'), c('total_cases')] + 100, 
+    df_covid19_temp[which(df_covid19_temp$location == 'Japan'), c('new_cases')] + 100, 
+    df_covid19_temp[which(df_covid19_temp$location == 'Japan'), c('total_deaths')] + 100, 
+    df_covid19_temp[which(df_covid19_temp$location == 'Japan'), c('new_deaths')] + 100
+  )
+
+df_covid19_temp |> count()
+
+df_covid19_temp[which(df_covid19_temp$location == 'Japan'), c('total_cases', 'new_cases', 'total_deaths', 'new_deaths')]
+```
+
+### 2. dplyr를 사용한 방법
+
+앞서 설명한 인덱싱 방법은 R의 가장 기초적인 방법이지만 사실 tidyverse 생태계의 `dplyr`보다 많이 사용되지 못한다. 사실 R로 데이터 전처리를 하는 많은 사람들은 R base에서 제공하는 인덱싱 방법보다는 `dplyr`를 사용하는 방법에 익숙할 것이다. 그런데 앞에서 설명한 인덱싱 방법은 `dplyr`에서 사용하기 어렵다. `dplyr`에서 열을 생성하는데 사용하는 함수는 `mutate()`이지만 `mutate()`는 전체 행에 대한 연산 결과를 할당하는 함수이다. 또 특정 조건에 맞는 행에 대한 필터링은 `filter()`를 사용하지만 `filter()`를 사용하면 필터링된 결과만 남어버리기 때문에 조건에 맞지않는 행들은 결과에서 모두 제거되어 최종 결과는 변경된 행만 남는 상황이 된다. `dplyr`를 사용하여 데이터를 변경하기 위해서는 `mutate()`와 `replace()`를 사용하거나 `case_when()`을 사용하는 방법의 두가지가 있다. 
+
+#### 2.1 mutate(), replace()
+
+앞서 설명한바와 같이 `mutate()`는 연산 결과를 열로 할당해 주는 함수이다. 할당하는 열은 새로운 열일수도 있지만 기존 열에 값을 업데이트할 수도 있다. 그런데 특정 조건에 해당하는 행에만 `mutate()`를 적용하기 위해 `filter()`를 사용해서 조건을 지정하면 최종 결과에 필터링된 결과만 남기 때문에 값의 변경에서 제외되어 유지되어야 하는 행들이 모두 사리지게 된다. 
+
+```{r}
+df_covid19_temp <- df_covid19
+
+## 전체 행의 수는 193,017개
+df_covid19_temp |> count()
+## df_covid19의 new_cases가 na인 행의 수는 7799개
+df_covid19_temp |> filter(is.na(new_cases) == TRUE) |> count()
+
+df_covid19_temp <- df_covid19_temp |> filter(is.na(new_cases) == TRUE) |> 
+  mutate(new_cases = 0)
+
+## 데이터 업데이트 후 전체 행의 개수는 7799개
+df_covid19_temp |> count()
+
+## df_covid19의 new_cases가 na인 행의 수는 0개
+df_covid19_temp |> filter(is.na(new_cases) == TRUE) |> count()
+
+```
+
+
+이를 방지하기 위해서 `filter()`를 사용하지 않고 `replace()`를 사용해야 한다.
+`replace()`는 `dplyr`에서 제공하는 함수가 아니고 R base에서 제공하는 함수인데 `mutate()`의 업데이트 수식에 넣어줌으로써 조건 필터링과 데이터 값 변경에 사용할 수 있는 함수이다. 
+
+`replace()`는 세 개의 매개변수가 필요한데 첫 번째 매개변수는 데이터 업데이트가 적용될 벡터가 지정되고 두 번째 매개변수는 업데이트할 인덱스 벡터나 필터링 조건이고 마지막 변수는 변경할 값이 지정된다.  
+
+
+```{r}
+df_covid19_temp <- df_covid19
+
+df_covid19_temp |> count()
+## df_covid19의 new_cases열이 200인 행의 개수
+df_covid19_temp |> filter(is.na(new_cases) == TRUE) |> count()
+
+df_covid19_temp <- df_covid19_temp |> 
+  mutate(new_cases = replace(new_cases, is.na(new_cases) == TRUE, 0))
+
+df_covid19_temp |> count()
+
+## df_covid19의 new_cases열이 200인 행의 개수
+df_covid19_temp |> filter(is.na(new_cases) == TRUE) |> count()
+
+```
+
+하지만 `replace()`의 가장 큰 단점은 값을 직접 대입하는 것만 가능할 뿐 수식으로 계산된 값으로 변경하는 것이 불가하다는 것이다. 
+
+```{r error=TRUE}
+df_covid19_temp <- df_covid19_temp |> 
+  mutate(new_cases = replace(new_cases, new_cases == 100, new_cases * 2))
+
+```
+
+
+#### 2.2 case_when()
+
+이렇게 값을 대입하는 경우가 아니고 식을 사용해서 계산을 하는 경우는 `case_when()`을 사용하는 것이 좋다. `case_when()`은 식을 사용할 수 있다는 장점도 있지만 여러 개의 조건을 동시에 사용할 수 있다는 장점도 있다.
+
+`case_when()`에는 조건을 여러 개 나열해서 사용하는데 해당 조건에 따라 할당되는 값을 설정할 때는 `=`를 사용하는 것이 아니고 `~`을 사용해아 한다는 것을 주의해야 한다.  
+
+```{r}
+df_covid19_temp <- df_covid19
+
+## 전체 행의 수는 193,017개
+df_covid19_temp |> count()
+## df_covid19의 new_cases열이 200인 행의 개수
+df_covid19_temp |> filter(new_cases == 200) |> count()
+
+df_covid19_temp <- df_covid19_temp |> 
+  mutate(new_cases = 
+    case_when(
+      new_cases == 100 ~ new_cases * 2,
+      TRUE ~ new_cases
+    )
+  )
+
+## 전체 행의 수는 193,017개
+df_covid19_temp |> count()
+## df_covid19의 new_cases열이 200인 행의 개수
+df_covid19_temp |> filter(new_cases == 200) |> count()
+
+```
+
+
+### 3. rbind()를 사용하는 방법
+
+R 사용자들이 익숙한 `dplyr`의 `filter()`와 `mutate()`를 그대로 사용하면서 위와 같은 작업을 수행하고자 한다면 값의 변경이 필요한 데이터프레임 서브셋과 값의 변경이 필요치 않은 데이터프레임 서브셋을 따로 구하여 `rbind()`로 붙여주는 형태로 작업이 가능하다. 단 이 과정에서 하나 주의해야 할것은 NA의 처리 과정이다. `filter()`의 조건으로 데이터를 필터링 할때 NOT(!) 조건의 경우에는 NA도 같이 필터핑 되기 때문에 NA에 대한 처리 루틴을 반드시 넣어주어야 한다.  
+
+```{r}
+df_covid19_temp <- df_covid19
+
+## 전체 행의 수는 193,017개
+df_covid19_temp |> count()
+## df_covid19의 new_cases열이 200인 행의 개수
+df_covid19_temp |> filter(new_cases == 200) |> count()
+
+df_covid19_temp <- rbind(
+  df_covid19_temp |> filter(new_cases != 100 | is.na(new_cases)), 
+  df_covid19_temp |> filter(new_cases == 100) |>
+    mutate(new_cases = new_cases * 2)
+)
+
+
+## 전체 행의 수는 193,017개
+df_covid19_temp |> count()
+## df_covid19의 new_cases열이 200인 행의 개수
+df_covid19_temp |> filter(new_cases == 200) |> count()
+
+
+
+```
+
+
+
+
+
+
+
+
+
+

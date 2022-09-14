@@ -1,0 +1,161 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(SmartEDA)
+```
+
+## 자동 탐색적 데이터 분석 
+
+데이터 분석을 하기 위해서 가장 먼저 해야하는 작업은 분석에 필요한 적절한 데이터를 찾고 얻어내는 것일 것이다. 자신이 분석하기 원하는 데이터를 찾았다면 먼저 데이터를 R로 불러들여야 한다. 이 작업이 끝나면 이제 본격적으로 데이터 분석을 시작해야 한다.
+
+그렇다면 이제 무슨 작업을 해야하는 것일까?
+
+우선은 자신이 불러들인 데이터가 어떻게 생겼고 어떤 특성을 지녔는지 전반적으로 확인해야 할 것이다. 이 작업을 탐색적 데이터 분석( Exploratory Data Analysis : EDA)이라고 한다. 
+
+대부분의 R 관련 입문 도서들에서는 탐색적 데이터 분석을 위해 `head()`와 `tail()`로 개략적인 데이터를 확인하고 `str()`과 `glimpse()`를 사용하여 데이터프레임의 전반적인 구조를 확인하는 방법을 소개한다. 하지만 R에서는 이보다 강력한 EDA 패키지가 제공된다. 이번 포스트에서는 다양한 EDA 패키지에 대해 소개한다. 
+
+EDA 패키지의 기능을 소개하기 위해 사용하는 데이터는 '평균과 중간값 등 통계치의 시각화 in R'(https://2stndard.tistory.com/132) 포스트에서 사용했던 데이터를 사용하도록 하겠다. 
+
+```{r eval=FALSE}
+df_dropout <- read_excel('데이터저장폴더/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+```{r echo=FALSE}
+df_dropout <- read_excel('D:/R/data/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+여기에 일부 열을 팩터로 변경하여 사용한다. 
+
+```{r}
+df_dropout <- df_dropout  |>
+  mutate(시도 = as.factor(시도),
+         학교급 = as.factor(학교급))
+
+
+```
+
+
+### SmartEDA 패키지
+
+`SmartEDA` 패키지는 데이터프레임의 구조와 관계를 설명하는 다양한 함수를 제공한다. 특히 그래트와 차트를 통해 EDA를 제공하고 EDA를 종합한 보고서도 작성할 수 있다는 장점이 있다. 
+
+우선 `SmartEDA` 패키지를 설치한다. 
+
+```{r}
+if (!require(SmartEDA)) {
+  install.packages('SmartEDA')
+  library(SmartEDA)
+}
+
+```
+
+### 전체 데이터 요약
+
+`SmartEDA`에서 가장 기본적으로 사용되는 함수는 `ExpData()`이다. 이 함수는 데이터프레임의 전반적인 개요를 설명해주는 메타데이터와 데이터들의 종합값을 보여준다. `ExpData()`는 type 1과 type 2의 두 가지 요약 결과를 보여준다. 
+
+```{r}
+ExpData(df_dropout, type = 1)
+
+```
+
+type 1의 결과를 보면 전체 샘플 사이즈는 4047개, 변수(열)의 수는 11개, 수치형 변수는 7개, 팩터형 변수는 2개, 문자형 변수는 2개, 논리형 변수, ID 변수, 날짜형 변수, 0 분산 변수는 0개, 완전한 케이스(NA를 포함하지 않는)를 가지는 변수는 100%(11개), 결측치의 범위에 따른 변수의 개수를 보여준다.
+
+```{r}
+ExpData(df_dropout, type = 2)
+
+```
+
+type 2의 결과를 보면 각각의 변수에 따른 변수타입, 샘플 개수, 결측치수, 결측치의 비율, 유일값의 개수를 보여준다. 
+
+이 type 2의 결과에 합계, 평균, 중앙값, 분산 등의 요약 통계치를 같이 나타내는 코드는 다음과 같다. 
+
+```{r}
+ExpData(df_dropout, type = 2, fun = c('sum', 'mean', 'sd'))
+
+```
+
+### 수치형 변수 요약
+
+`SmartEDA`에서는 데이터프레임 중에서 수치형 변수에 대한 상세한 EDA를 위해 `ExpNumStat()`가 제공된다. 
+
+```{r}
+ExpNumStat(df_dropout)
+
+```
+
+`ExpNumStat()`는 변수의 그룹에 따라 EDA를 보여주는 매개변수를 제공한다. 'by'는 'A', 'G', 'GA'의 세 가지 값을 가지는데 'A'는 전체적인 EDA, 'G'는 'gp' 매개변수에 설정된 열의 값게 따라 그룹화하여 수치형 변수에 대한 EDA를 보여준다. 'GA'는 전체와 그룹화 EDA를 보여준다. 
+
+```{r}
+ExpNumStat(df_dropout, by = 'GA', gp = '연도')
+
+```
+
+`SmartEDA`는 수치형 변수에 대한 밀도분포 함수의 시각화를 보기 위해서 `ExpNumViz()`를 제공한다. `ExpNumViz()`는 각각의 변수의 EDA 값에 따른 밀도분포 함수 그래프들을 리스트로 리턴한다. 
+
+```{r}
+plot <- df_dropout |> filter(시군 != '소계', 학교급 == '고등학교') |> ExpNumViz(Page=c(3,3))
+
+plot
+
+```
+
+```{r}
+plot <- df_dropout |> filter(시군 != '소계', 학교급 == '고등학교') |> ExpNumViz(Page=c(3,3), target = '전체학생수')
+
+plot
+
+```
+
+
+### 범주형 변수 요약
+
+```{r}
+ExpCTable(df_dropout, Target = '시도', per = T)
+
+```
+
+
+```{r}
+plot2 <- ExpCatViz(df_dropout,target='학교급')
+plot2[[1]]
+
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

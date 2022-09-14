@@ -1,0 +1,244 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 6.5)
+
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+library(sf)
+library(ggspatial)
+
+theme_set(theme_bw() +
+  theme(text = element_text(size = 25))
+)
+spdf_shp <- st_read('C:/R/git/datavisualization/chap10/TL_SCCO_CTPRVN.shp', options = 'ENCODING=CP949')
+
+df_hakwon <- read_xlsx('D:/R/data/주요-10 (유초)사설학원 현황_시도별_행정구별(2013-2021).xlsx', sheet = '시도별', 
+                       skip = 3, col_names = T, col_type = c(rep('text', 4), rep('numeric', 8)))
+
+df_hakwon_summary <- df_hakwon |> filter(분야 == '소계', 종류 == '학교교과교습학원', 시도 != '전국', 조사연도 == '2021')
+
+df_hakwon_summary <- df_hakwon_summary |>
+  mutate(CTPRVN_CD = case_when(
+    시도 == '강원' ~ '42', 
+    시도 == '경기' ~ '41', 
+    시도 == '경남' ~ '48', 
+    시도 == '경북' ~ '47', 
+    시도 == '광주' ~ '29', 
+    시도 == '대구' ~ '27', 
+    시도 == '대전' ~ '30', 
+    시도 == '부산' ~ '26', 
+    시도 == '서울' ~ '11', 
+    시도 == '세종' ~ '36', 
+    시도 == '울산' ~ '31', 
+    시도 == '인천' ~ '28', 
+    시도 == '전남' ~ '46', 
+    시도 == '전북' ~ '45', 
+    시도 == '제주' ~ '50', 
+    시도 == '충남' ~ '44', 
+    시도 == '충북' ~ '43'
+  ))
+
+df_joined <- left_join(spdf_shp,df_hakwon_summary, by = 'CTPRVN_CD')
+
+df_central <- as.data.frame(cbind(st_centroid(spdf_shp), st_coordinates(st_centroid(spdf_shp)))) |> select(1, 4, 5) |> left_join(df_hakwon_summary, by = 'CTPRVN_CD')
+
+```
+
+<사용데이터 : [전국 사설 학원 수 단계 구분도 그리기 in R](https://2stndard.tistory.com/112) >
+
+## 범주형 단계 구분도(Choropleth map)
+
+[전국 사설 학원 수 단계 구분도 그리기 in R](https://2stndard.tistory.com/112)에서 그린 전국 사설학원수에 대한 단계 구분도는 단계를 구분하는 색이 연속형 변수로 색조의 변화와 변수가 매핑되어 있다. 하지만 그 지도에서도 보이듯이 서울, 경기 지역의 학원수가 타 시도에 비해 매우 크기 때문에 그 변화가 잘 눈에 띄지지 않는다. 따라서 이런 경우에는 연속형 변수를 범주형으로 바꾸어서 그 변수들의 단계가 명확히 보이도록 그리는게 좋을 것이다. 
+
+그렇다면 먼저 연속형 변수인 사설학원수를 범주형으로 바꾸어야 한다. 연속형 변수를 범주형 변수로 바꾸는 방법에는 여러가지가 있지만 여기서는 `cut()`, `discretize()`, `cut_*()`, `frq()`를 사용하는 네 가지 방법을 사용하겠다. 
+
+### cut()
+
+`cut()`은 R base에서 제공하는 함수로 수치형 연속형 변수를 분할하여 범주형으로 만들어 주는 함수중에 하나로  가장 기본적인 함수이다. 따라서 R base에서 제공하는 `cut()`을 사용할 수 있고 이 함수에서 파생된 함수를 사용하는 방법이 있다. 여기서는 `ggplot2`에서 제공하는 `cut()` 파생 함수에 대해 알아본다. 
+
+#### R base의 cut()
+
+ `cut()`은 범주화하는데 필요한 분할점을 명기함으로써 그 분할점으로 범주를 나누는 함수이다. `cut()`을 사용하여 범주형 단계 구분도를 그리면 다음과 같다. 
+
+```{r}
+df_joined <- df_joined |> 
+  mutate(level_cut_break = cut(학원수, breaks = c(-Inf, 1000, 3000, 5000, 7000, 9000, Inf), 
+                     labels = c('1,000개 미만', '1,000~2,999', '3,000~4,999', '5,000~6,999', '7,000~8,999', '9000개이상')
+                      )
+         )
+
+as.data.frame(df_joined) |> select(시도, 학원수, level_cut_break) |> head()
+
+as.data.frame(df_joined) |> count(level_cut_break)
+
+```
+
+```{r}
+df_joined |> 
+  ggplot() + 
+  geom_sf(aes(fill = level_cut_break), color = 'gray80') +
+  geom_text(data = df_central, aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'black', lineheight = 0.5, size = 6) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_discrete(name = '학원수')
+```
+
+`cut()`은 분할점을 지정하여 범주화 할 수도 있고 범주수를 지정하여 범주화할 수도 있다. 다음은 전체를 5개의 범주로 나누어 단계화하는 방법이다. 
+
+```{r}
+df_joined <- df_joined |> 
+  mutate(level_cut_num = cut(학원수, breaks = 7, dig.lab = 5)
+         )
+
+as.data.frame(df_joined) |> select(시도, 학원수, level_cut_num) |> head()
+
+as.data.frame(df_joined) |> count(level_cut_num)
+
+```
+
+```{r}
+df_joined |> 
+  ggplot() + 
+  geom_sf(aes(fill = level_cut_num), color = 'gray80') +
+  geom_text(data = df_central, aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'black', lineheight = 0.5, size = 6) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_discrete(name = '학원수')
+```
+
+#### ggplot2의 cut_*()
+
+보통 `ggplot2`패키지는 시각화에 전용으로 사용되는 패키지로 알고 있다. 하지만 `ggplot2`에도 데이터 전처리를 위한 일부 함수가 제공되고 있다는 것이다. 물론 이 함수들도 시각화에 사용되기 위해 설계된 함수이지만 일반적인 데이터 전처리에도 사용될 수 있다. 여기서 다루고자 하는 `cut_*()`도 `ggplot2` 패키지에서 제공되는 함수이다. 
+
+앞서 `cut()`과 `discretize()`에서는 등간격, 등분포 등의 범주화 방법을 매개변수를 사용하여 결정하였는데 `ggplot2`에서는 등분포 범주화에 `cut_number()`, 등간격 범주화에 `cut_interval()`, `cut_width()`를 제공한다. `cut_interval()`과 `cut_width()`의 차이는 `cut_interval()`은 벡터의 최소값에서부터 시작해서 등간격을 나누지만 `cut_width()`는 최소값을 간격의 시작점으로 설정할수도 있지만 중간값으로 설정할 수 있는 옵션이 있다는 것이다.
+
+이 함수들은 `cut()`을 기본으로 설계되었기 때문에 `cut()`에서 사용하는 매개변수를 사용할 수 있다. 
+
+```{r}
+df_joined <- df_joined |> 
+  mutate(level_cut_cut_interval = cut_interval(학원수, 7, dig.lab = 5)
+         )
+
+as.data.frame(df_joined) |> select(시도, 학원수, level_cut_cut_interval) |> head()
+
+as.data.frame(df_joined) |> count(level_cut_cut_interval)
+
+```
+
+```{r}
+df_joined |> 
+  ggplot() + 
+  geom_sf(aes(fill = level_cut_cut_interval), color = 'gray80') +
+  geom_text(data = df_central, aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'black', lineheight = 0.5, size = 6) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_discrete(name = '학원수')
+```
+
+```{r}
+df_joined <- df_joined |> 
+  mutate(level_cut_cut_width = cut_width(학원수, 2000, center = TRUE, dig.lab = 5)
+         )
+
+as.data.frame(df_joined) |> select(시도, 학원수, level_cut_cut_width) |> head()
+
+as.data.frame(df_joined) |> count(level_cut_cut_width)
+
+```
+
+```{r}
+df_joined |> 
+  ggplot() + 
+  geom_sf(aes(fill = level_cut_cut_width), color = 'gray80') +
+  geom_text(data = df_central, aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'black', lineheight = 0.5, size = 6) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_discrete(name = '학원수')
+```
+
+
+### discretize()
+
+`discretize()`는 `arules` 패키지에서 제공하는 함수이다. 이 함수는 `cut()`와 같이 전체 범주의 수를 지정함으로써 해당 개수만큼 전체를 고르게 범주화하는 함수이다. 다음은 전국의 사설학원수를 5개의 범주로 나누어 단계 구분도를 그리는 코드이다. 
+
+
+```{r}
+if(!require(arules)) {
+  install.packages(arules)
+  library(arules)
+}
+
+df_joined <- df_joined |> 
+  mutate(level_discretize_freq = discretize(학원수, breaks = 7)
+         )
+
+as.data.frame(df_joined) |> select(시도, 학원수, level_discretize_freq) |> head()
+
+as.data.frame(df_joined) |> count(level_discretize_freq)
+
+```
+
+```{r}
+df_joined |> 
+  ggplot() + 
+  geom_sf(aes(fill = level_discretize_freq), color = 'gray80') +
+  geom_text(data = df_central, aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'black', lineheight = 0.5, size = 6) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_discrete(name = '학원수')
+```
+
+위의 결과를 보면 `cut()`의 `break`에 범주의 수로 그룹화하는것과 `discretize()`로 그룹화하는것의 결과가 차이가 있다. 이는 `discretize()`의 범주화에 사용하는 방식의 차이이다. `cut()`은 값의 최대값과 최소값을 기준으로 등간격의 범주로 나누는 반면 `discretize()`에서는 범주를 나누는 방식을 'interval'(등간격), 'frequency'(등분포), 'cluster'(k-means 클러스터링), 'fixed'(breaks에 명기된 분할점)의 네 가지 방법을 사용하는데 기본적으로 'frequency'를 사용하기 때문에 각각의 범주에 배치되는 사례수가 최대한 같게 범주를 나눈다. 만약 K-means 클러스터링을 사용하여 범주화한다면 다음과 같이 결과가 나온다. 
+
+
+```{r}
+df_joined <- df_joined |> 
+  mutate(level_discretize_cluster = discretize(학원수, method ='cluster', breaks = 7)
+         )
+
+as.data.frame(df_joined) |> select(시도, 학원수, level_discretize_cluster) |> head()
+
+as.data.frame(df_joined) |> count(level_discretize_cluster)
+
+```
+
+```{r}
+df_joined |> 
+  ggplot() + 
+  geom_sf(aes(fill = level_discretize_cluster), color = 'gray80') +
+  geom_text(data = df_central, aes(x = X, y = Y, label = paste0(시도, '\n', scales::comma(학원수))), color = 'black', lineheight = 0.5, size = 6) + 
+  labs(x = '위도', y = '경도') +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "br", pad_y = unit(0.05, 'npc'),
+                         style = north_arrow_nautical) +
+  scale_fill_discrete(name = '학원수')
+```
+
+다만 `discretize()`에도 `cut()`에서 사용했던 `dig.lag`을 사용하여 표현되는 수치의 포맷을 설정할 수 있다고 매뉴얼에 기재되어 있지만 소스코드를 확인해도 이는 작동하지 않는 듯하다. 아마도 오류이지 않을까 싶다. 
+
+
+지금까지 각각의 함수를 사용하여 나눈 범주들을 비교하면 다음과 같다. 
+
+```{r echo = FALSE}
+as.data.frame(df_joined) |> select(시도, 학원수, level_cut_break, level_cut_num, level_cut_cut_interval, level_cut_cut_width, level_discretize_freq, level_discretize_cluster) |> knitr::kable()
+
+```
