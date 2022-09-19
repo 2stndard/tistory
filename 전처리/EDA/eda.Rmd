@@ -24,7 +24,9 @@ library(SmartEDA)
 
 대부분의 R 관련 입문 도서들에서는 탐색적 데이터 분석을 위해 `head()`와 `tail()`로 개략적인 데이터를 확인하고 `str()`과 `glimpse()`를 사용하여 데이터프레임의 전반적인 구조를 확인하는 방법을 소개한다. 하지만 R에서는 이보다 강력한 EDA 패키지가 제공된다. 이번 포스트에서는 다양한 EDA 패키지에 대해 소개한다. 
 
-EDA 패키지의 기능을 소개하기 위해 사용하는 데이터는 '평균과 중간값 등 통계치의 시각화 in R'(https://2stndard.tistory.com/132) 포스트에서 사용했던 데이터를 사용하도록 하겠다. 
+### 학업 중단자 데이터 로딩
+
+EDA 패키지의 기능을 소개하기 위해 사용하는 데이터는 '평균과 중간값 등 통계치의 시각화 in R'(https://2stndard.tistory.com/132) 포스트에서 사용했던 학업 중단자 데이터를 사용하도록 하겠다. 
 
 ```{r eval=FALSE}
 df_dropout <- read_excel('데이터저장폴더/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
@@ -127,6 +129,8 @@ plot
 
 ```
 
+만약 특정 변수에 따른 변수별 EDA 시각화 결과를 보기 위해서는 'target' 매개변수에 목표 변수를 설정하면 설정된 목표 변수의 타입에 따른 시각화 결과를 보여준다. 수치형 변수에 따른 수치형 EDA 시각화는 다음과 같이 산점도로 보여준다. 
+
 ```{r}
 plot <- df_dropout |> filter(시군 != '소계', 학교급 == '고등학교') |> ExpNumViz(Page=c(3,3), target = '전체학생수')
 
@@ -134,28 +138,50 @@ plot
 
 ```
 
+목표 변수를 팩터형 변수로 설정하면 다음과 같이 박스 플롯으로 표현된다. 
+
+```{r}
+plot <- df_dropout |> filter(시군 != '소계', 학교급 == '고등학교') |> ExpNumViz(Page=c(3,3), target = '연도')
+
+plot
+
+```
 
 ### 범주형 변수 요약
 
-```{r}
-ExpCTable(df_dropout, Target = '시도', per = T)
-
-```
-
+범주형 변수에 대한 EDA를 위해 `SmartEDA` 패키지는 `ExpCTable()`을 제공한다. 이 함수는 범주형 변수를 자동으로 선택하여 변수에 대한 빈도나 테이블을 제공한다. 
 
 ```{r}
-plot2 <- ExpCatViz(df_dropout,target='학교급')
-plot2[[1]]
+ExpCTable(df_dropout)
 
 ```
 
+'Target' 매개변수를 사용하면 특정 매개변수에 따른 EDA를 출력한다. 'Target' 매개변수가 팩터형 변수라면 해당 펙터 값에 따른 빈도와 분포율을 보여준다. 
 
-## Including Plots
+```{r}
+ExpCTable(df_dropout, Target = '학교급', per = T)
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+만약 'Target' 매개변수가 수치형이라면 해당 수치형 변수를 구간으로 그룹화하여 해당 구간에 나타난 빈도와 분포율을 출력한다. 
+
+```{r}
+ExpCTable(df_dropout, Target = '전체학생수', per = T)
+
+```
+
+`SmartEDA`는 범주형 변수에 대한 요약 통계 EDA를 확인하기 위해 `ExpCatStat()`를 제공한다. `ExpCatStat()`는 특정 변수에 따른 나머지 변수들의 상대적 요약통계를 제공하기 때문에 반드시 'Target' 매개변수로 목적 변수를 설정해야 한다. 특히 Weight of evidence and Information values에 따른 IV 값을 기반으로 예측 파워와 두 이산형 변수의 연관성 정도인 Cramer's V를 보여준다는 점이 특이하다. 
+
+```{r}
+ExpCatStat(df_dropout, Target = '자퇴')
+
+```
+
+범주형 변수의 EDA 시각화는 `ExpCatVis()`를 사용하는데 아래와 같이 막대 그래프로 비율을 보여준다. 
+
+```{r}
+plot2 <- ExpCatViz(df_dropout)
+plot2
+
+```
+

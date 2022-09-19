@@ -1,0 +1,175 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(DataExplorer)
+```
+
+## DataExplorer
+
+이번 포스트에서는 EDA 패키지인 `DataExplorer` 에 대해 소개한다.
+
+
+### 학업 중단자 데이터 로딩
+
+`DataExplorer` 패키지의 기능을 소개하기 위해 사용하는 데이터는 '평균과 중간값 등 통계치의 시각화 in R'(<https://2stndard.tistory.com/132>) 포스트에서 사용했던 학업 중단자 데이터를 사용하도록 하겠다.
+
+```{r eval=FALSE}
+df_dropout <- read_excel('데이터저장폴더/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+```{r echo=FALSE}
+df_dropout <- read_excel('D:/R/data/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+여기에 일부 열을 팩터로 변경하여 사용한다.
+
+```{r}
+df_dropout <- df_dropout  |>
+  mutate(시도 = as.factor(시도),
+         학교급 = as.factor(학교급))
+
+
+```
+
+여기에 NA를 만들기 위해 수치열의 0을 모두 NA로 바꾸어 사용하겠다. 
+
+```{r}
+df_dropout_NA <- df_dropout |> 
+  mutate(across(is.numeric, function(x) ifelse(x == 0, NA, x)))
+
+
+
+```
+
+### DataExplorer 패키지
+
+우선 `DataExplorer` 패키지를 설치한다.
+
+```{r}
+if (!require(DataExplorer)) {
+  install.packages('DataExplorer')
+  library(DataExplorer)
+}
+
+```
+
+### introduce()
+
+`DataExplorer` 패키지에서 가장 기본적으로 사용되는 함수는 `introduce()`이다. 이 함수는 매개변수로 전달되는 데이터에 대한 전반적인 데이터의 구성을 보여준다. 다만 이 함수는 넓은 형태의 데이터 프레임으로 보여주기 때문에 보기가 어렵다면 `t()`를 사용해 긴 형태로 볼 수 있다. 또 앞서 설명한 다른 EDA 패키지에서는 보여주지 않는 메모리 사용량을 보여준다는 특징이 있다.  
+
+```{r}
+t(introduce(df_dropout_NA))
+
+```
+
+### create_report()
+
+`create_report()`은 데이터에 대한 EDA가 정리된 HTML 보고서 파일이 생성된다. 이 보고서에는 
+
+-   행 및 열 수, 누락된 데이터가 있는 열 수, 연속 변수와 이산 변수의 수, 총 메모리 할당과 같은 기본 통계
+-   각 필드의 데이터 유형
+-   각 열에 대한 누락된 데이터 백분율
+-   각 열에 대한 일변량 분포
+-   QQ 플롯
+-   상관 분석
+-   PCA
+
+과 같은 정보가 포함된다. 
+
+```{r eval = FALSE}
+create_report(df_dropout)
+
+```
+
+
+### plot_intro()
+
+`plot_intro()`는 `introude()`에서 생성된 정보들에 대한 시각화를 제공한다 .
+
+```{r}
+plot_intro(df_dropout_NA)
+
+```
+
+### plot_missing()
+
+`plot_missing()`은 각각의 열에 포함된 NA(결측치)의 빈도를 시각화하여 보여주는 함수이다. 
+
+```{r}
+df_dropout_NA |>
+  plot_missing()
+
+```
+
+### plot_bar()
+
+`plot_bar()`는 이산형 변수에 대해 빈도를 막대 그래프로 그려주는 함수이다. 
+
+```{r}
+df_dropout_NA |> plot_bar()
+
+```
+
+### plot_histogram()
+
+`plot_histogram()`는 연속형 변수에 대해 히스토그램을 그려주는 함수이다. 
+
+
+```{r}
+df_dropout_NA |> filter(시군 != '소계', 학교급 == '고등학교') |> plot_histogram()
+
+```
+
+
+### plot_correlation()
+
+`plot_correlation()`은 이산형 데이터에 대한 상관계수 매트릭스를 시각화하여 보여주는 함수이다. 
+
+```{r}
+plot_correlation(df_dropout)
+
+```
+
+
+### plot_qq()
+
+`plot_qq()`는 Quantile-Quantile 플롯을 그려주는 함수이다. Quantile-Quantile 플롯은 특정 확률 분포로부터의 편차를 시각화하는 방법으로 정규분포 여부를 판단할때 유용하게 사용되는 플롯이다. 
+
+```{r}
+plot_qq(df_dropout)
+
+```
+
+
+
+
+
+
+

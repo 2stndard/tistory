@@ -1,0 +1,131 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(funModeling)
+```
+
+## funModeling
+
+이번 포스트에서는 EDA 패키지인 `funModeling` 에 대해 소개한다.
+
+`funModeling` 패키지는 탐색적 데이터 분석(EDA)와 관련된 기능을 위주로 분석 데이터 클리닝 및 모델 성능 측정과 관련된 다양한 기능을 제공한다. 
+
+`funModeling` 대부분의 기능은 Data Science Live Book -Open Source-(2017)(https://livebook.datascienceheroes.com/)에서 자세히 소개되고 있다. 
+
+### 학업 중단자 데이터 로딩
+
+`funModeling` 패키지의 기능을 소개하기 위해 사용하는 데이터는 '평균과 중간값 등 통계치의 시각화 in R'(<https://2stndard.tistory.com/132>) 포스트에서 사용했던 학업 중단자 데이터를 사용하도록 하겠다.
+
+```{r eval=FALSE}
+df_dropout <- read_excel('데이터저장폴더/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+```{r echo=FALSE}
+df_dropout <- read_excel('D:/R/data/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+여기에 일부 열을 팩터로 변경하여 사용한다.
+
+```{r}
+df_dropout <- df_dropout  |>
+  mutate(시도 = as.factor(시도),
+         학교급 = as.factor(학교급))
+
+
+```
+
+### funModeling 패키지
+
+우선 `funModeling` 패키지를 설치한다.
+
+```{r}
+if (!require(funModeling)) {
+  install.packages('funModeling')
+  library(funModeling)
+}
+
+```
+
+### status()
+
+`funModeling` 패키지에서 가장 기본적으로 사용되는 함수는 `status()`이다. 이 함수는 매개변수로 전달되는 데이터에 대한 전반적인 데이터의 구성 백분률을 위주로 보여준다. 
+
+```{r}
+status(df_dropout)
+
+```
+
+### data_integrity()
+
+`data_integrity()`는 데이터의 무결성에 대한 정보를 전달해 주는 함수이다. NA를 가지는 변수(열), 변수의 변량이 많은(High Cardinality) 변수(열), 변수의 형태에 따른 정보 등을 제공하는데 데이터 프레임 형태가 아닌 리스트 형태로 제공한다. 
+
+```{r}
+data_integrity(df_dropout)
+
+```
+
+### plot_num()
+
+`plot_num()`은 수치형 변수들에 대한 시각화를 통해 변수의 전반적 상황을 보여준다. 
+
+```{r}
+df_dropout |> filter(시군 != '소계', 학교급 == '고등학교') |> plot_num()
+
+```
+
+### profiling_num()
+
+`profiling_num()`은 수치형 변수에 대해 각종 기초 통계를 보여주는 함수이다. 
+
+```{r}
+profiling_num(df_dropout)
+
+```
+
+### categ_analysis()
+
+`categ_analysis()`은 범주형 변수에 대한 분석 결과를 보여준다. 앞선 함수와는 달리 분석될 범주형 변수와 목표 변수가 설정되어야 하는데 목표 변수는 이변량 변수이어야 한다. . 
+
+```{r}
+categ_analysis(df_dropout, input = '시도', target = '연도')
+
+```
+
+
+### freq()
+
+`freq()`는 범주형 변수들에 대한 빈도와 백분률을 표와 시각화를 사용하여 보여준다. 
+
+```{r}
+freq(df_dropout, input = c('연도', '시도', '학교급'))
+
+```
+
+

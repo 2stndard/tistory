@@ -1,0 +1,137 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dpi = 90)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(explore)
+```
+
+## explore
+
+이번 포스트에서는 EDA 패키지인 `explore` 에 대해 소개한다.
+
+`explore` 패키지는 탐색적 데이터 분석(EDA)를 위한 다양한 기능을 제공하는데 제공하는 주요기능은 다음과 같다.
+
+-   단변량, 이변량, 다변량 변수에 대한 대화형 데이터 탐색
+
+-   자동화된 EDA 보고서의 생성
+
+-   tidy한 함수를 사용한 수동 데이터 탐색 기능.
+
+### 학업 중단자 데이터 로딩
+
+`explore` 패키지의 기능을 소개하기 위해 사용하는 데이터는 '평균과 중간값 등 통계치의 시각화 in R'(<https://2stndard.tistory.com/132>) 포스트에서 사용했던 학업 중단자 데이터를 사용하도록 하겠다.
+
+```{r eval=FALSE}
+df_dropout <- read_excel('데이터저장폴더/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+```{r echo=FALSE}
+df_dropout <- read_excel('D:/R/data/유초 주요-04 시도별 행정구역별 교육통계 현황_방통제외(1999-2022)_20220824y.xlsx', 
+           sheet = '2021-2022',
+           skip = 11, 
+           col_names = FALSE, 
+           col_types = c(rep('text', 4), rep('numeric', 166)))
+
+df_dropout <- df_dropout |> 
+  select(1, 2, 3, 4, 22, seq(from = 127, to = 142, by = 3)) |>
+  rename(c('연도' = ...1, '시도' = ...2, '시군' = ...3, '학교급' = ...4, '전체학생수' = ...22, '학업중단자' = ...127, '유예' = ...130, '면제' = ...133, '자퇴' = ...136, '퇴학' = ...139, '제적' = ...142))
+
+```
+
+여기에 일부 열을 팩터로 변경하여 사용한다.
+
+```{r}
+df_dropout <- df_dropout  |>
+  mutate(시도 = as.factor(시도),
+         학교급 = as.factor(학교급))
+
+
+```
+
+### explore 패키지
+
+우선 `explore` 패키지를 설치한다.
+
+```{r}
+if (!require(explore)) {
+  install.packages('explore')
+  library(explore)
+}
+
+```
+
+### explore()
+
+`explore` 패키지에서 가장 기본적으로 사용되는 함수는 `explore()`이다. 이 함수는 `shiny` 패키지로 개발된 HTML 앱을 사용하여 데이터의 전반적인 구조를 살펴볼 수 있다.
+
+```{r eval = FALSE}
+explore(df_dropout)
+
+```
+
+`explore()`를 사용하여 만들어진 앱에서는 변수간의 관계를 살펴볼 수 있는 'variable' 탭, 트리구조로 변수들간의 관계를 설명해주는 'explain' 탭, 해당 변수의 기초 통계치를 보여주는 'overview' 탭, 원천 데이터를 보여주는 'data' 탭의 네 가지 기능을 제공한다.
+
+![](1.png)
+
+![](2.png)
+
+![](3.png)
+
+![](4.png)
+
+### report()
+
+앞선 `explore()`로 생성한 앱에서 'report' 버튼을 누르면 'Rmarkdown'으로 생성되는 HTML 리포트가 생성된다. 이 리포트를 생성하는 함수가 `report()`이다. 
+
+```{r eval = FALSE}
+report(df_dropout, output_dir = getwd(), target = '학교급')
+
+```
+
+![](5.png)
+
+### explain_tree()
+
+`explain_tree()`는 의사결정 나무를 사용하여 변수간의 관계를 나타내주는 함수이다. 
+
+```{r}
+explain_tree(df_dropout, target = '전체학생수')
+
+```
+
+### explore_tbl()
+
+`explore_tbl()`은 해당 데이터의 변수들에 대한 전반적인 구조를 보여준다. 아래의 결과를 보면 문자형 변수 1개, 팩터형 변수 3개, 정수형 변수 7개로 구성되어 있다는 것을 보여준다. 
+
+```{r}
+explore_tbl(df_dropout)
+
+```
+
+### describe()
+
+`describe()`는 데이터 변수별로 기초 통계치를 사용하여 전반적인 EDA를 보여준다. 
+
+```{r}
+describe(df_dropout)
+
+```
+
