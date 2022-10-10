@@ -1,0 +1,275 @@
+---
+output:
+  html_document:
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 6.5, dev = 'svglite')
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+library(patchwork)
+library(plotly)
+```
+
+```{r include = FALSE, message = FALSE, warning = FALSE}
+## 데이터 전처리를 위한 패키지 설치 및 로딩
+if(!require(readr)) {
+  install.packages('readr')
+  library(readr)
+}
+
+if(!require(lubridate)) {
+  install.packages('lubridate')
+  library(lubridate)
+}
+
+if(!require(tidyverse)) {
+  install.packages('tidyverse')
+  library(tidyverse)
+}
+
+                      
+## covid19 데이터 로딩(온라인에서 바로 로딩할 경우)
+df_covid19 <- read_csv(file = "https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                            col_types = cols(Date = col_date(format = "%Y-%m-%d")
+                                             )
+                            )
+## 2. 전체 데이터셋 중 최근 100일간의 데이터를 필터링한 df_covid19_100 생성
+df_covid19_100 <- df_covid19 |> 
+  ## 한국 데이터와 각 대륙별 데이터만을 필터링
+  filter(iso_code %in% c('KOR', 'OWID_ASI', 'OWID_EUR', 'OWID_OCE', 'OWID_NAM', 'OWID_SAM', 'OWID_AFR')) |>
+  ## 읽은 데이터의 마지막 데이터에서 100일전 데이터까지 필터링
+  filter(date >= max(date) - 100) |>
+  ## 국가명을 한글로 변환
+  mutate(location = case_when(
+    location == 'South Korea' ~ '한국', 
+    location == 'Asia' ~ '아시아', 
+    location == 'Europe' ~ '유럽', 
+    location == 'Oceania' ~ '오세아니아', 
+    location == 'North America' ~ '북미', 
+    location == 'South America' ~ '남미', 
+    location == 'Africa' ~ '아프리카')) |>
+  ## 국가 이름의 순서를 설정 
+  mutate(location = fct_relevel(location, '한국', '아시아', '유럽', '북미', '남미', '아프리카', '오세아니아')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+
+## 3. df_covid19_100을 한국과 각 대륙별열로 배치한 넓은 형태의 데이터프레임으로 변환
+df_covid19_100_wide <- df_covid19_100 |>
+  ## 날짜, 국가명, 확진자와, 백신접종완료자 데이터만 선택
+  select(date, location, new_cases, people_fully_vaccinated_per_hundred) |>
+  ## 열 이름을 적절히 변경
+  rename('date' = 'date', '확진자' = 'new_cases', '백신접종완료자' = 'people_fully_vaccinated_per_hundred') |>
+  ## 넓은 형태의 데이터로 변환
+  pivot_wider(id_cols = date, names_from = location, 
+              values_from = c('확진자', '백신접종완료자')) |>
+  ## 날짜로 정렬
+  arrange(date)
+
+## 4. covid19 데이터를 국가별로 요약한 df_covid19_stat 생성
+df_covid19_stat <- df_covid19 |> 
+  group_by(iso_code, continent, location) |>
+  summarise(인구수 = max(population, na.rm = T), 
+            인당GDP = max(gdp_per_capita, na.rm = T),
+            전체확진자수 = sum(new_cases, na.rm = T),
+            전체사망자수 = sum(new_deaths, na.rm = T), 
+            십만명당중환자실 = last(icu_patients_per_million),
+            재생산지수 = last(reproduction_rate),
+            봉쇄지수 = max(stringency_index), 
+            전체검사자수 = max(total_tests, na.rm = T), 
+            신규검사자수 = sum(new_tests, na.rm = T),
+            전체백신접종자수 = max(total_vaccinations, na.rm = T),
+            백신접종자완료자수 = max(people_fully_vaccinated, na.rm = T),
+            부스터접종자수 = max(total_boosters, na.rm = T),
+            인구백명당백신접종완료률 = max(people_fully_vaccinated_per_hundred, na.rm = T),
+            인구백명당부스터접종자수 = max(total_boosters_per_hundred, na.rm = T)
+            ) |> 
+    ungroup() |>
+    mutate(십만명당사망자수 = round(전체사망자수 / 인구수 *100000, 5),
+           백신접종완료률 = 백신접종자완료자수 / 인구수)
+
+## 여백 설정을 위한 리스트 설정
+margins <- list(t = 50, b = 25, l = 25, r = 25)
+
+  library(readxl)
+
+df_취업률 <- read_excel('D:/analysis/R/tistory/plotly/2020년 학과별 고등교육기관 취업통계.xlsx', 
+                     ## '학과별' 시트의 데이터를 불러오는데,
+                     sheet = '학과별',
+                     ## 앞의 13행을 제외하고
+                     skip = 13, 
+                     ## 첫번째 행은 열 이름으로 설정
+                     col_names = TRUE, 
+                     ## 열의 타입을 설정, 처음 9개는 문자형으로 다음 79개는 수치형으로 설정
+                     col_types = c(rep('text', 9), rep('numeric', 79)))
+
+## df_취업률에서 첫번째부터 9번째까지의 열과 '계'로 끝나는 열을 선택하여 다시 df_취업률에 저장
+df_취업률 <- df_취업률 |> 
+  select(1:9, ends_with('계'), '입대자')
+
+## 랜덤 샘플을 위한 시드 설정
+set.seed(123)
+
+## df_취업률에서 졸업자가 500명 이하인 학과 2000개 샘플링
+df_취업률_2000 <- df_취업률 |> 
+  filter(졸업자_계 < 500) |> 
+  sample_n(2000)
+
+## 열 이름을 적절히 설정
+names(df_취업률_2000)[10:12] <- c('졸업자수', '취업률', '취업자수')
+
+##theme_set(theme_grey(base_size = 18)) 
+
+```
+
+사용데이터 : <https://2stndard.tistory.com/68>
+
+## 축 범위 설정
+
+`ggplot2`로 그린 그래프의 세부 조정 과정중에 많이 사용하는 방법이 축의 범위를 설정하는 것이다. 일반적으로 축의 범위는 `ggplot2`에서 자동적으로 설정하는데 이 범위는 `ggplot2`에서 설정된 기하요소(`geom_*()`)들이 가장 잘 표현될 수 있는 여백을 설정한다. 아래의 그림은 `ggplot2`의 그래프에서 데이터가 표시되는 영역과 여백 영역을 보여준다. 
+
+![https://stackoverflow.com/questions/48049027/extend-ggplot2-geom-to-change-default-padding-of-x-and-y-axes](D:/R/git/tistory/ggplot2/axisrange/AtTzW.png)
+
+이 영역은 X축과 Y축의 범위를 조절함으로써 늘릴 수도 줄일 수도 있는데 축을 늘려주면 Zoom Out의 효과가 나타나고 축을 줄여주면 Zoom In 효과가 나타난다. `ggplot2`에서 축의 범위를 조절하기 위해서는 정확히 X, Y축의 최대, 최소값을 지정하여를 그 범위를 절대적으로 고정하는 방법과 입력된 데이터의 범위에 비례하여 유동적으로 설정하는 방법의 두 가지 방법으로 구분하여 알아본다. 
+
+축의 범위 설정을 알아보기 위해서 <https://2stndard.tistory.com/68>에서 사용한 졸업자 대비 취업자 산점도 그래프를 사용하겠다. 이 데이터는 X축의 범위가 1부터 489까지이고 Y축의 범위는 0부터 390까지이다.
+
+```{r}
+range(df_취업률_2000$졸업자수)
+
+range(df_취업률_2000$취업자수)
+
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 500, 75), labels = paste0(seq(0, 500, 75), '명')) +
+  scale_y_continuous(breaks = c(50, 100, 200, 300), labels = c('50명', '100명', '200명', '300명'))
+```
+
+### X, Y의 최대, 최소값을 사용하여 절대적 고정 좌표계 설정
+
+####좌표계 설정 함수 사용 : coord_cartesian()
+
+`coord_cartesian()`은 `ggplot2`로 표현되는 전체 좌표계의 설정을 조절할 수 있는 함수이다. `ggplot2`에서 사용하는 좌표계는 우리가  가장 쉽게, 가장 흔히 사용하는 데카르트 좌표계(Cartesian Coordinate)이다. 이 좌표계는 X축과 Y축의 두 축을 사용하여 표현되는 좌표계인데 `coord_cartesian()`를 사용하면 X, Y축의 범위를 설정할 수 있다. 
+`coord_cartesian()`에서 축의 범위를 설정하는데는 다음의 세 가지 매개변수가 사용된다. 
+
+-   xlim : X축의 범위를 설정하는 매개변수로 X축의 최소값과 최대값을 가진 벡터를 설정함
+-   ylim : Y축의 범위를 설정하는 매개변수로 Y축의 최소값과 최대값을 가진 벡터를 설정함
+-   expand : 그래프에서 데이터를 온전하게 표시하기 위해 여백을 줄것인지를 설정함, TRUE이면 여백이 설정되고 FALSE이면 여백이 없이 전체 범위에 데이터가 표현된다. 
+
+아래는 졸업자수 대비 취업자수의 산점도에 X, Y축의 범위를 다시 설정하는 코드이다. 
+
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 500, 75), labels = paste0(seq(0, 500, 75), '명')) +
+  scale_y_continuous(breaks = c(50, 100, 200, 400), labels = c('50명', '100명', '200명', '400명')) + 
+  coord_cartesian(xlim = c(-100, 600), ylim = c(-100, 500))
+```
+
+아래는 'expand'를 사용해 여백을 제거한 그래프이다. xlim/ylim은 expand보다 우선순위가 높기 때문에 xlim/ylim이 설정되면 expand는 무시된다. 
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 500, 75), labels = paste0(seq(0, 500, 75), '명')) +
+  scale_y_continuous(breaks = c(0, 50, 100, 200, 400), labels = c('0명', '50명', '100명', '200명', '400명')) + 
+  coord_cartesian(expand = FALSE)
+```
+
+#### scale_x_\*(), scale_y_\*() 함수의 사용
+
+축의 설정에 가장 기본적으로 사용하는 함수는 `scale_x_*()`와 `scale_y_*()`이다. 위의 기본 산점도에서 보듯이 'breaks'와 'labels'를 사용해서 축의 눈금 라벨을 설정하는 등 많은 설정을 할 수 있는데 축의 범위를 설정할 수도 있다. 
+
+축의 범위를 설정하기 위해서는 `scale_x_*()`와 `scale_y_*()`의 'limits' 매개변수를 사용한다. 'limits'는 다음의 세가지 값을 가진다. 
+
+-   NULL : X, Y축의 기본값을 사용
+-   수치형 벡터 : 축의 최소값과 최대값을 가지는 수치형 벡터
+-   함수 : 데이터의 분포에 따라 축의 최대값과 최소값을 리턴하는 함수
+
+이번에는 축의 범위를 좁혀서 Zoom In 효과로 일부 구간을 확대해 본다.  
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 500, 75), labels = paste0(seq(0, 500, 75), '명'), limits = c(75, 150)) +
+  scale_y_continuous(breaks = c(0, 50, 100, 200, 400), labels = c('0명', '50명', '100명', '200명', '400명'), limits = c(50, 100))
+```
+
+#### 축 범위 설정 함수 사용 : xlim(), ylim()
+
+`scale_x_*()`, `scale_y_*()`, `coord_cartesian()`를 사용하여 설정이 가능하겠지만 축의 범위를 설정하는 일이 잦기 때문에 `ggplot2`에서는 축의 범위를 설정하는 래핑 함수를 제공한다. 이 함수가 `xlim()`과 `ylim()`이다. 이 함수들에 최소값, 최대값을 직접 설정하여 사용한다. 만약 NA를 설정하면 `ggplot2`의 기본 설정 범위가 설정된다.  
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 500, 75), labels = paste0(seq(0, 500, 75), '명')) +
+  scale_y_continuous(breaks = c(0, 50, 100, 200, 400), labels = c('0명', '50명', '100명', '200명', '400명')) +
+  xlim(75, 150) +
+  ylim(50, 100)
+
+```
+
+### X, Y의 범위 비율을 사용하여 상대적 좌표계 설정
+
+앞서 살펴본 좌표계 설정은 축의 범위를 절대적으로 설정하기 때문에 주어지는 데이터에 따라 그 범위가 적절치 않을 수 있다. 1회성 그래프를 그릴 때는 절대적 좌표계를 설정해서 사용할 수 있겠지만 Shiny 패키지로 동적 분석 앱을 만들때 절대적 좌표계를 설정하면 데이터 를 적절히 표현하기 어렵다. 이럴 경우 데이터가 표현되는 범위를 비율로 설정해서 사용하면 효율적인 시각화가 된다. 
+
+#### scale_x_\*(), scale_y_\*()의 expand 사용
+
+X축과 Y축의 범위를 비율을 사용하여 설정하기 위해서는 `scale_x_*()`와 `scale_y_*()`에서 'expand' 매개변수를 사용해서 설정한다. 'expand'는 두개의 수치를 가진 벡터로 설정하는데 앞의 수치는 양쪽으로 확장되는 곱셈 비율이고 뒤의 수치는 양쪽으로 더해지는 값의 범위이다. 만약 아래와 같이 'expand'를 'c(0.5, 100)'으로 설정하면 양쪽으로 50%씩 확장되고 양쪽으로 100씩 더해지는 범위를 가지게 된다.
+
+이를 계산해보면 X축의 볌위가 대략 1부터 500까지이므로 곱셈 비율에 의해 양쪽으로 50%인 250씩 늘어나고 여기에 100씩 더 늘어나니 전체 축의 범위는 대략적으로 -350부터 850까지가 된다.  
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(breaks = seq(-300, 800, 50), expand = c(0.5, 100)) +
+  scale_y_continuous(breaks = c(0, 50, 100, 200, 400), labels = c('0명', '50명', '100명', '200명', '400명'))
+
+```
+
+#### scale_x_\*(), scale_y_\*()의 expansion() 사용
+
+위에서 expand 매개변수를 사용하여 축의 양쪽 확장 비율과 확장 범위를 설정할 수 있지만 만약 확장 비율을 양쪽으로 달리 줘야한다면 어떻게 할까? 또 확장 범위를 양쪽으로 달리하고자 한다면 어떻게 할까? 이를 위해 `ggplot2`에서는 `expansion()`을 제공한다. 
+
+`expansion()`은 mult와 add의 두 가지 매개변수를 가진다. 
+
+-   mult : 확장에 사용할 비율을 수치로 설정함. 단일 수치로 설정하면 양쪽으로 동일한 비율로 확장되며 길이가 2인 벡터로 설정하면 하위값과 상위값으로의 비율을 따로 설정할 수 있음.
+-   add : 확장에 사용할 범위를 수치로 설정함. 단일 수치로 설정하면 양쪽으로 동일한 범위로 확장되며 길이가 2인 벡터로 설정하면 하위값과 상위값으로 범위를 따로 설정할 수 있음.
+
+아래의 코드는 `expansion()`으로 X축은 비율로 최소값쪽으로 30%, 최대값쪽으로 70%를 확장하고 Y축은 범위로 최소값쪽으로 50명, 최대값쪽으로 100명 만큼 확장하는 코드이다. 
+
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(expand = expansion(mult = c(0.3, 0.7))) +
+  scale_y_continuous(expand = expansion(add = c(50, 100)))
+
+
+```
+
+만약 비율이나 범위를 마이너스로 설정하면 확장이 아닌 축소가 된다. 아래는 X축에는 양쪽이 20%씩 축소되고 Y축으로는 100명씩 축소된 축으로 설정하는 코드이다. 
+
+```{r}
+df_취업률_2000 |>
+  ggplot(aes(x = 졸업자수, y = 취업자수)) + 
+  geom_point() +
+  scale_x_continuous(expand = expansion(mult = -0.2)) +
+  scale_y_continuous(expand = expansion(add = -100))
+
+
+```
+
+

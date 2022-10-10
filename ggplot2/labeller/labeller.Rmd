@@ -1,0 +1,227 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+theme_set(theme_get() + theme(text = element_text(size = 24)))
+update_geom_defaults("text", list(size = 6))
+```
+
+데이터의 시각화에서는 비교가 필요한 여러 데이터를 동시에 비교할 수 있도록 시각화하는 방법을 많이 사용한다. 가장 쉬운 방법은 하나의 그래프안에 비교가 필요한 데이터를 시각화하되 색이나 도형 타입을 다르게 하여 비교하는 방법이다. 하지만 이 방법은 비교해야할 데이터가 3~4개 이상이 되면 데이터들이 서로 겹쳐서 제대로 알아보기 어려워진다. 이런 경우를 해결하기 위해 `ggplot2`에서 제공하는 방법은 `facet_*()`이다. 
+
+'facet'은 '여러 부분을 가지는 주제, 상황 중 하나의 부분(one part of a subject, situation, etc. that has many parts)'이라는 의미를 가지는 단어이다. 
+
+`facet_*()`에는 여러가지 기능과 설정이 필요한데 이번 포스트에서는 이 중에서 `facet_*()`의 제목 부분의 라벨링에 대해 알아본다. 'facet'을 설명하기 위해 사용하는 데이터는 교육통계 홈페이지의 학교/학과별 데이터 셋(https://kess.kedi.re.kr/contents/dataset?itemCode=04&menuId=m_02_04_03_02&tabId=m2)의 2022년 학교별*학과별(상반기) 데이터를 사용한다.  
+
+```{r eval=FALSE}
+df_high <- read_excel('데이터저장폴더/2022년 고등 학교별X학과별 입학정원 지원 입학 학생 외국인학생 졸업 교원_220824y.xlsx', 
+           sheet = '학교별 학과별 주요 현황',
+           skip = 13, 
+           col_names = TRUE, 
+           col_types = c(rep('text', 21), rep('numeric', 82)))
+
+df_high <- df_high |>
+  filter(입학정원 != 0, 학과수_전체 != 0) |>
+  mutate(정원대비입학생 = (입학자_전체_계/입학정원))
+
+```
+
+```{r echo=FALSE, message = FALSE, warning = FALSE}
+df_high <- read_excel('D:/R/data/2022년 고등 학교별X학과별 입학정원 지원 입학 학생 외국인학생 졸업 교원_220824y.xlsx', 
+           sheet = '학교별 학과별 주요 현황',
+           skip = 13, 
+           col_names = TRUE, 
+           col_types = c(rep('text', 21), rep('numeric', 82)))
+
+df_high <- df_high |>
+  filter(입학정원 != 0, 학과수_전체 != 0) |>
+  mutate(정원대비입학생 = (입학자_전체_계/입학정원))
+
+```
+
+
+## facet_wrap(), facet_grid()
+
+`ggplot2`에서 'facet' 기능을 제공하기 위해 `facet_grid()`와 `facet_wrap()`을 제공한다. `facet_wrap()`은 하나의 변수 시퀀스를 2차원 형태로 시각화를 배치하는 함수이고 `facet_grid()`는 가로와 세로로 매핑되는 변수를 설정하여 매트릭스 형태로 시각화를 배치하는 함수이다. 
+
+### facet_wrap()
+
+`facet_wrap()`은 특정 변수의 변량에 따라 시각화 그래프를 2차원으로 배치하는 함수이다. 이 변수를 설정하는 방법은 두 가지가 있는데 과거 버전에서는 `~`를 사용하여 변수를 설정하였지만 최근 업데이트된 `ggplot2`에서는 `vars()`를 사용할 수도 있다. 
+
+```{r}
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_wrap(~학위과정) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
+```{r}
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_wrap(vars(학위과정)) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
+`facet_wrap()`에서 facetting을 하는 변수는 보통 하나를 쓰지만 두 개를 쓸수도 있다. 
+
+```{r}
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_wrap(~학위과정+설립) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
+```{r}
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_wrap(vars(학위과정, 설립)) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
+
+#### facet_grid()
+
+`facet_grid()`는 특정 변수의 변량에 따라 시각화 그래프를 매트릭스 형태로 배치하는 함수이다. 매트릭스 형태로 배치하기 때문에 X축에 매핑되는 변수와 Y축에 매핑되는 변수 2개가 필요하다. `facet_wrap()`과 같이 변수를 설정하는 방법은 두 가지가 있는데 과거 버전에서는 `~`를 사용하여 `~`의 왼쪽에 Y축, `~`의 오른쪽에 X축의 변수를 설정하거나 'rows'와 'cols' 매개변수에 `vars()`를 사용하여 설정할 수도 있다.  
+
+
+```{r}
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_grid(학위과정~설립) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
+## facet 제목 바꾸기(facet 라벨링)
+
+facetting을 할 때 자주 사용하는 것이 각각의 facet에 대한 제목을 바꾸는 것이다. 이것을 위해 `ggplot2`에서는 몇 가지 방법을 제공하는데 다소 헤깔리기 때문에 잘 알아두는 것이 좋다. 
+
+우선 `ggplot2`에서는 facet의 제목을 'strip label'이라고 말한다. 그래서 `facet_wrap()`과 `facet_grid()`에서 'labeller' 매개변수를 사용하여 제목을 변경할 수 있다. `facet_*()`의 'labeller' 매개변수에는 라벨에 사용하는 변수를 사용하여 제목으로 사용되는 리스트나 문자형 벡터를 반환해주는 함수를 설정하도록 되어 있다. 여기서 중요한 것이 제목으로 사용하는 벡터를 설정하는 것이 아니고 함수를 설정해야 한다는 것이다. 이 함수의 종류에 따라 제목을 설정하는 몇 가지 방법이 있다.   
+
+### 미리 정의된 방식의 labeller 함수 사용 : label_value, label_both, label_context, label_parsed, label_wrap_gen
+
+`ggplot2`에서는 facet의 라벨 설정을 위해 5개의 함수를 제공한다. 
+
+-   label_value : facet의 변수로 사용되는 변량값을 그대로 사용
+-   label_both : facet의 변수로 사용되는 변수명과 변량값을 붙여서 사용
+-   label_context : facet의 변수가 단일변수이면 label_value, 다중변수이면 label_both를 사용
+-   label_parsed : 표시되는 라벨을 plotmath(수학식)의 형태로 번역하여 사용
+-   label_wrap_gen : 표시되는 라벨의 줄바꿈에 base::strwrap() 함수를 사용
+
+이 함수들에도 매개변수를 설정하여 사용할 수 있지만 특별한 매개변수 설정을 하지 않는다면 그냥 변수명만으로 사용이 가능하다. 
+
+```{r}
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_grid(학위과정~설립, labeller = label_both) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
+### labeller() 사용
+
+앞서 설명한 다섯 개의 함수는 facetting에 많이 사용되는 유형의 제목을 설정하기 위해 사전에 정의된 함수이다. 하지만 사전 정의되지 않은 여러가지 설정을 해야하거나 변수별로 따로 함수를 적용해아하는 경우가 있다. 이런 경우 사용하는 함수가 `labeller()`이다. 
+
+#### 변수별로 각각의 사전 정의 labell 함수 적용
+
+`facet_grid()`의 경우 가로축과 세로축에 설정된 제목들을 각각 설정해야 할 경우 `labeller()`를 사용한다. 
+
+```{r}
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_grid(학위과정~설립, labeller = labeller(.rows = label_value, .cols = label_both)) +
+  theme(axis.text.x = element_text(angle= 90))
+```
+
+#### named vector를 사용
+
+아마도 사용자들이 가장 쉽게 사용할 수 있는 방법이 named vector를 사용하는 방법일 것이다. named vector는 벡터에 설정된 각각의 값을 대표하는 이름을 설정한 벡터이다. 마치 열 이름을 설정한 것과 유사하지만 열 이름은 데이터프레임에 설정하는 것이고 named vector는 벡터이다. 
+
+```{r}
+labels <- c(
+  대학과정 = '대학', 
+  전문대학과정 = '전문대'
+)
+
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_grid(학위과정~설립, labeller = labeller(.rows = labels, .cols = label_both)) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
+만약 `facet_wrap()`을 사용하면 매개변수로 변수 이름에 named vector를 할당하고 설정하면 가능하다. 
+
+```{r}
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_wrap(~학위과정, labeller = labeller(학위과정 = labels)) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
+#### 사용자 정의 함수 사용
+
+`labeller()`와 같이 `ggplot2`에서 제공되는 함수를 사용하여 facet의 제목을 변경할 수 있겠지만 사용자가 자신이 원하는 제목을 만드는 사용자 정의 함수를 사용할 수 있다. 
+
+아래의 코드는 facet 제목에 각각의 사례수를 추가해주는 함수를 추가한 코드이다. 
+
+```{r}
+tran_label <- function(string) {
+  for(i in 1:length(string)) {
+    temp <- df_high |> 
+    filter(학위과정 == string[i]) |>
+    summarise(n = n()) |> pull()
+    string[i] <- paste0(string[i], '(n=', temp, ')')
+  }
+  string
+}
+
+df_high |> 
+  filter(정원대비입학생 < 3) |> 
+  ggplot(aes(x = 대계열, y = 정원대비입학생)) +
+  geom_boxplot() +
+  geom_hline(aes(yintercept = 1), col = 'red') +
+  facet_wrap(~학위과정, labeller = labeller(학위과정 = tran_label)) +
+  theme(axis.text.x = element_text(angle= 90))
+
+```
+
