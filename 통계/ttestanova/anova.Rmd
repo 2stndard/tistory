@@ -1,0 +1,172 @@
+---
+output:
+  html_document: 
+    css: D:/analysis/R/tistory/plotly/style.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(showtext)
+showtext_auto()
+library(tidyverse)
+library(readxl)
+theme_set(theme_get() + theme(text = element_text(size = 24)))
+update_geom_defaults("text", list(size = 6))
+```
+
+본 포스트는 [https://medium.com/%5C\@hablo/a-beginner-guide-to-t-test-and-anova-analysis-of-variance-in-r-programming-d65944a97ce1](https://medium.com/%5C@hablo/a-beginner-guide-to-t-test-and-anova-analysis-of-variance-in-r-programming-d65944a97ce1){.uri} 를 참조하여 작성되었음.
+
+## ANOVA(ANalysis of VAriance) : 분산 분석
+
+분산 분석(Analysis Of VAriance)은 둘 이상의 모집단 평균이 다른지 여부를 확인하기 위한 통계적 검정이다. 결국 둘 이상의 그룹을 비교하여 유의미한 차이가 있는지 확인하는 데 사용된다.
+
+사실상,
+
+-   Student t-test 는 2개의 그룹간의 평균을 비교하는 것이고,
+-   ANOVA는 2개 이상의 그룹을 비교하는데 3개 이상의 그룹간의 평균의 비교에 많이 사용된다.
+
+![[https://medium.com/%5C\@hablo/a-beginner-guide-to-t-test-and-anova-analysis-of-variance-in-r-programming-d65944a97ce1](https://medium.com/%5C@hablo/a-beginner-guide-to-t-test-and-anova-analysis-of-variance-in-r-programming-d65944a97ce1){.uri}](3.png)
+
+ANOVA는 각 표본 그룹이 정규 분포를 따르고 분산이 동일하며 독립적이라는 가정이 만족되어야 한다.
+
+### 일원 분산 분석(One Way ANOVA)
+
+일원 분산 분석(One Way ANOVA) 두 개 이상의 그룹간의 평균의 차이를 분석하는 데 사용된다.
+
+자동차의 연비에 대한 예를 살펴보자. 종속 변수(DV)는 연료 갤런(mpg)당 자동차가 이동할 수 있는 마일이고 독립 변수(IV)는 자동차의 브랜드라고 가정한다. 다음과 같이 세개의 브랜드 자동차간의 평균이 유의하게 다른지 테스트하기 위해 분산 분석을 사용한다.
+
+|  A  |  B  |  C  |
+|:---:|:---:|:---:|
+| 19  | 28  | 20  |
+| 17  | 30  | 23  |
+| 16  | 32  | 25  |
+| 20  | 33  | 24  |
+| 17  | 31  | 21  |
+| 19  | 27  | 22  |
+| 15  | 29  | 24  |
+| 21  | 30  | 21  |
+
+위 데이터를 R로 불러들인다.
+
+```{r}
+car <- c(rep(c('A', 'B', 'C'), each = 8))
+mpg <- c(19, 17, 16, 20, 17, 19, 15, 21,
+         28, 30, 32, 33, 31, 27, 29, 30, 
+         20, 23, 25, 24, 21, 22, 24, 21)
+
+mpgData <- data.frame(car, mpg)
+mpgData
+
+```
+
+$H0 : \mu(A) = \mu(B) = \mu(C)$ 
+
+$Ha : \text{최소 두개의 평균은 다르다(at least two means are different)}$
+
+ANOVA를 실행하기 위해서는 `aov()`를 사용할 수 있다.
+
+```{r}
+model <- aov(mpg ~ car, data = mpgData)
+summary(model)
+```
+
+위의 결과를 보면 F 값(F value)는 77.17, p-value는 매우 작은 값으로 0.05보다 작게 나타나고 있다. 이로 인해 세 그룹의 평균간의 차이가 없다는 귀무 가설을 기각할 수 있고, 최소 두개의 평균은 다르다는 대립 가설을 채택한다.
+
+그렇다면 각각의 평균은 어떻게 다르고 어떤 평균간의 차이가 의미가 있을지를 알수 있는가? 이는 `TukeyHSD()`를 사용한다.
+
+```{r}
+TukeyHSD(model)
+
+```
+
+위의 결과를 보면 P-Value인 'p adj' 값이 모두 0.05보다 작기 때문에 B와 A, C와 A, C와 B 간의 평균의 차이가 모두 유의미하게 차이가 있다는 것을 알 수 있는데 각각의 평균의 차이가 C-A가 4.5인 반면 B-A가 12.0으로 더 크게 나타나고 있다.
+
+마지막으로 중요한 것은 신뢰 구간에 값 0이 포함되어 있지 않으면 두 변수의 평균 간에 상당한 차이가 있다는 것이다.
+
+예를 들어 B-A의 상한(upr)은 14.45이고 하한(lwr)은 9.54로 그 사이에 0을 포함하고 있지 않다.
+
+### 이원 분산 분석(Two Way ANOVA)
+
+이원 분산 분석은 하나의 종속 변수와 두개의 독립변수간의 상호작용이 영향을 미치는지를 알아보기 위해 사용된다. DV의 두 IV 사이에 상호 작용이 있는지 연구하고 싶기 때문에 두 개의 독립 변수(IV)가 조합되어 종속 변수(DV)에 어떤 영향을 미치는지 분석하고자 할 때 적용됩니다.
+
+예를 들어, 위에서 언급한 자동차의 mpg 값이 고속도로에서 운전할 때와 시내에서 운전할 때 다른지 알고 싶을때 사용할 수 있다.
+
+|         |  A  |  B  |  C  |
+|:-------:|:---:|:---:|:---:|
+|  city   | 14  | 28  | 20  |
+|  city   | 12  | 26  | 21  |
+|  city   | 15  | 26  | 19  |
+| highway | 19  | 33  | 27  |
+| highway | 18  | 32  | 26  |
+| highway | 19  | 33  | 24  |
+
+
+이원 분산 분석을 위해 다음과 같이 데이터를 만든다.
+
+```{r}
+where <- c(rep('city', 9), rep('highway', 9))
+brand <- c(rep(c('A', 'B', 'C'), each = 3))
+mpg2 <- c(14, 12, 15, 
+          28, 26, 26, 
+          20, 21, 19, 
+          19, 18, 19, 
+          33, 32, 33, 
+          27, 26, 24)
+
+twoway <- data.frame(where, brand, mpg2)
+twoway
+```
+
+이원 분산 분석에는 세 가지의 가설들이 검정되어야 한다. 
+
+첫 번째 가설은 다음과 같다. 
+
+$H0 : \mu(A) = \mu(B) = \mu(C)$
+
+$Ha : \text{최소 두개의 평균이 다르다(At least two means are different)}$
+
+```{r}
+model1 <- aov(mpg2 ~ where + brand + where*brand, data = twoway)
+
+summary(model1)
+```
+
+위의 결과에서 p brand의 p-value는 0.05보다 작기 때문에 brand간의 평균은 최소 두개의 평균이 다르다는 대립 가설을 채택한다. 
+
+두 번째 가설은 
+
+$H0 : \mu(city) = \mu(highway)$
+
+$Ha : \mu(city) \ne \mu(highway)$
+
+앞선 `aov()`의 결과에서 brand 변수와 유사하게, 차를 운전하는 장소를 의미하는 where 변수는 p-값이 0.05(= 2.28e-07)보다 작기 때문에 장소에 따른 평균 차이가 같지 않다는 대립 가설을 채택한다. 
+
+마지막으로 다음의 가설을 검정한다. 
+
+$H0 : \text{brand와 where간의 상호작용이 없다}$
+
+$Ha : \text{brand와 where간의 상호작용이 있다}$
+
+앞선 `aov()`의 결과에서 where:brand가 where에 따른 brand의 상호작용에 대한 변수를 말한다. 이 변수의 p value가 0.743으로 매우 큰 p-value가 나온다. 이로 인해 귀무가설인 'brand와 where 간의 상호작용이 없다'는 귀무가설을 기각할 수 없고 brand와 where간의 상호작용이 있다는 가설에 대한 충분한 증거가 없다. 
+
+이를 앞에서 사용했던 `TukeyHSD()`를 사용해 상세히 살펴본다. Tukey 테스트는 차이가 가장 많이 발생하는 부분과 특정 그룹의 평균이 다른 부분을 파악하는 데 도움이 된다. 
+
+```{r}
+TukeyHSD(model1)
+
+```
+
+이 결과를 시각화하면 더 알아보기가 편하다. 
+
+```{r}
+twoway |>
+  group_by(where, brand) |>
+  summarise(ave = mean(mpg2), se = sd(mpg2) / sqrt(length(mpg2)), tstar = qt(1-0.05/2, length(mpg2)-1)) |>
+  ggplot(aes(x = where, y = ave)) +
+  geom_point(aes(color = brand), size = 3) +
+  geom_errorbar(aes(ymin = ave -se * tstar, ymax = ave + se * tstar, color = brand), width = 0.1) + 
+  ylab('Average MPG')
+
+```
+
+
