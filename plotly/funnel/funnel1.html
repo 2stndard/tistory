@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>funnel1.knit</title>
+
+<script src="funnel1_files/header-attrs-2.15/header-attrs.js"></script>
+<script src="funnel1_files/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="funnel1_files/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="funnel1_files/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="funnel1_files/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="funnel1_files/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="funnel1_files/navigation-1.1/tabsets.js"></script>
+<link href="funnel1_files/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="funnel1_files/highlightjs-9.12.0/highlight.js"></script>
+<script src="funnel1_files/htmlwidgets-1.5.4/htmlwidgets.js"></script>
+<script src="funnel1_files/plotly-binding-4.10.0/plotly.js"></script>
+<script src="funnel1_files/typedarray-0.1/typedarray.min.js"></script>
+<link href="funnel1_files/crosstalk-1.2.0/css/crosstalk.min.css" rel="stylesheet" />
+<script src="funnel1_files/crosstalk-1.2.0/js/crosstalk.min.js"></script>
+<link href="funnel1_files/plotly-htmlwidgets-css-2.5.1/plotly-htmlwidgets.css" rel="stylesheet" />
+<script src="funnel1_files/plotly-main-2.5.1/plotly-latest.min.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+<link rel="stylesheet" href="D:/analysis/R/tistory/plotly/style.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div id="header">
+
+
+
+
+</div>
+
+
+<p>사용데이터 : <a href="https://2stndard.tistory.com/68"
+class="uri">https://2stndard.tistory.com/68</a></p>
+<div id="피라미드를-그려보자---퍼널-차트" class="section level2">
+<h2>피라미드를 그려보자 - 퍼널 차트</h2>
+<p>피라미드 그래프는 보통 인구 연령별 인구수를 표현하는 그래프에서 많이
+사용된다. 하지만 <code>plotly</code>에서는 피라미드 그래프라는 이름으로
+사용되지 않고 퍼널(깔때기, funnel) trace라는 이름으로 사용된다. 퍼널
+trace는 변량의 크기를 길이로 표현한 막대로 표현하고 각 막대의 중간을
+맞춰 양쪽으로 퍼져나가는 깔때기 형태의 trace이다. 이 퍼널 차트는 영업 및
+마케팅 부서에서 자주 사용되는데 여러 단계별로 값이나 지표가 변화하는
+것을 한 눈에 표현하기 위한 목적으로 사용한다.</p>
+<p>코로나19 데이터를 사용하여 퍼널 차트를 만들기 위해 일간 코로나19
+데이터를 주(week) 단위로 요약하여 주 단위로 값의 변화를 살펴보겠다. 먼저
+최근 100일간의 우리나라 코로나19 신규 확진자 데이터를 주 단위로 요약하는
+전처리는 다음과 같다.</p>
+<pre class="r"><code>df_funnel &lt;- 
+  df_covid19_100 |&gt; 
+  filter(iso_code == &#39;KOR&#39;) |&gt;
+  ## date의 월 단위 열을 yearmonth에 저장
+  mutate(date_by_week = lubridate::floor_date(date, &quot;week&quot;), 
+         yearweekth =  paste0(lubridate::year(date_by_week), &#39;년 &#39;, 
+                           lubridate::week(date_by_week), &#39;주&#39;)) |&gt; 
+  ## iso_code, yearmonth로 그룹화
+  group_by(iso_code, date_by_week, yearweekth) |&gt;
+  ## new_cases 합계 산출
+  summarise(new_cases = sum(new_cases))</code></pre>
+<p>전처리된 데이터를 사용하여 퍼널 차트를 그려본다. X축은 데이터 값인
+신규 확진자 수를 매핑하고 Y축은 단계로 구분했던 연도의 주(Week) 차수를
+매핑함으로서 퍼널 차트를 쉽게 그릴 수 있다.</p>
+<pre class="r"><code>df_funnel |&gt;
+  plot_ly() |&gt;
+  add_trace(type = &#39;funnel&#39;, x = ~new_cases, y = ~date_by_week, 
+            text = ~new_cases, texttemplate = &#39;%{text:,.0f}&#39;) |&gt;
+  layout(title = &#39;우리나라 주별 확진자수&#39;, 
+    yaxis = list(title = &#39;&#39;, 
+                      tickvals = ~date_by_week, 
+                      ticktext = ~yearweekth), 
+    margin = margins)</code></pre>
+<div id="htmlwidget-ec6fb93c203cf496c5fd" style="width:845px;height:650px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-ec6fb93c203cf496c5fd">{"x":{"visdat":{"6180b754dd":["function () ","plotlyVisDat"]},"cur_data":"6180b754dd","attrs":{"6180b754dd":{"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"funnel","x":{},"y":{},"text":{},"texttemplate":"%{text:,.0f}","inherit":true}},"layout":{"margin":{"b":25,"l":25,"t":50,"r":25},"title":"우리나라 주별 확진자수","yaxis":{"domain":[0,1],"automargin":true,"title":"","tickvals":["2022-08-07","2022-08-14","2022-08-21","2022-08-28","2022-09-04","2022-09-11","2022-09-18","2022-09-25","2022-10-02","2022-10-09","2022-10-16","2022-10-23","2022-10-30","2022-11-06","2022-11-13"],"ticktext":["2022년 32주","2022년 33주","2022년 34주","2022년 35주","2022년 36주","2022년 37주","2022년 38주","2022년 39주","2022년 40주","2022년 41주","2022년 42주","2022년 43주","2022년 44주","2022년 45주","2022년 46주"]},"xaxis":{"domain":[0,1],"automargin":true,"title":"new_cases"},"hovermode":"closest","showlegend":false},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"data":[{"type":"funnel","x":[811538,884373,743487,585374,435695,389579,225662,199483,151178,149676,176869,241465,299440,355990,218672],"y":["2022-08-07","2022-08-14","2022-08-21","2022-08-28","2022-09-04","2022-09-11","2022-09-18","2022-09-25","2022-10-02","2022-10-09","2022-10-16","2022-10-23","2022-10-30","2022-11-06","2022-11-13"],"text":[811538,884373,743487,585374,435695,389579,225662,199483,151178,149676,176869,241465,299440,355990,218672],"texttemplate":["%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}"],"marker":{"color":"rgba(31,119,180,1)","line":{"color":"rgba(31,119,180,1)"}},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+<p>앞선 퍼널 차트에서 보면 우리나라의 신규 확진자 수는 2022년 4주차부터
+늘어나기 시작해서 2022년 11주차(3.13~3.19)까지 급격히 증가하고 감소하는
+상황이라는 것이 한눈에 보인다.</p>
+<p>만약 이 퍼널 차트를 전체 대륙이 한꺼번에 나타나도록 그리기 위해서는
+어떻게 해야할까? 여러 변량을 추가하려면 <code>add_trace()</code>를
+추가하면 간단히 그려진다. 다음은 아시아와 유럽의 신규 확진자 주별
+데이터에 대한 퍼널 차트이다.</p>
+<pre class="r"><code>df_funnel_Asia &lt;- 
+  df_covid19_100 |&gt; 
+  filter(location == &#39;아시아&#39;) |&gt;
+  ## date의 월 단위 열을 yearmonth에 저장
+  mutate(date_by_week = lubridate::floor_date(date, &quot;week&quot;), 
+         yearweekth =  paste0(lubridate::year(date_by_week), &#39;년 &#39;, 
+                           lubridate::week(date_by_week), &#39;주&#39;)) |&gt; 
+  ## iso_code, yearmonth로 그룹화
+  group_by(iso_code, date_by_week, yearweekth) |&gt;
+  ## new_cases 합계 산출
+  summarise(new_cases = sum(new_cases))
+
+df_funnel_Europe &lt;- 
+  df_covid19_100 |&gt; 
+  filter(location == &#39;유럽&#39;) |&gt;
+  ## date의 월 단위 열을 yearmonth에 저장
+  mutate(date_by_week = lubridate::floor_date(date, &quot;week&quot;), 
+         yearweekth =  paste0(lubridate::year(date_by_week), &#39;년 &#39;, 
+                           lubridate::week(date_by_week), &#39;주&#39;)) |&gt; 
+  ## iso_code, yearmonth로 그룹화
+  group_by(iso_code, date_by_week, yearweekth) |&gt;
+  ## new_cases 합계 산출
+  summarise(new_cases = sum(new_cases))
+
+df_funnel_Asia |&gt; 
+  plot_ly() |&gt;
+  add_trace(type = &#39;funnel&#39;, name = &#39;아시아&#39;, 
+            x = ~new_cases, y = ~date_by_week, 
+            text = ~new_cases, texttemplate = &#39;%{text:,.0f}&#39;) |&gt;
+  add_trace(data = df_funnel_Europe,type = &#39;funnel&#39;, name = &#39;유럽&#39;,
+            x = ~new_cases, y = ~date_by_week, 
+            text = ~new_cases, texttemplate = &#39;%{text:,.0f}&#39;) |&gt;
+  layout(title = &#39;아시아와 유럽의 주별 확진자수&#39;, 
+    yaxis = list(title = &#39;&#39;, 
+                      tickvals = ~date_by_week, 
+                      ticktext = ~yearweekth), 
+    margin = margins)</code></pre>
+<div id="htmlwidget-501b6583099caed601db" style="width:845px;height:650px;" class="plotly html-widget"></div>
+<script type="application/json" data-for="htmlwidget-501b6583099caed601db">{"x":{"visdat":{"61801dfe63b":["function () ","plotlyVisDat"],"61801e0477ce":["function () ","data"]},"cur_data":"61801e0477ce","attrs":{"61801dfe63b":{"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"funnel","name":"아시아","x":{},"y":{},"text":{},"texttemplate":"%{text:,.0f}","inherit":true},"61801e0477ce":{"alpha_stroke":1,"sizes":[10,100],"spans":[1,20],"type":"funnel","name":"유럽","x":{},"y":{},"text":{},"texttemplate":"%{text:,.0f}","inherit":true}},"layout":{"margin":{"b":25,"l":25,"t":50,"r":25},"title":"아시아와 유럽의 주별 확진자수","yaxis":{"domain":[0,1],"automargin":true,"title":"","tickvals":["2022-08-07","2022-08-14","2022-08-21","2022-08-28","2022-09-04","2022-09-11","2022-09-18","2022-09-25","2022-10-02","2022-10-09","2022-10-16","2022-10-23","2022-10-30","2022-11-06","2022-11-13"],"ticktext":["2022년 32주","2022년 33주","2022년 34주","2022년 35주","2022년 36주","2022년 37주","2022년 38주","2022년 39주","2022년 40주","2022년 41주","2022년 42주","2022년 43주","2022년 44주","2022년 45주","2022년 46주"]},"xaxis":{"domain":[0,1],"automargin":true,"title":"new_cases"},"hovermode":"closest","showlegend":true},"source":"A","config":{"modeBarButtonsToAdd":["hoverclosest","hovercompare"],"showSendToCloud":false},"data":[{"type":"funnel","name":"아시아","x":[2548524,3298092,2667222,2144709,1708181,1538112,1133429,969523,851821,923193,868053,930720,1069014,1233786,574914],"y":["2022-08-07","2022-08-14","2022-08-21","2022-08-28","2022-09-04","2022-09-11","2022-09-18","2022-09-25","2022-10-02","2022-10-09","2022-10-16","2022-10-23","2022-10-30","2022-11-06","2022-11-13"],"text":[2548524,3298092,2667222,2144709,1708181,1538112,1133429,969523,851821,923193,868053,930720,1069014,1233786,574914],"texttemplate":["%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}"],"marker":{"color":"rgba(31,119,180,1)","line":{"color":"rgba(31,119,180,1)"}},"xaxis":"x","yaxis":"y","frame":null},{"type":"funnel","name":"유럽","x":[1330679,1237777,1188894,1126169,1076531,1282179,1396983,1688430,1859973,1893630,1724869,1249767,809434,819957,428363],"y":["2022-08-07","2022-08-14","2022-08-21","2022-08-28","2022-09-04","2022-09-11","2022-09-18","2022-09-25","2022-10-02","2022-10-09","2022-10-16","2022-10-23","2022-10-30","2022-11-06","2022-11-13"],"text":[1330679,1237777,1188894,1126169,1076531,1282179,1396983,1688430,1859973,1893630,1724869,1249767,809434,819957,428363],"texttemplate":["%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}","%{text:,.0f}"],"marker":{"color":"rgba(255,127,14,1)","line":{"color":"rgba(255,127,14,1)"}},"xaxis":"x","yaxis":"y","frame":null}],"highlight":{"on":"plotly_click","persistent":false,"dynamic":false,"selectize":false,"opacityDim":0.2,"selected":{"opacity":1},"debounce":0},"shinyEvents":["plotly_hover","plotly_click","plotly_selected","plotly_relayout","plotly_brushed","plotly_brushing","plotly_clickannotation","plotly_doubleclick","plotly_deselect","plotly_afterplot","plotly_sunburstclick"],"base_url":"https://plot.ly"},"evals":[],"jsHooks":[]}</script>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
